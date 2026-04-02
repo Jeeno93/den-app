@@ -31,15 +31,20 @@ Notifications.setNotificationHandler({
 
 async function scheduleDaily(hour: number, minute: number) {
   if (Platform.OS === "web") return;
-  const todayQ = getDayQuestion(new Date());
   const oldId = await AsyncStorage.getItem(NOTIF_ID_KEY);
   if (oldId) {
-    await Notifications.cancelScheduledNotificationAsync(oldId);
+    try {
+      await Notifications.cancelScheduledNotificationAsync(oldId);
+    } catch {
+    }
   }
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowQ = getDayQuestion(tomorrow);
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: "День",
-      body: `Сегодняшний вопрос: ${todayQ}`,
+      body: `Вопрос дня: ${tomorrowQ}`,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
