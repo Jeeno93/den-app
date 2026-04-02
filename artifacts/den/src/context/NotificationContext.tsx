@@ -63,6 +63,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const [h, m] = val.split(":").map(Number);
             setNotifHour(h);
             setNotifMinute(m);
+            scheduleDaily(h, m);
+          } else {
+            scheduleDaily(21, 0);
           }
         });
       });

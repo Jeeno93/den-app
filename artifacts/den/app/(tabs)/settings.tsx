@@ -132,7 +132,11 @@ export default function SettingsScreen() {
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {(["system", "light", "dark"] as const).map((mode, idx) => {
             const labels = { system: "Системная", light: "Светлая", dark: "Тёмная" };
-            const icons: Record<string, string> = { system: "phone-portrait-outline", light: "sunny-outline", dark: "moon-outline" };
+            const icons: Record<typeof mode, React.ComponentProps<typeof Ionicons>["name"]> = {
+              system: "phone-portrait-outline",
+              light: "sunny-outline",
+              dark: "moon-outline",
+            };
             const isLast = idx === 2;
             return (
               <TouchableOpacity
@@ -146,7 +150,7 @@ export default function SettingsScreen() {
                 testID={`theme-${mode}`}
               >
                 <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
-                  <Ionicons name={icons[mode] as any} size={20} color={theme.foreground} />
+                  <Ionicons name={icons[mode]} size={20} color={theme.foreground} />
                 </View>
                 <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>
                   {labels[mode]}
