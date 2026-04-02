@@ -6,6 +6,7 @@ import { getDayQuestion } from "@/src/data/questions";
 
 const NOTIF_TIME_KEY = "notification_time";
 const NOTIF_ID_KEY = "notification_id";
+const NOTIF_SCHEDULED_DATE_KEY = "notification_scheduled_date";
 
 interface NotificationContextValue {
   notifHour: number;
@@ -29,8 +30,21 @@ Notifications.setNotificationHandler({
   }),
 });
 
-async function scheduleDaily(hour: number, minute: number) {
+function todayDateString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function scheduleNextDayNotification(hour: number, minute: number): Promise<void> {
   if (Platform.OS === "web") return;
+
+  const lastScheduled = await AsyncStorage.getItem(NOTIF_SCHEDULED_DATE_KEY);
+  const today = todayDateString();
+
+  if (lastScheduled === today) {
+    return;
+  }
+
   const oldId = await AsyncStorage.getItem(NOTIF_ID_KEY);
   if (oldId) {
     try {
@@ -38,13 +52,15 @@ async function scheduleDaily(hour: number, minute: number) {
     } catch {
     }
   }
+
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowQ = getDayQuestion(tomorrow);
+  const nextQuestion = getDayQuestion(tomorrow);
+
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: "День",
-      body: `Вопрос дня: ${tomorrowQ}`,
+      body: `Вопрос дня: ${nextQuestion}`,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -52,7 +68,9 @@ async function scheduleDaily(hour: number, minute: number) {
       minute,
     },
   });
+
   await AsyncStorage.setItem(NOTIF_ID_KEY, id);
+  await AsyncStorage.setItem(NOTIF_SCHEDULED_DATE_KEY, today);
 }
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
@@ -68,9 +86,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const [h, m] = val.split(":").map(Number);
             setNotifHour(h);
             setNotifMinute(m);
-            scheduleDaily(h, m);
+            scheduleNextDayNotification(h, m);
           } else {
-            scheduleDaily(21, 0);
+            scheduleNextDayNotification(21, 0);
           }
         });
       });
@@ -81,7 +99,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifHour(hour);
     setNotifMinute(minute);
     await AsyncStorage.setItem(NOTIF_TIME_KEY, `${hour}:${minute}`);
-    await scheduleDaily(hour, minute);
+    await AsyncStorage.removeItem(NOTIF_SCHEDULED_DATE_KEY);
+    await scheduleNextDayNotification(hour, minute);
   };
 
   return (
