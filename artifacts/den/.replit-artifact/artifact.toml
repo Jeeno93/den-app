@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "День — микро-дневник"
+version = "1.0.0"
+id = "artifacts/den"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 21351
+
+[services.development]
+run = "pnpm --filter @workspace/den run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/den", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/den", "run", "serve" ]
+
+[services.env]
+PORT = "21351"
+BASE_PATH = "/"

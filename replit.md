@@ -16,6 +16,18 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Artifacts
+
+### День — Micro-journal Mobile App (`artifacts/den`)
+- **Framework**: Expo + React Native + Expo Router
+- **Storage**: AsyncStorage (local, no backend)
+- **Structure**:
+  - `app/` — Expo Router routes only: `_layout.tsx`, `(tabs)/`, `day-detail.tsx`
+  - `src/` — All non-route code: `components/`, `context/`, `storage/`, `data/`
+  - `constants/colors.ts` — Design tokens (light/dark theme)
+  - `hooks/useColors.ts` — Color scheme hook
+- **Features**: 4 tabs (Сегодня, Календарь, Воспоминания, Настройки), mood picker (5 levels), 365 rotating daily questions, streak tracking, notifications
+
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages
