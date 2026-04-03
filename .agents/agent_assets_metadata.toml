@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "Y0cetRHOGSYKFQTxWzAGk"
 uri = "file://artifacts/den/assets/images/icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "FzxSNjbtFZJy0Zv2g1WWH"
+uri = "file://artifacts/den/DOCUMENTATION.md"
+type = "text"
+title = "День — Полная документация продукта"
