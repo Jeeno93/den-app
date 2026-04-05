@@ -16,7 +16,9 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.jeeno93.den"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -40,6 +42,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a2e7510b-8902-4750-88c9-f4b69fa5decd"
+      }
     }
   }
 }
