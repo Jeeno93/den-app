@@ -5,7 +5,6 @@ import {
   TextInput,
   View,
   TouchableOpacity,
-  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -18,6 +17,7 @@ interface QuestionCardProps {
   value: string;
   onChange: (text: string) => void;
   onNext: () => void;
+  onBack?: () => void;
   isLast: boolean;
 }
 
@@ -28,6 +28,7 @@ export function QuestionCard({
   value,
   onChange,
   onNext,
+  onBack,
   isLast,
 }: QuestionCardProps) {
   const { isDark } = useTheme();
@@ -57,9 +58,7 @@ export function QuestionCard({
                 styles.dot,
                 {
                   backgroundColor:
-                    i < questionNumber
-                      ? theme.primary
-                      : theme.border,
+                    i < questionNumber ? theme.primary : theme.border,
                   width: i === questionNumber - 1 ? 16 : 6,
                 },
               ]}
@@ -91,25 +90,45 @@ export function QuestionCard({
         textAlignVertical="top"
       />
 
-      <TouchableOpacity
-        style={[
-          styles.nextButton,
-          { backgroundColor: theme.primary },
-        ]}
-        onPress={onNext}
-        activeOpacity={0.85}
-        testID={isLast ? "done-button" : "next-button"}
-      >
-        <Text style={[styles.nextButtonText, { color: theme.primaryForeground }]}>
-          {isLast ? "Готово" : "Далее"}
-        </Text>
-        {!isLast && (
-          <Ionicons name="arrow-forward" size={18} color={theme.primaryForeground} />
-        )}
-        {isLast && (
-          <Ionicons name="checkmark" size={18} color={theme.primaryForeground} />
-        )}
-      </TouchableOpacity>
+      <View style={styles.buttonRow}>
+        {onBack ? (
+          <TouchableOpacity
+            style={[
+              styles.backButton,
+              { borderColor: theme.border, backgroundColor: theme.muted },
+            ]}
+            onPress={onBack}
+            activeOpacity={0.7}
+            testID="back-button"
+          >
+            <Ionicons name="chevron-back" size={18} color={theme.mutedForeground} />
+            <Text style={[styles.backButtonText, { color: theme.mutedForeground }]}>
+              Назад
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity
+          style={[
+            styles.nextButton,
+            { backgroundColor: theme.primary },
+            !onBack && styles.nextButtonFull,
+          ]}
+          onPress={onNext}
+          activeOpacity={0.85}
+          testID={isLast ? "done-button" : "next-button"}
+        >
+          <Text style={[styles.nextButtonText, { color: theme.primaryForeground }]}>
+            {isLast ? "Готово" : "Далее"}
+          </Text>
+          {!isLast && (
+            <Ionicons name="arrow-forward" size={18} color={theme.primaryForeground} />
+          )}
+          {isLast && (
+            <Ionicons name="checkmark" size={18} color={theme.primaryForeground} />
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -156,7 +175,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  backButton: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    borderWidth: 1,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
   nextButton: {
+    flex: 2,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -164,6 +202,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+  },
+  nextButtonFull: {
+    flex: 1,
   },
   nextButtonText: {
     fontSize: 16,

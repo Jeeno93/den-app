@@ -262,6 +262,7 @@ export default function HomeScreen() {
             setAnswers((prev) => ({ ...prev, [QUESTIONS[currentQuestion].key]: text }))
           }
           onNext={handleNext}
+          onBack={currentQuestion > 0 ? () => setCurrentQuestion((q) => q - 1) : undefined}
           isLast={false}
         />
       </ScrollView>
