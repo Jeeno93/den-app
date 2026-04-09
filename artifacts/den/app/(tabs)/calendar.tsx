@@ -96,6 +96,8 @@ export default function CalendarScreen() {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     if (entries[dateStr]) {
       router.push({ pathname: "/day-detail", params: { date: dateStr } });
+    } else if (dateStr <= today) {
+      router.push({ pathname: "/day-fill", params: { date: dateStr } });
     }
   }
 
@@ -134,14 +136,16 @@ export default function CalendarScreen() {
               const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               const entry = entries[dateStr];
               const isToday = dateStr === today;
+              const isPast = dateStr <= today;
+              const isTappable = !!entry || isPast;
 
               return (
                 <TouchableOpacity
                   key={di}
                   style={[styles.dayCell, { alignItems: "center", justifyContent: "center" }]}
                   onPress={() => handleDayPress(day)}
-                  disabled={!entry}
-                  activeOpacity={entry ? 0.7 : 1}
+                  disabled={!isTappable}
+                  activeOpacity={isTappable ? 0.7 : 1}
                   testID={`day-${day}`}
                 >
                   <View
