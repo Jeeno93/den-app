@@ -13,6 +13,7 @@ export interface DayEntry {
   mood: number;
   answers: DayAnswers;
   question: string;
+  notes: string;
   photo: string | null;
 }
 

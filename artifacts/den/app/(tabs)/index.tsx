@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -20,6 +20,7 @@ import { formatDate, getDay, saveDay } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { MoodPicker } from "@/src/components/MoodPicker";
 import { QuestionCard } from "@/src/components/QuestionCard";
+import { NotesCard } from "@/src/components/NotesCard";
 import { DayEntryView } from "@/src/components/DayEntry";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -32,7 +33,7 @@ const QUESTIONS = [
   { key: "dayQuestion" as const, label: "" },
 ];
 
-type Phase = "mood" | "questions" | "done" | "view";
+type Phase = "mood" | "questions" | "notes" | "done" | "view";
 
 export default function HomeScreen() {
   const { isDark } = useTheme();
@@ -54,6 +55,7 @@ export default function HomeScreen() {
     annoyed: "",
     dayQuestion: "",
   });
+  const [notes, setNotes] = useState("");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -77,6 +79,7 @@ export default function HomeScreen() {
       setSelectedMood(null);
       setCurrentQuestion(0);
       setAnswers({ learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "" });
+      setNotes("");
       animateIn();
     }
   }
@@ -102,12 +105,12 @@ export default function HomeScreen() {
     setCurrentQuestion(0);
   }
 
-  async function handleNext() {
+  function handleNext() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (currentQuestion < QUESTIONS.length - 1) {
       setCurrentQuestion((q) => q + 1);
     } else {
-      await handleDone();
+      setPhase("notes");
     }
   }
 
@@ -119,6 +122,7 @@ export default function HomeScreen() {
       mood: selectedMood,
       answers,
       question: dayQuestion,
+      notes,
       photo: null,
     };
     await saveDay(today, entry);
@@ -223,6 +227,22 @@ export default function HomeScreen() {
     dayQuestion,
   ];
 
+  if (phase === "notes") {
+    return (
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        <ScrollView
+          contentContainerStyle={[styles.questionContainer, { paddingTop: topPad + 20, paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
+          <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 20 }]}>{dayStr}</Text>
+          <NotesCard value={notes} onChange={setNotes} onDone={handleDone} />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -242,7 +262,7 @@ export default function HomeScreen() {
             setAnswers((prev) => ({ ...prev, [QUESTIONS[currentQuestion].key]: text }))
           }
           onNext={handleNext}
-          isLast={currentQuestion === QUESTIONS.length - 1}
+          isLast={false}
         />
       </ScrollView>
     </View>

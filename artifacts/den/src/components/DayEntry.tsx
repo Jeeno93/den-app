@@ -186,6 +186,26 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
           </TouchableOpacity>
         );
       })}
+
+      {entry.notes ? (
+        <View
+          style={[
+            styles.answerCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: isDark ? "#000" : "#333",
+            },
+          ]}
+        >
+          <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>
+            Заметки
+          </Text>
+          <Text style={[styles.answerText, { color: theme.foreground }]}>
+            {entry.notes}
+          </Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

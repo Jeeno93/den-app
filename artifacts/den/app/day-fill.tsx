@@ -19,6 +19,7 @@ import { saveDay } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { MoodPicker } from "@/src/components/MoodPicker";
 import { QuestionCard } from "@/src/components/QuestionCard";
+import { NotesCard } from "@/src/components/NotesCard";
 
 const WEEK_DAYS = [
   "воскресенье", "понедельник", "вторник", "среда",
@@ -37,7 +38,7 @@ const QUESTIONS = [
   { key: "dayQuestion" as const, label: "" },
 ];
 
-type Phase = "mood" | "questions" | "done";
+type Phase = "mood" | "questions" | "notes" | "done";
 
 export default function DayFillScreen() {
   const { isDark } = useTheme();
@@ -66,6 +67,7 @@ export default function DayFillScreen() {
     annoyed: "",
     dayQuestion: "",
   });
+  const [notes, setNotes] = useState("");
 
   const doneOpacity = useRef(new Animated.Value(0)).current;
   const doneScale = useRef(new Animated.Value(0.9)).current;
@@ -84,12 +86,12 @@ export default function DayFillScreen() {
     setCurrentQuestion(0);
   }
 
-  async function handleNext() {
+  function handleNext() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (currentQuestion < QUESTIONS.length - 1) {
       setCurrentQuestion((q) => q + 1);
     } else {
-      await handleDone();
+      setPhase("notes");
     }
   }
 
@@ -101,6 +103,7 @@ export default function DayFillScreen() {
       mood: selectedMood,
       answers,
       question: dayQuestion,
+      notes,
       photo: null,
     };
     await saveDay(date, entry);
@@ -190,6 +193,30 @@ export default function DayFillScreen() {
     );
   }
 
+  if (phase === "notes") {
+    return (
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color={theme.foreground} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <Text style={[styles.headerDate, { color: theme.foreground }]}>{fullDateStr}</Text>
+            <Text style={[styles.headerDay, { color: theme.mutedForeground }]}>{dayStr}</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+        <ScrollView
+          contentContainerStyle={[styles.questionContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <NotesCard value={notes} onChange={setNotes} onDone={handleDone} />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
@@ -221,7 +248,7 @@ export default function DayFillScreen() {
             setAnswers((prev) => ({ ...prev, [QUESTIONS[currentQuestion].key]: text }))
           }
           onNext={handleNext}
-          isLast={currentQuestion === QUESTIONS.length - 1}
+          isLast={false}
         />
       </ScrollView>
     </View>
