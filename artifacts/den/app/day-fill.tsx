@@ -68,6 +68,7 @@ export default function DayFillScreen() {
     dayQuestion: "",
   });
   const [notes, setNotes] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
 
   const doneOpacity = useRef(new Animated.Value(0)).current;
   const doneScale = useRef(new Animated.Value(0.9)).current;
@@ -104,7 +105,7 @@ export default function DayFillScreen() {
       answers,
       question: dayQuestion,
       notes,
-      photo: null,
+      photo: photo ?? null,
     };
     await saveDay(date, entry);
     setPhase("done");
@@ -211,7 +212,7 @@ export default function DayFillScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <NotesCard value={notes} onChange={setNotes} onDone={handleDone} />
+          <NotesCard value={notes} onChange={setNotes} photo={photo} onPhotoChange={setPhoto} onDone={handleDone} />
         </ScrollView>
       </View>
     );

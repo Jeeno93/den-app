@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import {
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -206,6 +207,28 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
           </Text>
         </View>
       ) : null}
+
+      {entry.photo ? (
+        <View
+          style={[
+            styles.photoCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: isDark ? "#000" : "#333",
+            },
+          ]}
+        >
+          <Text style={[styles.answerLabel, { color: theme.mutedForeground, marginBottom: 8 }]}>
+            Фото дня
+          </Text>
+          <Image
+            source={{ uri: entry.photo }}
+            style={styles.photoFull}
+            resizeMode="cover"
+          />
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -304,5 +327,19 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  photoCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  photoFull: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+    borderRadius: 10,
   },
 });

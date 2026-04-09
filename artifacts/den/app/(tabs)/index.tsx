@@ -56,6 +56,7 @@ export default function HomeScreen() {
     dayQuestion: "",
   });
   const [notes, setNotes] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -80,6 +81,7 @@ export default function HomeScreen() {
       setCurrentQuestion(0);
       setAnswers({ learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "" });
       setNotes("");
+      setPhoto(null);
       animateIn();
     }
   }
@@ -123,7 +125,7 @@ export default function HomeScreen() {
       answers,
       question: dayQuestion,
       notes,
-      photo: null,
+      photo: photo ?? null,
     };
     await saveDay(today, entry);
     setExistingEntry(entry);
@@ -237,7 +239,7 @@ export default function HomeScreen() {
         >
           <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
           <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 20 }]}>{dayStr}</Text>
-          <NotesCard value={notes} onChange={setNotes} onDone={handleDone} />
+          <NotesCard value={notes} onChange={setNotes} photo={photo} onPhotoChange={setPhoto} onDone={handleDone} />
         </ScrollView>
       </View>
     );
