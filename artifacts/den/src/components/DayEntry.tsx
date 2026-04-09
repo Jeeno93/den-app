@@ -1,17 +1,34 @@
-import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useRef, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import type { DayEntry as DayEntryType } from "@/src/storage/storage";
+import type { DayEntry as DayEntryType, DayAnswers } from "@/src/storage/storage";
+import { saveDay } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "./MoodPicker";
 
-const QUESTION_LABELS: Record<string, string> = {
+const QUESTION_LABELS: Record<keyof DayAnswers, string> = {
   learned: "Что узнал сегодня?",
   met: "Кого встретил или вспомнил?",
   laughed: "Что рассмешило?",
   annoyed: "Что раздражало?",
   dayQuestion: "Вопрос дня",
 };
+
+const ANSWER_KEYS: (keyof DayAnswers)[] = [
+  "learned",
+  "met",
+  "laughed",
+  "annoyed",
+  "dayQuestion",
+];
 
 interface DayEntryProps {
   entry: DayEntryType;
@@ -23,19 +40,37 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   const theme = isDark ? colors.dark : colors.light;
   const moodColor = getMoodColor(entry.mood);
 
-  const answerKeys: (keyof typeof entry.answers)[] = [
-    "learned",
-    "met",
-    "laughed",
-    "annoyed",
-    "dayQuestion",
-  ];
+  const [answers, setAnswers] = useState<DayAnswers>({ ...entry.answers });
+  const [editingKey, setEditingKey] = useState<keyof DayAnswers | null>(null);
+  const [draftValue, setDraftValue] = useState("");
+  const inputRef = useRef<TextInput>(null);
+
+  function startEdit(key: keyof DayAnswers) {
+    setDraftValue(answers[key]);
+    setEditingKey(key);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function cancelEdit() {
+    setEditingKey(null);
+    setDraftValue("");
+  }
+
+  async function saveEdit() {
+    if (editingKey === null) return;
+    const updated: DayAnswers = { ...answers, [editingKey]: draftValue.trim() };
+    setAnswers(updated);
+    setEditingKey(null);
+    setDraftValue("");
+    await saveDay(entry.date, { ...entry, answers: updated });
+  }
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.background }}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View
         style={[
@@ -54,15 +89,79 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
         </View>
       </View>
 
-      {answerKeys.map((key) => {
+      {ANSWER_KEYS.map((key) => {
         const label =
           key === "dayQuestion" && dayQuestion
             ? dayQuestion
             : QUESTION_LABELS[key];
-        const answer = entry.answers[key];
-        if (!answer) return null;
+        const answer = answers[key];
+        const isEditing = editingKey === key;
+
+        if (!answer && !isEditing) return null;
+
+        if (isEditing) {
+          return (
+            <View
+              key={key}
+              style={[
+                styles.answerCard,
+                styles.editingCard,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.primary,
+                  shadowColor: isDark ? "#000" : "#333",
+                },
+              ]}
+            >
+              <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>
+                {label}
+              </Text>
+
+              <TextInput
+                ref={inputRef}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? theme.muted : "#F8F9FA",
+                    color: theme.foreground,
+                    borderColor: theme.border,
+                  },
+                ]}
+                value={draftValue}
+                onChangeText={setDraftValue}
+                multiline
+                textAlignVertical="top"
+                placeholder="Напиши здесь..."
+                placeholderTextColor={theme.mutedForeground}
+              />
+
+              <View style={styles.editButtons}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, { backgroundColor: theme.muted, borderColor: theme.border }]}
+                  onPress={cancelEdit}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.cancelButtonText, { color: theme.mutedForeground }]}>
+                    Отмена
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveButton, { backgroundColor: theme.primary }]}
+                  onPress={saveEdit}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
+                  <Text style={[styles.saveButtonText, { color: theme.primaryForeground }]}>
+                    Сохранить
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        }
+
         return (
-          <View
+          <TouchableOpacity
             key={key}
             style={[
               styles.answerCard,
@@ -72,14 +171,19 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
                 shadowColor: isDark ? "#000" : "#333",
               },
             ]}
+            onPress={() => startEdit(key)}
+            activeOpacity={0.75}
           >
-            <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>
-              {label}
-            </Text>
+            <View style={styles.answerHeader}>
+              <Text style={[styles.answerLabel, { color: theme.mutedForeground, flex: 1 }]}>
+                {label}
+              </Text>
+              <Ionicons name="pencil-outline" size={15} color={theme.mutedForeground} />
+            </View>
             <Text style={[styles.answerText, { color: theme.foreground }]}>
               {answer}
             </Text>
-          </View>
+          </TouchableOpacity>
         );
       })}
     </ScrollView>
@@ -122,6 +226,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  editingCard: {
+    borderWidth: 1.5,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  answerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   answerLabel: {
     fontSize: 13,
     fontWeight: "500",
@@ -131,5 +246,43 @@ const styles = StyleSheet.create({
   answerText: {
     fontSize: 16,
     lineHeight: 24,
+  },
+  input: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    minHeight: 100,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  editButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  cancelButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  saveButton: {
+    flex: 2,
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

@@ -9,15 +9,15 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
-      },
-      "env": {
-        "PNPM_FLAGS": "--no-frozen-lockfile"
       }
     }
   },
