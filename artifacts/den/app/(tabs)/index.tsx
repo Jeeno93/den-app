@@ -35,25 +35,37 @@ const QUESTIONS = [
 
 type Phase = "mood" | "questions" | "notes" | "done" | "view";
 
+const MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+const WEEKDAYS = ["Воскресенье","Понедельник","Вторник","Среда","Четверг","Пятница","Суббота"];
+
+function getTodayStr() {
+  return formatDate(new Date());
+}
+
+function offsetDate(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return formatDate(d);
+}
+
+function parseDateObj(dateStr: string): Date {
+  return new Date(dateStr + "T12:00:00");
+}
+
 export default function HomeScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
 
-  const today = formatDate(new Date());
-  const todayDate = new Date();
-  const dayQuestion = getDayQuestion(todayDate);
+  const todayStr = getTodayStr();
 
+  const [viewDate, setViewDate] = useState<string>(todayStr);
   const [phase, setPhase] = useState<Phase>("mood");
   const [existingEntry, setExistingEntry] = useState<DayEntry | null>(null);
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({
-    learned: "",
-    met: "",
-    laughed: "",
-    annoyed: "",
-    dayQuestion: "",
+    learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "",
   });
   const [notes, setNotes] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
@@ -65,12 +77,14 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadToday();
+      const t = getTodayStr();
+      setViewDate(t);
+      loadDate(t);
     }, [])
   );
 
-  async function loadToday() {
-    const entry = await getDay(today);
+  async function loadDate(date: string) {
+    const entry = await getDay(date);
     if (entry) {
       setExistingEntry(entry);
       setPhase("view");
@@ -94,6 +108,19 @@ export default function HomeScreen() {
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 60, friction: 10 }),
     ]).start();
   }
+
+  function navigateTo(date: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setViewDate(date);
+    loadDate(date);
+  }
+
+  function goBack() { navigateTo(offsetDate(viewDate, -1)); }
+  function goForward() {
+    const next = offsetDate(viewDate, 1);
+    if (next <= todayStr) navigateTo(next);
+  }
+  function goToday() { navigateTo(todayStr); }
 
   function handleMoodSelect(mood: number) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -119,15 +146,17 @@ export default function HomeScreen() {
   async function handleDone() {
     if (!selectedMood) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const dateObj = parseDateObj(viewDate);
+    const dayQuestion = getDayQuestion(dateObj);
     const entry: DayEntry = {
-      date: today,
+      date: viewDate,
       mood: selectedMood,
       answers,
       question: dayQuestion,
       notes,
       photo: photo ?? null,
     };
-    await saveDay(today, entry);
+    await saveDay(viewDate, entry);
     setExistingEntry(entry);
     setPhase("done");
 
@@ -139,17 +168,65 @@ export default function HomeScreen() {
     ]).start();
   }
 
-  const weekDays = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
-  const months = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
-  const dateStr = `${todayDate.getDate()} ${months[todayDate.getMonth()]}`;
-  const dayStr = weekDays[todayDate.getDay()];
+  const viewDateObj = parseDateObj(viewDate);
+  const isToday = viewDate === todayStr;
+  const isForwardDisabled = offsetDate(viewDate, 1) > todayStr;
+  const dayQuestion = getDayQuestion(viewDateObj);
+  const dateStr = `${viewDateObj.getDate()} ${MONTHS[viewDateObj.getMonth()]}`;
+  const dayStr = WEEKDAYS[viewDateObj.getDay()];
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  const questionLabels = [
+    ...QUESTIONS.slice(0, 4).map((q) => q.label),
+    dayQuestion,
+  ];
+
+  function NavHeader({ bordered = false }: { bordered?: boolean }) {
+    return (
+      <View
+        style={[
+          styles.navHeader,
+          {
+            paddingTop: topPad + 8,
+            backgroundColor: theme.background,
+            borderBottomColor: bordered ? theme.border : "transparent",
+            borderBottomWidth: bordered ? 1 : 0,
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.navArrow} onPress={goBack} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={theme.foreground} />
+        </TouchableOpacity>
+
+        <View style={styles.navCenter}>
+          {!isToday ? (
+            <TouchableOpacity onPress={goToday} style={[styles.todayBtn, { backgroundColor: theme.primary + "18", borderColor: theme.primary + "44" }]} activeOpacity={0.75}>
+              <Ionicons name="today-outline" size={13} color={theme.primary} />
+              <Text style={[styles.todayBtnText, { color: theme.primary }]}>Сегодня</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.navCenterPlaceholder} />
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.navArrow, isForwardDisabled && styles.navArrowDisabled]}
+          onPress={goForward}
+          activeOpacity={isForwardDisabled ? 1 : 0.7}
+          disabled={isForwardDisabled}
+        >
+          <Ionicons name="chevron-forward" size={24} color={isForwardDisabled ? theme.border : theme.foreground} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (phase === "view" && existingEntry) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.background }}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: theme.background, borderBottomColor: theme.border }]}>
+        <NavHeader bordered />
+        <View style={[styles.viewDateRow, { borderBottomColor: theme.border }]}>
           <View>
             <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
             <Text style={[styles.dayText, { color: theme.mutedForeground }]}>{dayStr}</Text>
@@ -166,24 +243,27 @@ export default function HomeScreen() {
 
   if (phase === "done") {
     return (
-      <View style={[styles.doneContainer, { backgroundColor: theme.background }]}>
-        <Animated.View style={[styles.doneContent, { opacity: doneOpacity, transform: [{ scale: doneScale }] }]}>
-          <View style={[styles.doneIcon, { backgroundColor: theme.primary }]}>
-            <Ionicons name="checkmark" size={48} color="#fff" />
-          </View>
-          <Text style={[styles.doneTitle, { color: theme.foreground }]}>
-            День записан.
-          </Text>
-          <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>
-            Увидимся завтра.
-          </Text>
-          <TouchableOpacity
-            style={[styles.viewButton, { backgroundColor: theme.secondary }]}
-            onPress={() => setPhase("view")}
-          >
-            <Text style={[styles.viewButtonText, { color: theme.foreground }]}>Посмотреть запись</Text>
-          </TouchableOpacity>
-        </Animated.View>
+      <View style={[{ flex: 1, backgroundColor: theme.background }]}>
+        <NavHeader />
+        <View style={styles.doneContainer}>
+          <Animated.View style={[styles.doneContent, { opacity: doneOpacity, transform: [{ scale: doneScale }] }]}>
+            <View style={[styles.doneIcon, { backgroundColor: theme.primary }]}>
+              <Ionicons name="checkmark" size={48} color="#fff" />
+            </View>
+            <Text style={[styles.doneTitle, { color: theme.foreground }]}>
+              День записан.
+            </Text>
+            <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>
+              Увидимся завтра.
+            </Text>
+            <TouchableOpacity
+              style={[styles.viewButton, { backgroundColor: theme.secondary }]}
+              onPress={() => setPhase("view")}
+            >
+              <Text style={[styles.viewButtonText, { color: theme.foreground }]}>Посмотреть запись</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       </View>
     );
   }
@@ -191,8 +271,9 @@ export default function HomeScreen() {
   if (phase === "mood") {
     return (
       <Animated.View style={[styles.flex, { backgroundColor: theme.background, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <NavHeader />
         <ScrollView
-          contentContainerStyle={[styles.moodContainer, { paddingTop: topPad + 20, paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
+          contentContainerStyle={[styles.moodContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
           showsVerticalScrollIndicator={false}
         >
           <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
@@ -206,10 +287,7 @@ export default function HomeScreen() {
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.continueButton,
-              { backgroundColor: selectedMood ? theme.primary : theme.muted },
-            ]}
+            style={[styles.continueButton, { backgroundColor: selectedMood ? theme.primary : theme.muted }]}
             onPress={handleMoodContinue}
             disabled={!selectedMood}
             activeOpacity={0.85}
@@ -224,16 +302,12 @@ export default function HomeScreen() {
     );
   }
 
-  const questionLabels = [
-    ...QUESTIONS.slice(0, 4).map((q) => q.label),
-    dayQuestion,
-  ];
-
   if (phase === "notes") {
     return (
       <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        <NavHeader />
         <ScrollView
-          contentContainerStyle={[styles.questionContainer, { paddingTop: topPad + 20, paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
+          contentContainerStyle={[styles.questionContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -247,8 +321,9 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
+      <NavHeader />
       <ScrollView
-        contentContainerStyle={[styles.questionContainer, { paddingTop: topPad + 20, paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
+        contentContainerStyle={[styles.questionContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -274,6 +349,52 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  navHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  navArrow: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+  },
+  navArrowDisabled: {
+    opacity: 0.3,
+  },
+  navCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navCenterPlaceholder: {
+    height: 32,
+  },
+  todayBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  todayBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  viewDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -306,6 +427,7 @@ const styles = StyleSheet.create({
   },
   moodContainer: {
     paddingHorizontal: 20,
+    paddingTop: 16,
     gap: 4,
   },
   sectionTitle: {
@@ -335,6 +457,7 @@ const styles = StyleSheet.create({
   },
   questionContainer: {
     paddingHorizontal: 20,
+    paddingTop: 16,
     gap: 4,
   },
   doneContainer: {
