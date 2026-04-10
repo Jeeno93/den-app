@@ -59,7 +59,7 @@ async function scheduleNextDayNotification(hour: number, minute: number): Promis
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: "День",
+      title: "Den",
       body: `Вопрос дня: ${nextQuestion}`,
     },
     trigger: {

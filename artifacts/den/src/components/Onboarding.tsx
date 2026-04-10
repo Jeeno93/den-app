@@ -18,7 +18,7 @@ const ONBOARDING_KEY = "onboarding_done";
 const SLIDES = [
   {
     emoji: "📖",
-    title: "Добро пожаловать\nв День",
+    title: "Добро пожаловать\nв Den",
     text: "Ежедневный дневник для тех,\nкто никогда не вёл дневник.",
   },
   {

@@ -182,7 +182,7 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.appVersion, { color: theme.mutedForeground }]}>
-          День · v1.0.0
+          Den · v1.0.0
         </Text>
       </ScrollView>
     </View>
