@@ -298,7 +298,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
           ]}
         >
           <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>
-            Заметки
+            Итоги дня
           </Text>
           <TextInput
             ref={notesInputRef}
@@ -355,7 +355,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
         >
           <View style={styles.answerHeader}>
             <Text style={[styles.answerLabel, { color: theme.mutedForeground, flex: 1 }]}>
-              Заметки
+              Итоги дня
             </Text>
             <Ionicons name="pencil-outline" size={15} color={theme.mutedForeground} />
           </View>

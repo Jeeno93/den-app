@@ -85,10 +85,10 @@ export function NotesCard({ value, onChange, photo, onPhotoChange, onDone }: Not
     >
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: theme.foreground }]}>
-          Что ещё хочется сказать?
+          Как в целом прошел твой день?
         </Text>
         <Text style={[styles.optional, { color: theme.mutedForeground }]}>
-          необязательно
+          (необязательно)
         </Text>
       </View>
 
@@ -101,7 +101,7 @@ export function NotesCard({ value, onChange, photo, onPhotoChange, onDone }: Not
             borderColor: theme.border,
           },
         ]}
-        placeholder="Свободные мысли, наблюдения, идеи..."
+        placeholder="Опишите свой день своими словами..."
         placeholderTextColor={theme.mutedForeground}
         multiline
         value={value}
