@@ -41,6 +41,7 @@ const SEARCH_FIELDS: Array<{ key: string; label: string }> = [
   { key: "annoyed",     label: "Что раздражало" },
   { key: "dayQuestion", label: "Вопрос дня" },
   { key: "notes",       label: "Заметки" },
+  { key: "question",    label: "Вопрос дня" },
 ];
 
 interface MatchSegment {
@@ -88,11 +89,16 @@ function buildSearchResults(entries: Record<string, DayEntry>, query: string): S
 
   for (const entry of sorted) {
     for (const { key, label } of SEARCH_FIELDS) {
-      const text = key === "notes"
-        ? (entry.notes ?? "")
-        : (entry.answers as unknown as Record<string, string>)[key] ?? "";
+      let text = "";
+      if (key === "notes") {
+        text = entry.notes ?? "";
+      } else if (key === "question") {
+        text = entry.question ?? "";
+      } else {
+        text = (entry.answers as unknown as Record<string, string>)[key] ?? "";
+      }
 
-      if (text.toLowerCase().includes(lq)) {
+      if (text && text.toLowerCase().includes(lq)) {
         results.push({
           entry,
           fieldLabel: label,
@@ -294,10 +300,18 @@ export default function CalendarScreen() {
                 const isPast = dateStr <= today;
                 const isTappable = !!entry || isPast;
 
+                const textColor = entry
+                  ? "#ffffff"
+                  : isToday
+                  ? theme.primary
+                  : isPast
+                  ? theme.foreground
+                  : theme.mutedForeground;
+
                 return (
                   <TouchableOpacity
                     key={di}
-                    style={[styles.dayCell, { alignItems: "center", justifyContent: "center" }]}
+                    style={styles.dayCell}
                     onPress={() => handleDayPress(day)}
                     disabled={!isTappable}
                     activeOpacity={isTappable ? 0.7 : 1}
@@ -305,7 +319,7 @@ export default function CalendarScreen() {
                   >
                     <View
                       style={[
-                        styles.dayDot,
+                        styles.dayCircle,
                         {
                           backgroundColor: entry ? getMoodColor(entry.mood) : "transparent",
                           borderWidth: isToday ? 2 : 0,
@@ -313,26 +327,18 @@ export default function CalendarScreen() {
                         },
                       ]}
                     >
-                      {!entry && (
-                        <View
-                          style={[
-                            styles.emptyDot,
-                            { backgroundColor: isToday ? theme.primary + "30" : theme.border },
-                          ]}
-                        />
-                      )}
+                      <Text
+                        style={[
+                          styles.dayNum,
+                          {
+                            color: textColor,
+                            fontWeight: isToday || !!entry ? "700" : "400",
+                          },
+                        ]}
+                      >
+                        {day}
+                      </Text>
                     </View>
-                    <Text
-                      style={[
-                        styles.dayNum,
-                        {
-                          color: isToday ? theme.primary : theme.foreground,
-                          fontWeight: isToday ? "700" : "400",
-                        },
-                      ]}
-                    >
-                      {day}
-                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -415,25 +421,19 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: 44,
-    height: 60,
+    height: 52,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
   },
-  dayDot: {
+  dayCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
   dayNum: {
-    fontSize: 12,
+    fontSize: 14,
   },
   legend: {
     marginTop: 16,

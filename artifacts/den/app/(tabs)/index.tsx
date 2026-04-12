@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -77,28 +77,32 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const t = getTodayStr();
-      setViewDate(t);
-      loadDate(t);
+      setViewDate(getTodayStr());
     }, [])
   );
 
-  async function loadDate(date: string) {
-    const entry = await getDay(date);
-    if (entry) {
-      setExistingEntry(entry);
-      setPhase("view");
-    } else {
-      setExistingEntry(null);
-      setPhase("mood");
-      setSelectedMood(null);
-      setCurrentQuestion(0);
-      setAnswers({ learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "" });
-      setNotes("");
-      setPhoto(null);
-      animateIn();
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDate() {
+      const entry = await getDay(viewDate);
+      if (cancelled) return;
+      if (entry) {
+        setExistingEntry(entry);
+        setPhase("view");
+      } else {
+        setExistingEntry(null);
+        setPhase("mood");
+        setSelectedMood(null);
+        setCurrentQuestion(0);
+        setAnswers({ learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "" });
+        setNotes("");
+        setPhoto(null);
+        animateIn();
+      }
     }
-  }
+    loadDate();
+    return () => { cancelled = true; };
+  }, [viewDate]);
 
   function animateIn() {
     fadeAnim.setValue(0);
@@ -112,7 +116,6 @@ export default function HomeScreen() {
   function navigateTo(date: string) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setViewDate(date);
-    loadDate(date);
   }
 
   function goBack() { navigateTo(offsetDate(viewDate, -1)); }
