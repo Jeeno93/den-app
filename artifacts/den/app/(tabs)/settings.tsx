@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -161,6 +162,23 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             );
           })}
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>О приложении</Text>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => router.push("/why-diary" as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.rowIcon, { backgroundColor: "#1a5c4220" }]}>
+              <Text style={{ fontSize: 18 }}>🧠</Text>
+            </View>
+            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>
+              Зачем вести дневник
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Данные</Text>

@@ -27,6 +27,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="day-detail" options={{ headerShown: false, presentation: "card" }} />
+      <Stack.Screen name="why-diary" options={{ headerShown: false, presentation: "card" }} />
     </Stack>
   );
 }
