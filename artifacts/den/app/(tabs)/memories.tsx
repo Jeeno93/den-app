@@ -16,6 +16,7 @@ import colors from "@/constants/colors";
 import { formatDate, getAllDays, getDay, getStreak } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
+import { getDayQuote } from "@/src/data/quotes";
 
 const MONTHS_GEN = [
   "января", "февраля", "марта", "апреля", "мая", "июня",
@@ -136,6 +137,19 @@ export default function MemoriesScreen() {
             )}
           </View>
         </View>
+
+        {/* Quote of the day */}
+        {(() => {
+          const q = getDayQuote(new Date());
+          return (
+            <View style={[styles.quoteCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.quoteHeader, { color: theme.mutedForeground }]}>Мысль дня</Text>
+              <Text style={[styles.quoteOpenMark, { color: theme.primary }]}>"</Text>
+              <Text style={[styles.quoteText, { color: theme.foreground }]}>{q.text}</Text>
+              <Text style={[styles.quoteAuthor, { color: theme.mutedForeground }]}>— {q.author}</Text>
+            </View>
+          );
+        })()}
 
         <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Год назад</Text>
         {yearAgoEntry ? (
@@ -296,5 +310,34 @@ const styles = StyleSheet.create({
   surpriseBtnText: {
     fontSize: 16,
     fontWeight: "600",
+  },
+  quoteCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    gap: 4,
+  },
+  quoteHeader: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  quoteOpenMark: {
+    fontSize: 48,
+    fontWeight: "800",
+    lineHeight: 40,
+    marginTop: -4,
+    opacity: 0.5,
+  },
+  quoteText: {
+    fontSize: 16,
+    fontStyle: "italic",
+    lineHeight: 24,
+  },
+  quoteAuthor: {
+    fontSize: 13,
+    marginTop: 6,
   },
 });

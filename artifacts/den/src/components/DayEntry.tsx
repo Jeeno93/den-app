@@ -17,6 +17,7 @@ import colors from "@/constants/colors";
 import type { DayEntry as DayEntryType, DayAnswers } from "@/src/storage/storage";
 import { saveDay } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "./MoodPicker";
+import { getDayQuote } from "@/src/data/quotes";
 
 const QUESTION_LABELS: Record<keyof DayAnswers, string> = {
   learned: "Что узнал сегодня?",
@@ -436,6 +437,21 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
           </Text>
         </TouchableOpacity>
       )}
+
+      {/* Quote of the day */}
+      {(() => {
+        const q = getDayQuote(new Date(entry.date + "T12:00:00"));
+        return (
+          <View style={styles.quoteBlock}>
+            <Text style={[styles.quoteText, { color: theme.mutedForeground }]}>
+              «{q.text}»
+            </Text>
+            <Text style={[styles.quoteAuthor, { color: theme.mutedForeground }]}>
+              — {q.author}
+            </Text>
+          </View>
+        );
+      })()}
     </ScrollView>
   );
 }
@@ -584,5 +600,24 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 4 / 3,
     borderRadius: 10,
+  },
+  quoteBlock: {
+    marginTop: 16,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    gap: 6,
+    alignItems: "center",
+  },
+  quoteText: {
+    fontSize: 15,
+    fontStyle: "italic",
+    textAlign: "center",
+    lineHeight: 22,
+    opacity: 0.75,
+  },
+  quoteAuthor: {
+    fontSize: 12,
+    textAlign: "center",
+    opacity: 0.5,
   },
 });
