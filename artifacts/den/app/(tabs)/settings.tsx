@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useNotifications } from "@/src/context/NotificationContext";
 import colors from "@/constants/colors";
+import { getDiagnostics } from "@/src/storage/storage";
 
 function TimeSelector({ hour, minute, onConfirm }: { hour: number; minute: number; onConfirm: (h: number, m: number) => void }) {
   const { isDark } = useTheme();
@@ -63,12 +64,21 @@ function TimeSelector({ hour, minute, onConfirm }: { hour: number; minute: numbe
   );
 }
 
+interface DiagResult {
+  totalKeys: number;
+  dayKeys: string[];
+  lastEntryKey: string | null;
+  lastEntryRaw: string | null;
+}
+
 export default function SettingsScreen() {
   const { isDark, themeMode, setThemeMode } = useTheme();
   const { notifHour, notifMinute, setNotificationTime } = useNotifications();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [diagResult, setDiagResult] = useState<DiagResult | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -82,6 +92,18 @@ export default function SettingsScreen() {
 
   function handleExport() {
     Alert.alert("Экспорт", "Эта функция появится в следующей версии.");
+  }
+
+  async function handleDiagnose() {
+    setDiagLoading(true);
+    try {
+      const result = await getDiagnostics();
+      setDiagResult(result);
+    } catch {
+      Alert.alert("Ошибка", "Не удалось запустить диагностику.");
+    } finally {
+      setDiagLoading(false);
+    }
   }
 
   return (
@@ -199,6 +221,74 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Диагностика</Text>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={handleDiagnose}
+            activeOpacity={0.7}
+            testID="diagnostics-button"
+          >
+            <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
+              <Ionicons name="bug-outline" size={20} color={theme.foreground} />
+            </View>
+            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>
+              {diagLoading ? "Проверка…" : "Проверить хранилище"}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
+
+          {diagResult !== null && (
+            <View style={[styles.diagBox, { borderTopColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]}>
+              <Text style={[styles.diagLine, styles.diagBold, { color: theme.foreground }]}>
+                Всего ключей в хранилище: {diagResult.totalKeys}
+              </Text>
+              <Text style={[styles.diagLine, styles.diagBold, { color: theme.foreground }]}>
+                Записей дневника: {diagResult.dayKeys.length}
+              </Text>
+
+              {diagResult.dayKeys.length === 0 ? (
+                <Text style={[styles.diagLine, { color: "#FF453A" }]}>
+                  ⚠️ Ключи day_* не найдены — данные не сохранились
+                </Text>
+              ) : (
+                <>
+                  <Text style={[styles.diagLine, styles.diagLabel, { color: theme.mutedForeground }]}>
+                    Ключи:
+                  </Text>
+                  {diagResult.dayKeys.slice(0, 10).map((k) => (
+                    <Text key={k} style={[styles.diagLine, styles.diagMono, { color: theme.foreground }]}>
+                      • {k}
+                    </Text>
+                  ))}
+                  {diagResult.dayKeys.length > 10 && (
+                    <Text style={[styles.diagLine, { color: theme.mutedForeground }]}>
+                      … и ещё {diagResult.dayKeys.length - 10}
+                    </Text>
+                  )}
+                </>
+              )}
+
+              {diagResult.lastEntryKey && (
+                <>
+                  <Text style={[styles.diagLine, styles.diagLabel, { color: theme.mutedForeground, marginTop: 8 }]}>
+                    Последняя запись ({diagResult.lastEntryKey}):
+                  </Text>
+                  <Text style={[styles.diagLine, styles.diagMono, { color: theme.foreground }]} numberOfLines={6}>
+                    {diagResult.lastEntryRaw
+                      ? JSON.stringify(JSON.parse(diagResult.lastEntryRaw), null, 2).slice(0, 400)
+                      : "null"}
+                  </Text>
+                </>
+              )}
+
+              <TouchableOpacity onPress={() => setDiagResult(null)} style={{ marginTop: 8, alignSelf: "flex-end" }}>
+                <Text style={[styles.diagLine, { color: theme.primary, fontWeight: "600" }]}>Закрыть</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         <Text style={[styles.appVersion, { color: theme.mutedForeground }]}>
           Den · v1.0.0
         </Text>
@@ -303,5 +393,28 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 13,
     marginTop: 24,
+  },
+  diagBox: {
+    borderTopWidth: 1,
+    padding: 14,
+    gap: 4,
+  },
+  diagLine: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  diagBold: {
+    fontWeight: "700",
+  },
+  diagLabel: {
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    fontSize: 11,
+    marginTop: 6,
+  },
+  diagMono: {
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontSize: 12,
   },
 });
