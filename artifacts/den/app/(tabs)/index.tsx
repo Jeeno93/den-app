@@ -68,7 +68,8 @@ export default function HomeScreen() {
     learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "",
   });
   const [notes, setNotes] = useState("");
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [proud, setProud] = useState("");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -96,7 +97,8 @@ export default function HomeScreen() {
         setCurrentQuestion(0);
         setAnswers({ learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "" });
         setNotes("");
-        setPhoto(null);
+        setPhotos([]);
+        setProud("");
         animateIn();
       }
     }
@@ -157,7 +159,8 @@ export default function HomeScreen() {
       answers,
       question: dayQuestion,
       notes,
-      photo: photo ?? null,
+      photos,
+      proud,
     };
     await saveDay(viewDate, entry);
     setExistingEntry(entry);
@@ -316,7 +319,7 @@ export default function HomeScreen() {
         >
           <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
           <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 20 }]}>{dayStr}</Text>
-          <NotesCard value={notes} onChange={setNotes} photo={photo} onPhotoChange={setPhoto} onDone={handleDone} />
+          <NotesCard value={notes} onChange={setNotes} photos={photos} onPhotosChange={setPhotos} proud={proud} onProudChange={setProud} onDone={handleDone} />
         </ScrollView>
       </View>
     );

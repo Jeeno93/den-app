@@ -19,6 +19,8 @@ import { saveDay } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "./MoodPicker";
 import { getDayQuote } from "@/src/data/quotes";
 
+const MAX_PHOTOS = 3;
+
 const QUESTION_LABELS: Record<keyof DayAnswers, string> = {
   learned: "Что узнал сегодня?",
   met: "Кого встретил или вспомнил?",
@@ -55,7 +57,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   const [notesDraft, setNotesDraft] = useState("");
   const notesInputRef = useRef<TextInput>(null);
 
-  const [photo, setPhoto] = useState<string | null>(entry.photo ?? null);
+  const [photos, setPhotos] = useState<string[]>(entry.photos ?? []);
 
   // ── Answer editing ───────────────────────────────────────────────────────
   function startEdit(key: keyof DayAnswers) {
@@ -75,7 +77,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
     setAnswers(updated);
     setEditingKey(null);
     setDraftValue("");
-    await saveDay(entry.date, { ...entry, answers: updated, notes, photo });
+    await saveDay(entry.date, { ...entry, answers: updated, notes, photos });
   }
 
   // ── Notes editing ────────────────────────────────────────────────────────
@@ -95,7 +97,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
     setNotes(updated);
     setIsEditingNotes(false);
     setNotesDraft("");
-    await saveDay(entry.date, { ...entry, answers, notes: updated, photo });
+    await saveDay(entry.date, { ...entry, answers, notes: updated, photos });
   }
 
   // ── Photo editing ────────────────────────────────────────────────────────
@@ -113,8 +115,9 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
     });
     if (!result.canceled && result.assets[0].base64) {
       const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setPhoto(uri);
-      await saveDay(entry.date, { ...entry, answers, notes, photo: uri });
+      const updated = [...photos, uri];
+      setPhotos(updated);
+      await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
     }
   }
 
@@ -132,31 +135,34 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
     });
     if (!result.canceled && result.assets[0].base64) {
       const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setPhoto(uri);
-      await saveDay(entry.date, { ...entry, answers, notes, photo: uri });
+      const updated = [...photos, uri];
+      setPhotos(updated);
+      await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
     }
   }
 
-  function handleAddOrChangePhoto() {
+  function handleAddPhoto() {
+    if (photos.length >= MAX_PHOTOS) return;
     if (Platform.OS === "web") {
       pickFromGallery();
       return;
     }
-    Alert.alert(photo ? "Изменить фото" : "Фото дня", "Выберите источник", [
+    Alert.alert("Фото дня", "Выберите источник", [
       { text: "Камера", onPress: pickFromCamera },
       { text: "Галерея", onPress: pickFromGallery },
       { text: "Отмена", style: "cancel" },
     ]);
   }
 
-  async function handleDeletePhoto() {
+  async function handleDeletePhoto(idx: number) {
     Alert.alert("Удалить фото", "Фото будет удалено из записи.", [
       {
         text: "Удалить",
         style: "destructive",
         onPress: async () => {
-          setPhoto(null);
-          await saveDay(entry.date, { ...entry, answers, notes, photo: null });
+          const updated = photos.filter((_, i) => i !== idx);
+          setPhotos(updated);
+          await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
         },
       },
       { text: "Отмена", style: "cancel" },
@@ -285,6 +291,19 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
         );
       })}
 
+      {/* Proud */}
+      {!!entry.proud && (
+        <View
+          style={[
+            styles.answerCard,
+            { backgroundColor: theme.primary + "12", borderColor: theme.primary + "30", shadowColor: isDark ? "#000" : "#333" },
+          ]}
+        >
+          <Text style={[styles.answerLabel, { color: theme.primary }]}>Гордость дня</Text>
+          <Text style={[styles.answerText, { color: theme.foreground }]}>{entry.proud}</Text>
+        </View>
+      )}
+
       {/* Notes */}
       {isEditingNotes ? (
         <View
@@ -380,8 +399,8 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
         </TouchableOpacity>
       )}
 
-      {/* Photo */}
-      {photo ? (
+      {/* Photos */}
+      {photos.length > 0 && (
         <View
           style={[
             styles.photoCard,
@@ -396,39 +415,40 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
             <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>
               Фото дня
             </Text>
-            <View style={styles.photoActions}>
-              <TouchableOpacity
-                style={[styles.photoActionBtn, { backgroundColor: theme.muted }]}
-                onPress={handleAddOrChangePhoto}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="swap-horizontal-outline" size={15} color={theme.mutedForeground} />
-                <Text style={[styles.photoActionText, { color: theme.mutedForeground }]}>
-                  Изменить
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.photoActionBtn, { backgroundColor: "#FF453A18" }]}
-                onPress={handleDeletePhoto}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="trash-outline" size={15} color="#FF453A" />
-              </TouchableOpacity>
-            </View>
           </View>
-          <Image
-            source={{ uri: photo }}
-            style={styles.photoFull}
-            resizeMode="cover"
-          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoScrollContent}>
+            {photos.map((uri, idx) => (
+              <View key={idx} style={styles.photoThumbWrapper}>
+                <Image source={{ uri }} style={styles.photoThumb} resizeMode="cover" />
+                <TouchableOpacity
+                  style={[styles.photoDeleteBtn, { backgroundColor: "rgba(0,0,0,0.55)" }]}
+                  onPress={() => handleDeletePhoto(idx)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="trash-outline" size={14} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {photos.length < MAX_PHOTOS && (
+              <TouchableOpacity
+                style={[styles.photoAddBtn, { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]}
+                onPress={handleAddPhoto}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="add" size={24} color={theme.mutedForeground} />
+              </TouchableOpacity>
+            )}
+          </ScrollView>
         </View>
-      ) : (
+      )}
+
+      {photos.length === 0 && (
         <TouchableOpacity
           style={[
             styles.addNoteBtn,
             { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" },
           ]}
-          onPress={handleAddOrChangePhoto}
+          onPress={handleAddPhoto}
           activeOpacity={0.75}
         >
           <Ionicons name="camera-outline" size={18} color={theme.mutedForeground} />
@@ -469,7 +489,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    marginBottom: 4,
   },
   moodEmoji: {
     fontSize: 36,
@@ -494,72 +513,65 @@ const styles = StyleSheet.create({
   },
   editingCard: {
     borderWidth: 1.5,
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
   },
   answerHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
   answerLabel: {
-    fontSize: 13,
-    fontWeight: "500",
+    fontSize: 12,
+    fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   answerText: {
     fontSize: 16,
     lineHeight: 24,
   },
   input: {
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 14,
-    minHeight: 100,
+    padding: 12,
     fontSize: 16,
     lineHeight: 24,
+    minHeight: 80,
   },
   editButtons: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 4,
+    justifyContent: "flex-end",
   },
   cancelButton: {
-    flex: 1,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   cancelButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "500",
   },
   saveButton: {
-    flex: 2,
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 6,
   },
   saveButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
   },
   addNoteBtn: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderRadius: 16,
-    paddingVertical: 16,
   },
   addBtnText: {
     fontSize: 15,
@@ -569,7 +581,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    gap: 10,
+    gap: 12,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -579,6 +591,37 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  photoScrollContent: {
+    gap: 10,
+    alignItems: "center",
+  },
+  photoThumbWrapper: {
+    position: "relative",
+  },
+  photoThumb: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+  },
+  photoDeleteBtn: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoAddBtn: {
+    width: 80,
+    height: 120,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
   },
   photoActions: {
     flexDirection: "row",
@@ -595,11 +638,6 @@ const styles = StyleSheet.create({
   photoActionText: {
     fontSize: 13,
     fontWeight: "500",
-  },
-  photoFull: {
-    width: "100%",
-    aspectRatio: 4 / 3,
-    borderRadius: 10,
   },
   quoteBlock: {
     marginTop: 16,

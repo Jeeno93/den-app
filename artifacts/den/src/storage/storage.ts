@@ -14,7 +14,8 @@ export interface DayEntry {
   answers: DayAnswers;
   question: string;
   notes: string;
-  photo: string | null;
+  photos: string[];
+  proud: string;
 }
 
 export function formatDate(date: Date): string {
@@ -31,9 +32,17 @@ function keyForDate(date: string): string {
 function parseEntry(raw: string | null, key: string): DayEntry | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as DayEntry;
+    const parsed = JSON.parse(raw) as any;
+    // backward compat: photo → photos
+    if (!parsed.photos) {
+      parsed.photos = parsed.photo ? [parsed.photo] : [];
+    }
+    // backward compat: proud missing
+    if (parsed.proud === undefined || parsed.proud === null) {
+      parsed.proud = "";
+    }
     console.log(`[storage] parsed ${key}:`, JSON.stringify(parsed).slice(0, 120));
-    return parsed;
+    return parsed as DayEntry;
   } catch (err) {
     console.error(`[storage] JSON.parse failed for key "${key}":`, err, "raw:", raw?.slice(0, 100));
     return null;
@@ -112,12 +121,7 @@ export async function getDiagnostics(): Promise<{
       lastEntryRaw = await AsyncStorage.getItem(lastEntryKey);
     }
 
-    return {
-      totalKeys: allKeys.length,
-      dayKeys,
-      lastEntryRaw,
-      lastEntryKey,
-    };
+    return { totalKeys: allKeys.length, dayKeys, lastEntryRaw, lastEntryKey };
   } catch (err) {
     console.error("[storage] getDiagnostics failed:", err);
     return { totalKeys: 0, dayKeys: [], lastEntryRaw: null, lastEntryKey: null };

@@ -48,24 +48,13 @@ export default function DayDetailScreen() {
 
   useEffect(() => {
     if (!currentDate) return;
-    let cancelled = false;
-    getDay(currentDate).then((e) => {
-      if (!cancelled) setEntry(e);
-    });
-    return () => { cancelled = true; };
+    setEntry(null);
+    getDay(currentDate).then(setEntry);
   }, [currentDate]);
 
   const currentIdx = sortedDates.indexOf(currentDate);
   const prevDate = currentIdx > 0 ? sortedDates[currentIdx - 1] : null;
   const nextDate = currentIdx < sortedDates.length - 1 ? sortedDates[currentIdx + 1] : null;
-
-  if (!entry) {
-    return (
-      <View style={[styles.loading, { backgroundColor: theme.background }]}>
-        <Text style={[styles.loadingText, { color: theme.mutedForeground }]}>Загрузка...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -80,8 +69,12 @@ export default function DayDetailScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerDate, { color: theme.foreground }]}>{formatDateRu(currentDate)}</Text>
-          <Text style={[styles.headerWeekday, { color: theme.mutedForeground }]}>{formatWeekday(currentDate)}</Text>
+          <Text style={[styles.headerDate, { color: theme.foreground }]}>
+            {currentDate ? formatDateRu(currentDate) : "…"}
+          </Text>
+          <Text style={[styles.headerWeekday, { color: theme.mutedForeground }]}>
+            {currentDate ? formatWeekday(currentDate) : ""}
+          </Text>
         </View>
 
         <View style={styles.headerNav}>
@@ -104,7 +97,13 @@ export default function DayDetailScreen() {
         </View>
       </View>
 
-      <DayEntryView entry={entry} dayQuestion={entry.question} />
+      {entry ? (
+        <DayEntryView key={currentDate} entry={entry} dayQuestion={entry.question} />
+      ) : (
+        <View style={styles.loading}>
+          <Text style={[styles.loadingText, { color: theme.mutedForeground }]}>Загрузка...</Text>
+        </View>
+      )}
     </View>
   );
 }

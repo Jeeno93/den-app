@@ -66,6 +66,8 @@ export default function MemoriesScreen() {
   const insets = useSafeAreaInsets();
 
   const [yearAgoEntry, setYearAgoEntry] = useState<DayEntry | null>(null);
+  const [weekAgoEntry, setWeekAgoEntry] = useState<DayEntry | null>(null);
+  const [monthAgoEntry, setMonthAgoEntry] = useState<DayEntry | null>(null);
   const [randomEntry, setRandomEntry] = useState<DayEntry | null>(null);
   const [allEntries, setAllEntries] = useState<DayEntry[]>([]);
   const [streak, setStreak] = useState({ current: 0, best: 0 });
@@ -80,17 +82,30 @@ export default function MemoriesScreen() {
 
   async function loadData() {
     const now = new Date();
+
     const yearAgo = new Date(now);
     yearAgo.setFullYear(yearAgo.getFullYear() - 1);
     const yearAgoStr = formatDate(yearAgo);
 
-    const [ya, all, streakData] = await Promise.all([
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = formatDate(weekAgo);
+
+    const monthAgo = new Date(now);
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    const monthAgoStr = formatDate(monthAgo);
+
+    const [ya, wa, ma, all, streakData] = await Promise.all([
       getDay(yearAgoStr),
+      getDay(weekAgoStr),
+      getDay(monthAgoStr),
       getAllDays(),
       getStreak(),
     ]);
 
     setYearAgoEntry(ya);
+    setWeekAgoEntry(wa);
+    setMonthAgoEntry(ma);
     setAllEntries(all);
     setStreak(streakData);
   }
@@ -150,6 +165,24 @@ export default function MemoriesScreen() {
             </View>
           );
         })()}
+
+        <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Неделя назад</Text>
+        {weekAgoEntry ? (
+          <MiniCard entry={weekAgoEntry} onPress={() => goToEntry(weekAgoEntry)} />
+        ) : (
+          <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>7 дней назад записей не было.</Text>
+          </View>
+        )}
+
+        <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Месяц назад</Text>
+        {monthAgoEntry ? (
+          <MiniCard entry={monthAgoEntry} onPress={() => goToEntry(monthAgoEntry)} />
+        ) : (
+          <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>30 дней назад записей не было.</Text>
+          </View>
+        )}
 
         <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Год назад</Text>
         {yearAgoEntry ? (

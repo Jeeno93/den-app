@@ -3,6 +3,7 @@ import {
   Alert,
   Image,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,15 +15,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 
+const MAX_PHOTOS = 3;
+
 interface NotesCardProps {
   value: string;
   onChange: (text: string) => void;
-  photo: string | null;
-  onPhotoChange: (photo: string | null) => void;
+  photos: string[];
+  onPhotosChange: (photos: string[]) => void;
+  proud: string;
+  onProudChange: (text: string) => void;
   onDone: () => void;
 }
 
-export function NotesCard({ value, onChange, photo, onPhotoChange, onDone }: NotesCardProps) {
+export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onProudChange, onDone }: NotesCardProps) {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
 
@@ -39,7 +44,7 @@ export function NotesCard({ value, onChange, photo, onPhotoChange, onDone }: Not
       base64: true,
     });
     if (!result.canceled && result.assets[0].base64) {
-      onPhotoChange(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      onPhotosChange([...photos, `data:image/jpeg;base64,${result.assets[0].base64}`]);
     }
   }
 
@@ -56,11 +61,12 @@ export function NotesCard({ value, onChange, photo, onPhotoChange, onDone }: Not
       base64: true,
     });
     if (!result.canceled && result.assets[0].base64) {
-      onPhotoChange(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      onPhotosChange([...photos, `data:image/jpeg;base64,${result.assets[0].base64}`]);
     }
   }
 
   function handleAddPhoto() {
+    if (photos.length >= MAX_PHOTOS) return;
     if (Platform.OS === "web") {
       pickFromGallery();
       return;
@@ -70,6 +76,10 @@ export function NotesCard({ value, onChange, photo, onPhotoChange, onDone }: Not
       { text: "Галерея", onPress: pickFromGallery },
       { text: "Отмена", style: "cancel" },
     ]);
+  }
+
+  function removePhoto(idx: number) {
+    onPhotosChange(photos.filter((_, i) => i !== idx));
   }
 
   return (
@@ -83,63 +93,96 @@ export function NotesCard({ value, onChange, photo, onPhotoChange, onDone }: Not
         },
       ]}
     >
-      <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Как в целом прошел твой день?
-        </Text>
-        <Text style={[styles.optional, { color: theme.mutedForeground }]}>
-          (необязательно)
-        </Text>
+      {/* Proud */}
+      <View style={styles.section}>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, { color: theme.foreground }]}>
+            Чем сегодня горжусь?
+          </Text>
+          <Text style={[styles.optional, { color: theme.mutedForeground }]}>
+            (необязательно)
+          </Text>
+        </View>
+        <TextInput
+          style={[
+            styles.input,
+            styles.inputShort,
+            {
+              backgroundColor: isDark ? theme.muted : "#F8F9FA",
+              color: theme.foreground,
+              borderColor: theme.border,
+            },
+          ]}
+          placeholder="Любое достижение, большое или маленькое..."
+          placeholderTextColor={theme.mutedForeground}
+          multiline
+          value={proud}
+          onChangeText={onProudChange}
+          textAlignVertical="top"
+          autoFocus={false}
+        />
       </View>
 
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: isDark ? theme.muted : "#F8F9FA",
-            color: theme.foreground,
-            borderColor: theme.border,
-          },
-        ]}
-        placeholder="Опишите свой день своими словами..."
-        placeholderTextColor={theme.mutedForeground}
-        multiline
-        value={value}
-        onChangeText={onChange}
-        textAlignVertical="top"
-        autoFocus={false}
-      />
+      {/* Day summary */}
+      <View style={styles.section}>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, { color: theme.foreground }]}>
+            Как в целом прошел твой день?
+          </Text>
+          <Text style={[styles.optional, { color: theme.mutedForeground }]}>
+            (необязательно)
+          </Text>
+        </View>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: isDark ? theme.muted : "#F8F9FA",
+              color: theme.foreground,
+              borderColor: theme.border,
+            },
+          ]}
+          placeholder="Опишите свой день своими словами..."
+          placeholderTextColor={theme.mutedForeground}
+          multiline
+          value={value}
+          onChangeText={onChange}
+          textAlignVertical="top"
+          autoFocus={false}
+        />
+      </View>
 
-      <View style={styles.photoSection}>
+      {/* Photos */}
+      <View style={styles.section}>
         <Text style={[styles.photoLabel, { color: theme.mutedForeground }]}>
           Фото дня
         </Text>
-
-        {photo ? (
-          <View style={styles.thumbnailRow}>
-            <View style={styles.thumbnailWrapper}>
-              <Image source={{ uri: photo }} style={styles.thumbnail} resizeMode="cover" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+          {photos.map((uri, idx) => (
+            <View key={idx} style={styles.thumbnailWrapper}>
+              <Image source={{ uri }} style={styles.thumbnail} resizeMode="cover" />
               <TouchableOpacity
                 style={[styles.deleteBtn, { backgroundColor: theme.foreground }]}
-                onPress={() => onPhotoChange(null)}
+                onPress={() => removePhoto(idx)}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Ionicons name="close" size={12} color={theme.background} />
               </TouchableOpacity>
             </View>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={[styles.addPhotoBtn, { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]}
-            onPress={handleAddPhoto}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="camera-outline" size={22} color={theme.mutedForeground} />
-            <Text style={[styles.addPhotoText, { color: theme.mutedForeground }]}>
-              Добавить фото
-            </Text>
-          </TouchableOpacity>
-        )}
+          ))}
+          {photos.length < MAX_PHOTOS && (
+            <TouchableOpacity
+              style={[styles.addPhotoBtn, { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]}
+              onPress={handleAddPhoto}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="camera-outline" size={22} color={theme.mutedForeground} />
+              {photos.length === 0 && (
+                <Text style={[styles.addPhotoText, { color: theme.mutedForeground }]}>Добавить</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </ScrollView>
       </View>
 
       <TouchableOpacity
@@ -168,13 +211,16 @@ const styles = StyleSheet.create({
     elevation: 4,
     gap: 20,
   },
+  section: {
+    gap: 10,
+  },
   titleRow: {
-    gap: 4,
+    gap: 2,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
-    lineHeight: 28,
+    lineHeight: 26,
   },
   optional: {
     fontSize: 13,
@@ -184,12 +230,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     padding: 14,
-    minHeight: 120,
+    minHeight: 100,
     fontSize: 16,
     lineHeight: 24,
   },
-  photoSection: {
-    gap: 10,
+  inputShort: {
+    minHeight: 72,
   },
   photoLabel: {
     fontSize: 12,
@@ -197,22 +243,24 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-  addPhotoBtn: {
+  photoRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
     gap: 10,
+    alignItems: "center",
+  },
+  addPhotoBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderStyle: "dashed",
-    borderRadius: 14,
-    paddingVertical: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
   },
   addPhotoText: {
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: "500",
-  },
-  thumbnailRow: {
-    flexDirection: "row",
   },
   thumbnailWrapper: {
     position: "relative",
