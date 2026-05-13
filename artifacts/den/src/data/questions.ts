@@ -1,3 +1,28 @@
+export const POSITIVE_QUESTIONS: string[] = [
+  "Что рассмешило?",
+  "Что порадовало?",
+  "Что было приятным?",
+  "Что вдохновило?",
+  "Что удивило в хорошем смысле?",
+  "За что благодарен сегодня?",
+];
+
+export const NEGATIVE_QUESTIONS: string[] = [
+  "Что раздражало?",
+  "Что расстроило?",
+  "Что было сложным?",
+  "Что заставило понервничать?",
+  "Что хотелось бы изменить?",
+];
+
+export function getRandomPositiveQuestion(): string {
+  return POSITIVE_QUESTIONS[Math.floor(Math.random() * POSITIVE_QUESTIONS.length)];
+}
+
+export function getRandomNegativeQuestion(): string {
+  return NEGATIVE_QUESTIONS[Math.floor(Math.random() * NEGATIVE_QUESTIONS.length)];
+}
+
 export const questions: string[] = [
   "Чего ты избегал сегодня?",
   "Кому хотел написать но не написал?",

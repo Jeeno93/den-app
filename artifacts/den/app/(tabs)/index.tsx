@@ -15,23 +15,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { getDayQuestion } from "@/src/data/questions";
+import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion } from "@/src/data/questions";
 import { formatDate, getDay, saveDay } from "@/src/storage/storage";
-import type { DayEntry } from "@/src/storage/storage";
+import type { DayAnswers, DayEntry } from "@/src/storage/storage";
 import { MoodPicker } from "@/src/components/MoodPicker";
 import { QuestionCard } from "@/src/components/QuestionCard";
 import { NotesCard } from "@/src/components/NotesCard";
 import { DayEntryView } from "@/src/components/DayEntry";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const QUESTIONS = [
-  { key: "learned" as const, label: "Что сегодня узнал?" },
-  { key: "met" as const, label: "Кого встретил или вспомнил?" },
-  { key: "laughed" as const, label: "Что рассмешило?" },
-  { key: "annoyed" as const, label: "Что раздражало?" },
-  { key: "dayQuestion" as const, label: "" },
-];
 
 type Phase = "mood" | "questions" | "notes" | "done" | "view";
 
@@ -52,6 +44,16 @@ function parseDateObj(dateStr: string): Date {
   return new Date(dateStr + "T12:00:00");
 }
 
+function makeInitialAnswers(): DayAnswers {
+  return {
+    learned: "",
+    met: "",
+    positive: { question: getRandomPositiveQuestion(), answer: "", category: "positive" },
+    negative: { question: getRandomNegativeQuestion(), answer: "", category: "negative" },
+    dayQuestion: "",
+  };
+}
+
 export default function HomeScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
@@ -64,9 +66,7 @@ export default function HomeScreen() {
   const [existingEntry, setExistingEntry] = useState<DayEntry | null>(null);
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState({
-    learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "",
-  });
+  const [answers, setAnswers] = useState<DayAnswers>(makeInitialAnswers());
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [proud, setProud] = useState("");
@@ -95,7 +95,7 @@ export default function HomeScreen() {
         setPhase("mood");
         setSelectedMood(null);
         setCurrentQuestion(0);
-        setAnswers({ learned: "", met: "", laughed: "", annoyed: "", dayQuestion: "" });
+        setAnswers(makeInitialAnswers());
         setNotes("");
         setPhotos([]);
         setProud("");
@@ -139,9 +139,41 @@ export default function HomeScreen() {
     setCurrentQuestion(0);
   }
 
+  const viewDateObj = parseDateObj(viewDate);
+  const dayQuestion = getDayQuestion(viewDateObj);
+
+  // Question configs — maps each question slot to value getter/setter
+  const questionConfigs = [
+    {
+      getLabel: () => "Что сегодня узнал?",
+      getValue: (a: DayAnswers) => a.learned,
+      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, learned: v }),
+    },
+    {
+      getLabel: () => "Кого встретил или вспомнил?",
+      getValue: (a: DayAnswers) => a.met,
+      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, met: v }),
+    },
+    {
+      getLabel: (a: DayAnswers) => a.positive.question,
+      getValue: (a: DayAnswers) => a.positive.answer,
+      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, positive: { ...a.positive, answer: v } }),
+    },
+    {
+      getLabel: (a: DayAnswers) => a.negative.question,
+      getValue: (a: DayAnswers) => a.negative.answer,
+      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, negative: { ...a.negative, answer: v } }),
+    },
+    {
+      getLabel: () => dayQuestion,
+      getValue: (a: DayAnswers) => a.dayQuestion,
+      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, dayQuestion: v }),
+    },
+  ];
+
   function handleNext() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentQuestion < QUESTIONS.length - 1) {
+    if (currentQuestion < questionConfigs.length - 1) {
       setCurrentQuestion((q) => q + 1);
     } else {
       setPhase("notes");
@@ -151,8 +183,6 @@ export default function HomeScreen() {
   async function handleDone() {
     if (!selectedMood) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const dateObj = parseDateObj(viewDate);
-    const dayQuestion = getDayQuestion(dateObj);
     const entry: DayEntry = {
       date: viewDate,
       mood: selectedMood,
@@ -174,19 +204,12 @@ export default function HomeScreen() {
     ]).start();
   }
 
-  const viewDateObj = parseDateObj(viewDate);
   const isToday = viewDate === todayStr;
   const isForwardDisabled = offsetDate(viewDate, 1) > todayStr;
-  const dayQuestion = getDayQuestion(viewDateObj);
   const dateStr = `${viewDateObj.getDate()} ${MONTHS[viewDateObj.getMonth()]}`;
   const dayStr = WEEKDAYS[viewDateObj.getDay()];
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-
-  const questionLabels = [
-    ...QUESTIONS.slice(0, 4).map((q) => q.label),
-    dayQuestion,
-  ];
 
   function NavHeader({ bordered = false }: { bordered?: boolean }) {
     return (
@@ -256,12 +279,8 @@ export default function HomeScreen() {
             <View style={[styles.doneIcon, { backgroundColor: theme.primary }]}>
               <Ionicons name="checkmark" size={48} color="#fff" />
             </View>
-            <Text style={[styles.doneTitle, { color: theme.foreground }]}>
-              День записан.
-            </Text>
-            <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>
-              Увидимся завтра.
-            </Text>
+            <Text style={[styles.doneTitle, { color: theme.foreground }]}>День записан.</Text>
+            <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>Увидимся завтра.</Text>
             <TouchableOpacity
               style={[styles.viewButton, { backgroundColor: theme.secondary }]}
               onPress={() => setPhase("view")}
@@ -325,6 +344,8 @@ export default function HomeScreen() {
     );
   }
 
+  // Phase: questions
+  const qConfig = questionConfigs[currentQuestion];
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
       <NavHeader />
@@ -337,13 +358,11 @@ export default function HomeScreen() {
         <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 20 }]}>{dayStr}</Text>
 
         <QuestionCard
-          question={questionLabels[currentQuestion]}
+          question={qConfig.getLabel(answers)}
           questionNumber={currentQuestion + 1}
-          totalQuestions={5}
-          value={answers[QUESTIONS[currentQuestion].key]}
-          onChange={(text) =>
-            setAnswers((prev) => ({ ...prev, [QUESTIONS[currentQuestion].key]: text }))
-          }
+          totalQuestions={questionConfigs.length}
+          value={qConfig.getValue(answers)}
+          onChange={(text) => setAnswers((prev) => qConfig.setValue(prev, text))}
           onNext={handleNext}
           onBack={currentQuestion > 0 ? () => setCurrentQuestion((q) => q - 1) : undefined}
           isLast={false}
@@ -369,17 +388,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 22,
   },
-  navArrowDisabled: {
-    opacity: 0.3,
-  },
-  navCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navCenterPlaceholder: {
-    height: 32,
-  },
+  navArrowDisabled: { opacity: 0.3 },
+  navCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
+  navCenterPlaceholder: { height: 32 },
   todayBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -389,10 +400,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  todayBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  todayBtnText: { fontSize: 13, fontWeight: "600" },
   viewDateRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -401,24 +409,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
-  dateText: {
-    fontSize: 24,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-  },
-  dayText: {
-    fontSize: 15,
-    fontWeight: "400",
-    marginTop: 2,
-  },
+  dateText: { fontSize: 24, fontWeight: "700", letterSpacing: -0.5 },
+  dayText: { fontSize: 15, fontWeight: "400", marginTop: 2 },
   doneBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -427,28 +419,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  doneBadgeText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  moodContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 4,
-  },
-  sectionTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  sectionSub: {
-    fontSize: 15,
-    marginBottom: 28,
-  },
-  moodRow: {
-    marginBottom: 32,
-  },
+  doneBadgeText: { fontSize: 13, fontWeight: "600" },
+  moodContainer: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
+  sectionTitle: { fontSize: 26, fontWeight: "700", marginBottom: 4, letterSpacing: -0.5 },
+  sectionSub: { fontSize: 15, marginBottom: 28 },
+  moodRow: { marginBottom: 32 },
   continueButton: {
     borderRadius: 16,
     paddingVertical: 16,
@@ -457,25 +432,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  continueText: {
-    fontSize: 17,
-    fontWeight: "600",
-  },
-  questionContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 4,
-  },
-  doneContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-  },
-  doneContent: {
-    alignItems: "center",
-    gap: 16,
-  },
+  continueText: { fontSize: 17, fontWeight: "600" },
+  questionContainer: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
+  doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
+  doneContent: { alignItems: "center", gap: 16 },
   doneIcon: {
     width: 100,
     height: 100,
@@ -484,24 +444,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  doneTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    textAlign: "center",
-    letterSpacing: -0.5,
-  },
-  doneSub: {
-    fontSize: 18,
-    textAlign: "center",
-  },
+  doneTitle: { fontSize: 28, fontWeight: "700", textAlign: "center", letterSpacing: -0.5 },
+  doneSub: { fontSize: 18, textAlign: "center" },
   viewButton: {
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 14,
   },
-  viewButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
+  viewButtonText: { fontSize: 16, fontWeight: "500" },
 });

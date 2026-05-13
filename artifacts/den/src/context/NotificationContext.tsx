@@ -7,17 +7,22 @@ import { getDayQuestion } from "@/src/data/questions";
 const NOTIF_TIME_KEY = "notification_time";
 const NOTIF_ID_KEY = "notification_id";
 const NOTIF_SCHEDULED_DATE_KEY = "notification_scheduled_date";
+const NOTIF_ENABLED_KEY = "notifications_enabled";
 
 interface NotificationContextValue {
   notifHour: number;
   notifMinute: number;
+  notificationsEnabled: boolean;
   setNotificationTime: (hour: number, minute: number) => Promise<void>;
+  setNotificationsEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue>({
   notifHour: 21,
   notifMinute: 0,
+  notificationsEnabled: true,
   setNotificationTime: async () => {},
+  setNotificationsEnabled: async () => {},
 });
 
 Notifications.setNotificationHandler({
@@ -41,16 +46,13 @@ async function scheduleNextDayNotification(hour: number, minute: number): Promis
   const lastScheduled = await AsyncStorage.getItem(NOTIF_SCHEDULED_DATE_KEY);
   const today = todayDateString();
 
-  if (lastScheduled === today) {
-    return;
-  }
+  if (lastScheduled === today) return;
 
   const oldId = await AsyncStorage.getItem(NOTIF_ID_KEY);
   if (oldId) {
     try {
       await Notifications.cancelScheduledNotificationAsync(oldId);
-    } catch {
-    }
+    } catch {}
   }
 
   const tomorrow = new Date();
@@ -73,22 +75,38 @@ async function scheduleNextDayNotification(hour: number, minute: number): Promis
   await AsyncStorage.setItem(NOTIF_SCHEDULED_DATE_KEY, today);
 }
 
+async function cancelAllNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await AsyncStorage.removeItem(NOTIF_ID_KEY);
+    await AsyncStorage.removeItem(NOTIF_SCHEDULED_DATE_KEY);
+  } catch {}
+}
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifHour, setNotifHour] = useState(21);
   const [notifMinute, setNotifMinute] = useState(0);
+  const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
       Notifications.requestPermissionsAsync().then(({ status }) => {
         if (status !== "granted") return;
-        AsyncStorage.getItem(NOTIF_TIME_KEY).then((val) => {
-          if (val) {
-            const [h, m] = val.split(":").map(Number);
+        Promise.all([
+          AsyncStorage.getItem(NOTIF_TIME_KEY),
+          AsyncStorage.getItem(NOTIF_ENABLED_KEY),
+        ]).then(([timeVal, enabledVal]) => {
+          const enabled = enabledVal !== "false";
+          setNotificationsEnabledState(enabled);
+
+          if (timeVal) {
+            const [h, m] = timeVal.split(":").map(Number);
             setNotifHour(h);
             setNotifMinute(m);
-            scheduleNextDayNotification(h, m);
+            if (enabled) scheduleNextDayNotification(h, m);
           } else {
-            scheduleNextDayNotification(21, 0);
+            if (enabled) scheduleNextDayNotification(21, 0);
           }
         });
       });
@@ -100,11 +118,26 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifMinute(minute);
     await AsyncStorage.setItem(NOTIF_TIME_KEY, `${hour}:${minute}`);
     await AsyncStorage.removeItem(NOTIF_SCHEDULED_DATE_KEY);
-    await scheduleNextDayNotification(hour, minute);
+    if (notificationsEnabled) {
+      await scheduleNextDayNotification(hour, minute);
+    }
+  };
+
+  const setNotificationsEnabled = async (enabled: boolean) => {
+    setNotificationsEnabledState(enabled);
+    await AsyncStorage.setItem(NOTIF_ENABLED_KEY, enabled ? "true" : "false");
+    if (enabled) {
+      await AsyncStorage.removeItem(NOTIF_SCHEDULED_DATE_KEY);
+      await scheduleNextDayNotification(notifHour, notifMinute);
+    } else {
+      await cancelAllNotifications();
+    }
   };
 
   return (
-    <NotificationContext.Provider value={{ notifHour, notifMinute, setNotificationTime }}>
+    <NotificationContext.Provider
+      value={{ notifHour, notifMinute, notificationsEnabled, setNotificationTime, setNotificationsEnabled }}
+    >
       {children}
     </NotificationContext.Provider>
   );

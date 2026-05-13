@@ -35,9 +35,7 @@ function TimeSelector({ hour, minute, onConfirm }: { hour: number; minute: numbe
         <TouchableOpacity onPress={incH} style={styles.timeBtn}>
           <Ionicons name="chevron-up" size={20} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={[styles.timeNum, { color: theme.foreground }]}>
-          {String(h).padStart(2, "0")}
-        </Text>
+        <Text style={[styles.timeNum, { color: theme.foreground }]}>{String(h).padStart(2, "0")}</Text>
         <TouchableOpacity onPress={decH} style={styles.timeBtn}>
           <Ionicons name="chevron-down" size={20} color={theme.primary} />
         </TouchableOpacity>
@@ -47,17 +45,12 @@ function TimeSelector({ hour, minute, onConfirm }: { hour: number; minute: numbe
         <TouchableOpacity onPress={incM} style={styles.timeBtn}>
           <Ionicons name="chevron-up" size={20} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={[styles.timeNum, { color: theme.foreground }]}>
-          {String(m).padStart(2, "0")}
-        </Text>
+        <Text style={[styles.timeNum, { color: theme.foreground }]}>{String(m).padStart(2, "0")}</Text>
         <TouchableOpacity onPress={decM} style={styles.timeBtn}>
           <Ionicons name="chevron-down" size={20} color={theme.primary} />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={[styles.confirmBtn, { backgroundColor: theme.primary }]}
-        onPress={() => onConfirm(h, m)}
-      >
+      <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: theme.primary }]} onPress={() => onConfirm(h, m)}>
         <Text style={[styles.confirmBtnText, { color: theme.primaryForeground }]}>Сохранить</Text>
       </TouchableOpacity>
     </View>
@@ -73,7 +66,7 @@ interface DiagResult {
 
 export default function SettingsScreen() {
   const { isDark, themeMode, setThemeMode } = useTheme();
-  const { notifHour, notifMinute, setNotificationTime } = useNotifications();
+  const { notifHour, notifMinute, notificationsEnabled, setNotificationTime, setNotificationsEnabled } = useNotifications();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -118,35 +111,48 @@ export default function SettingsScreen() {
       >
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Уведомления</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => setShowTimePicker((v) => !v)}
-            activeOpacity={0.7}
-            testID="notif-time-row"
-          >
+          {/* Toggle row */}
+          <View style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
             <View style={[styles.rowIcon, { backgroundColor: theme.primary + "20" }]}>
               <Ionicons name="notifications-outline" size={20} color={theme.primary} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Время напоминания</Text>
-              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>
-                {String(notifHour).padStart(2, "0")}:{String(notifMinute).padStart(2, "0")}
-              </Text>
-            </View>
-            <Ionicons
-              name={showTimePicker ? "chevron-up" : "chevron-down"}
-              size={18}
-              color={theme.mutedForeground}
+            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Напоминания</Text>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: theme.border, true: theme.primary + "88" }}
+              thumbColor={notificationsEnabled ? theme.primary : theme.mutedForeground}
             />
-          </TouchableOpacity>
+          </View>
 
-          {showTimePicker && (
-            <View style={[styles.pickerWrapper, { borderTopColor: theme.border }]}>
-              <TimeSelector
-                hour={notifHour}
-                minute={notifMinute}
-                onConfirm={handleTimeConfirm}
+          {/* Time picker row — hidden when disabled */}
+          {notificationsEnabled && (
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => setShowTimePicker((v) => !v)}
+              activeOpacity={0.7}
+              testID="notif-time-row"
+            >
+              <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
+                <Ionicons name="time-outline" size={20} color={theme.mutedForeground} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, { color: theme.foreground }]}>Время напоминания</Text>
+                <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>
+                  {String(notifHour).padStart(2, "0")}:{String(notifMinute).padStart(2, "0")}
+                </Text>
+              </View>
+              <Ionicons
+                name={showTimePicker ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={theme.mutedForeground}
               />
+            </TouchableOpacity>
+          )}
+
+          {notificationsEnabled && showTimePicker && (
+            <View style={[styles.pickerWrapper, { borderTopColor: theme.border }]}>
+              <TimeSelector hour={notifHour} minute={notifMinute} onConfirm={handleTimeConfirm} />
             </View>
           )}
         </View>
@@ -164,10 +170,7 @@ export default function SettingsScreen() {
             return (
               <TouchableOpacity
                 key={mode}
-                style={[
-                  styles.row,
-                  !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border },
-                ]}
+                style={[styles.row, !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border }]}
                 onPress={() => setThemeMode(mode)}
                 activeOpacity={0.7}
                 testID={`theme-${mode}`}
@@ -175,12 +178,8 @@ export default function SettingsScreen() {
                 <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
                   <Ionicons name={icons[mode]} size={20} color={theme.foreground} />
                 </View>
-                <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>
-                  {labels[mode]}
-                </Text>
-                {themeMode === mode && (
-                  <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
-                )}
+                <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>{labels[mode]}</Text>
+                {themeMode === mode && <Ionicons name="checkmark-circle" size={22} color={theme.primary} />}
               </TouchableOpacity>
             );
           })}
@@ -188,47 +187,29 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>О приложении</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => router.push("/why-diary" as any)}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={styles.row} onPress={() => router.push("/why-diary" as any)} activeOpacity={0.7}>
             <View style={[styles.rowIcon, { backgroundColor: "#1a5c4220" }]}>
               <Text style={{ fontSize: 18 }}>🧠</Text>
             </View>
-            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>
-              Зачем вести дневник
-            </Text>
+            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Зачем вести дневник</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Данные</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={handleExport}
-            activeOpacity={0.7}
-            testID="export-button"
-          >
+          <TouchableOpacity style={styles.row} onPress={handleExport} activeOpacity={0.7} testID="export-button">
             <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
               <Ionicons name="share-outline" size={20} color={theme.foreground} />
             </View>
-            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>
-              Экспорт данных
-            </Text>
+            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Экспорт данных</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Диагностика</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={handleDiagnose}
-            activeOpacity={0.7}
-            testID="diagnostics-button"
-          >
+          <TouchableOpacity style={styles.row} onPress={handleDiagnose} activeOpacity={0.7} testID="diagnostics-button">
             <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
               <Ionicons name="bug-outline" size={20} color={theme.foreground} />
             </View>
@@ -253,18 +234,12 @@ export default function SettingsScreen() {
                 </Text>
               ) : (
                 <>
-                  <Text style={[styles.diagLine, styles.diagLabel, { color: theme.mutedForeground }]}>
-                    Ключи:
-                  </Text>
+                  <Text style={[styles.diagLine, styles.diagLabel, { color: theme.mutedForeground }]}>Ключи:</Text>
                   {diagResult.dayKeys.slice(0, 10).map((k) => (
-                    <Text key={k} style={[styles.diagLine, styles.diagMono, { color: theme.foreground }]}>
-                      • {k}
-                    </Text>
+                    <Text key={k} style={[styles.diagLine, styles.diagMono, { color: theme.foreground }]}>• {k}</Text>
                   ))}
                   {diagResult.dayKeys.length > 10 && (
-                    <Text style={[styles.diagLine, { color: theme.mutedForeground }]}>
-                      … и ещё {diagResult.dayKeys.length - 10}
-                    </Text>
+                    <Text style={[styles.diagLine, { color: theme.mutedForeground }]}>… и ещё {diagResult.dayKeys.length - 10}</Text>
                   )}
                 </>
               )}
@@ -289,28 +264,16 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        <Text style={[styles.appVersion, { color: theme.mutedForeground }]}>
-          Den · v1.0.0
-        </Text>
+        <Text style={[styles.appVersion, { color: theme.mutedForeground }]}>Den · v1.0.0</Text>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-  },
-  container: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
+  header: { paddingHorizontal: 20, paddingBottom: 16 },
+  title: { fontSize: 28, fontWeight: "700", letterSpacing: -0.5 },
+  container: { paddingHorizontal: 20, gap: 8 },
   sectionLabel: {
     fontSize: 12,
     fontWeight: "600",
@@ -320,11 +283,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 4,
   },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
+  card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -339,18 +298,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rowTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  rowSub: {
-    fontSize: 13,
-    marginTop: 1,
-  },
-  pickerWrapper: {
-    borderTopWidth: 1,
-    padding: 16,
-  },
+  rowTitle: { fontSize: 16, fontWeight: "500" },
+  rowSub: { fontSize: 13, marginTop: 1 },
+  pickerWrapper: { borderTopWidth: 1, padding: 16 },
   timeSelector: {
     borderRadius: 12,
     borderWidth: 1,
@@ -360,13 +310,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  timeUnit: {
-    alignItems: "center",
-    gap: 8,
-  },
-  timeBtn: {
-    padding: 6,
-  },
+  timeUnit: { alignItems: "center", gap: 8 },
+  timeBtn: { padding: 6 },
   timeNum: {
     fontSize: 32,
     fontWeight: "700",
@@ -374,38 +319,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: -1,
   },
-  timeSep: {
-    fontSize: 32,
-    fontWeight: "700",
-    paddingBottom: 4,
-  },
-  confirmBtn: {
-    marginLeft: 12,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  confirmBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  appVersion: {
-    textAlign: "center",
-    fontSize: 13,
-    marginTop: 24,
-  },
-  diagBox: {
-    borderTopWidth: 1,
-    padding: 14,
-    gap: 4,
-  },
-  diagLine: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  diagBold: {
-    fontWeight: "700",
-  },
+  timeSep: { fontSize: 32, fontWeight: "700", paddingBottom: 4 },
+  confirmBtn: { marginLeft: 12, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  confirmBtnText: { fontSize: 14, fontWeight: "600" },
+  appVersion: { textAlign: "center", fontSize: 13, marginTop: 24 },
+  diagBox: { borderTopWidth: 1, padding: 14, gap: 4 },
+  diagLine: { fontSize: 13, lineHeight: 20 },
+  diagBold: { fontWeight: "700" },
   diagLabel: {
     fontWeight: "600",
     textTransform: "uppercase",

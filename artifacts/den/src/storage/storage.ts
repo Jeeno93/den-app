@@ -1,10 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export interface QuestionAnswer {
+  question: string;
+  answer: string;
+  category: "positive" | "negative";
+}
+
 export interface DayAnswers {
   learned: string;
   met: string;
-  laughed: string;
-  annoyed: string;
+  positive: QuestionAnswer;
+  negative: QuestionAnswer;
   dayQuestion: string;
 }
 
@@ -33,14 +39,33 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as any;
-    // backward compat: photo → photos
+
+    // backward compat: photos
     if (!parsed.photos) {
       parsed.photos = parsed.photo ? [parsed.photo] : [];
     }
-    // backward compat: proud missing
+    // backward compat: proud
     if (parsed.proud === undefined || parsed.proud === null) {
       parsed.proud = "";
     }
+
+    // backward compat: laughed/annoyed → positive/negative QuestionAnswer
+    const a = parsed.answers;
+    if (a && !a.positive) {
+      a.positive = {
+        question: "Что рассмешило?",
+        answer: a.laughed ?? "",
+        category: "positive",
+      };
+    }
+    if (a && !a.negative) {
+      a.negative = {
+        question: "Что раздражало?",
+        answer: a.annoyed ?? "",
+        category: "negative",
+      };
+    }
+
     console.log(`[storage] parsed ${key}:`, JSON.stringify(parsed).slice(0, 120));
     return parsed as DayEntry;
   } catch (err) {
