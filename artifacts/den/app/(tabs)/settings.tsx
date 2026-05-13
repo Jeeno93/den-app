@@ -12,10 +12,14 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system/legacy";
+import * as DocumentPicker from "expo-document-picker";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useNotifications } from "@/src/context/NotificationContext";
 import colors from "@/constants/colors";
-import { getDiagnostics } from "@/src/storage/storage";
+import { getAllDays, saveDay, getDiagnostics } from "@/src/storage/storage";
+import type { DayEntry } from "@/src/storage/storage";
 
 function TimeSelector({ hour, minute, onConfirm }: { hour: number; minute: number; onConfirm: (h: number, m: number) => void }) {
   const { isDark } = useTheme();
@@ -83,8 +87,128 @@ export default function SettingsScreen() {
     }
   }
 
-  function handleExport() {
-    Alert.alert("Экспорт", "Эта функция появится в следующей версии.");
+  async function handleExport() {
+    try {
+      const entries = await getAllDays();
+      if (entries.length === 0) {
+        Alert.alert("Нет данных", "В дневнике ещё нет ни одной записи.");
+        return;
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `den_backup_${today}.json`;
+      const payload = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries }, null, 2);
+
+      Alert.alert(
+        "Экспортировать данные",
+        `Будет экспортировано ${entries.length} ${recordWord(entries.length)}.`,
+        [
+          { text: "Отмена", style: "cancel" },
+          {
+            text: "Экспортировать",
+            onPress: async () => {
+              try {
+                if (Platform.OS === "web") {
+                  Alert.alert("Недоступно", "Экспорт доступен только на мобильных устройствах.");
+                  return;
+                }
+                const filePath = (FileSystem.cacheDirectory ?? "") + fileName;
+                await FileSystem.writeAsStringAsync(filePath, payload, { encoding: FileSystem.EncodingType.UTF8 });
+                const available = await Sharing.isAvailableAsync();
+                if (available) {
+                  await Sharing.shareAsync(filePath, { mimeType: "application/json", dialogTitle: "Сохранить резервную копию", UTI: "public.json" });
+                } else {
+                  Alert.alert("Ошибка", "Функция поделиться недоступна на этом устройстве.");
+                }
+              } catch (err) {
+                console.error("[export]", err);
+                Alert.alert("Ошибка", "Не удалось создать файл резервной копии.");
+              }
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error("[export]", err);
+      Alert.alert("Ошибка", "Не удалось получить данные из хранилища.");
+    }
+  }
+
+  async function handleImport() {
+    try {
+      if (Platform.OS === "web") {
+        Alert.alert("Недоступно", "Импорт доступен только на мобильных устройствах.");
+        return;
+      }
+      const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true });
+      if (result.canceled || !result.assets?.length) return;
+
+      const asset = result.assets[0];
+      const raw = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        Alert.alert("Ошибка файла", "Файл повреждён или не является JSON.");
+        return;
+      }
+
+      // Validate format
+      const entries: DayEntry[] = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.entries)
+        ? parsed.entries
+        : null;
+
+      if (!entries) {
+        Alert.alert("Неверный формат", "Файл не является резервной копией Den.");
+        return;
+      }
+
+      const valid = entries.filter(
+        (e) => e && typeof e.date === "string" && typeof e.mood === "number" && e.answers
+      );
+
+      if (valid.length === 0) {
+        Alert.alert("Нет записей", "В файле не найдено ни одной валидной записи Den.");
+        return;
+      }
+
+      Alert.alert(
+        "Восстановить данные",
+        `Найдено ${valid.length} ${recordWord(valid.length)}. Восстановить?\n\nСуществующие записи за те же даты будут перезаписаны.`,
+        [
+          { text: "Отмена", style: "cancel" },
+          {
+            text: "Восстановить",
+            onPress: async () => {
+              try {
+                for (const entry of valid) {
+                  await saveDay(entry.date, entry);
+                }
+                Alert.alert("Готово", `Восстановлено ${valid.length} ${recordWord(valid.length)}.`);
+              } catch (err) {
+                console.error("[import]", err);
+                Alert.alert("Ошибка", "Не удалось сохранить часть записей.");
+              }
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error("[import]", err);
+      Alert.alert("Ошибка", "Не удалось открыть файл.");
+    }
+  }
+
+  function recordWord(n: number): string {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 14) return "записей";
+    if (mod10 === 1) return "запись";
+    if (mod10 >= 2 && mod10 <= 4) return "записи";
+    return "записей";
   }
 
   async function handleDiagnose() {
@@ -198,11 +322,35 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Данные</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <TouchableOpacity style={styles.row} onPress={handleExport} activeOpacity={0.7} testID="export-button">
+          <TouchableOpacity
+            style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+            onPress={handleExport}
+            activeOpacity={0.7}
+            testID="export-button"
+          >
             <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
-              <Ionicons name="share-outline" size={20} color={theme.foreground} />
+              <Ionicons name="archive-outline" size={20} color={theme.foreground} />
             </View>
-            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Экспорт данных</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Экспортировать данные</Text>
+              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Сохранить копию в файл JSON</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.row}
+            onPress={handleImport}
+            activeOpacity={0.7}
+            testID="import-button"
+          >
+            <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
+              <Ionicons name="cloud-download-outline" size={20} color={theme.foreground} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Восстановить данные</Text>
+              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Импорт из файла резервной копии</Text>
+            </View>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
         </View>
