@@ -84,7 +84,8 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   const [viewerPhotoIdx, setViewerPhotoIdx] = useState<number | null>(null);
 
   const [isSharing, setIsSharing] = useState(false);
-  const shareCardRef = useRef<View>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const shareCardViewRef = useRef<View>(null);
 
   // ── Answer editing ─────────────────────────────────────────────────────────
   function startEdit(key: keyof DayAnswers) {
@@ -188,23 +189,46 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   // ── Share ──────────────────────────────────────────────────────────────────
   async function handleShare() {
     if (isSharing) return;
+    if (Platform.OS === "web") {
+      Alert.alert("Поделиться", "Эта функция доступна только на мобильных устройствах.");
+      return;
+    }
+    // 1. Show modal so ShareCard gets real dimensions and renders on-screen
+    setShowShareModal(true);
     setIsSharing(true);
     try {
-      if (Platform.OS === "web") {
-        Alert.alert("Поделиться", "Эта функция доступна только на мобильных устройствах.");
-        return;
-      }
-      if (!shareCardRef.current) throw new Error("ref not ready");
-      const uri = await captureRef(shareCardRef, { format: "png", quality: 0.95 });
+      // 2. Wait for the card to fully render before capturing
+      await new Promise<void>((resolve) => setTimeout(resolve, 450));
+
+      if (!shareCardViewRef.current) throw new Error("Карточка не готова к захвату");
+
+      console.log("[share] capturing ref…");
+      const uri = await captureRef(shareCardViewRef, {
+        format: "png",
+        quality: 0.95,
+        result: "tmpfile",
+      });
+      console.log("[share] captured URI:", uri);
+
+      // 3. Close modal before opening share sheet
+      setShowShareModal(false);
+
       const available = await Sharing.isAvailableAsync();
+      console.log("[share] sharing available:", available);
       if (available) {
-        await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Поделиться записью дня" });
+        await Sharing.shareAsync(uri, {
+          mimeType: "image/png",
+          dialogTitle: "Поделиться записью дня",
+          UTI: "public.png",
+        });
       } else {
-        Alert.alert("Нет доступа", "Функция поделиться недоступна на этом устройстве.");
+        Alert.alert("Недоступно", "Функция поделиться недоступна на этом устройстве.");
       }
     } catch (err) {
-      console.error("[share]", err);
-      Alert.alert("Ошибка", "Не удалось сформировать карточку. Попробуйте позже.");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[share] failed:", msg, err);
+      setShowShareModal(false);
+      Alert.alert("Ошибка", `Не удалось сформировать карточку.\n\n${msg}`);
     } finally {
       setIsSharing(false);
     }
@@ -375,14 +399,26 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
         })()}
       </ScrollView>
 
-      {/* Offscreen share card for capture */}
-      <View
-        ref={shareCardRef}
-        collapsable={false}
-        style={{ position: "absolute", left: -2000, top: 100 }}
+      {/* Share preview Modal — card is fully visible so captureRef gets real pixels */}
+      <Modal
+        visible={showShareModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
       >
-        <ShareCard entry={{ ...entry, answers, notes, photos, proud: entry.proud }} />
-      </View>
+        <View style={styles.shareModalOverlay}>
+          {/* The card we'll capture — real dimensions, on-screen */}
+          <View ref={shareCardViewRef} collapsable={false}>
+            <ShareCard entry={{ ...entry, answers, notes, photos, proud: entry.proud }} />
+          </View>
+
+          {/* Loading label below card */}
+          <View style={styles.shareModalLabel}>
+            <Text style={styles.shareModalLabelText}>Создаём карточку…</Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* Photo Viewer Modal */}
       <Modal
@@ -607,4 +643,25 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   viewerCounterText: { color: "#fff", fontSize: 14, fontWeight: "500" },
+  // Share modal
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.82)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 24,
+    paddingHorizontal: 24,
+  },
+  shareModalLabel: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  shareModalLabelText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "500",
+    letterSpacing: 0.2,
+  },
 });
