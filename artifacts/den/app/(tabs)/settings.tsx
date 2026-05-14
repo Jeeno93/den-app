@@ -112,17 +112,31 @@ export default function SettingsScreen() {
                   Alert.alert("Недоступно", "Экспорт доступен только на мобильных устройствах.");
                   return;
                 }
-                const filePath = (FileSystem.cacheDirectory ?? "") + fileName;
-                await FileSystem.writeAsStringAsync(filePath, payload, { encoding: FileSystem.EncodingType.UTF8 });
+                const cacheDir = FileSystem.cacheDirectory;
+                if (!cacheDir) {
+                  console.error("[export] FileSystem.cacheDirectory is null/undefined");
+                  Alert.alert("Ошибка", "Директория кэша недоступна на этом устройстве.");
+                  return;
+                }
+                const filePath = cacheDir + fileName;
+                console.log("[export] writing to:", filePath, "size:", payload.length, "bytes");
+                await FileSystem.writeAsStringAsync(filePath, payload, { encoding: "utf8" });
+                console.log("[export] file written, checking sharing availability");
                 const available = await Sharing.isAvailableAsync();
+                console.log("[export] sharing available:", available);
                 if (available) {
-                  await Sharing.shareAsync(filePath, { mimeType: "application/json", dialogTitle: "Сохранить резервную копию", UTI: "public.json" });
+                  await Sharing.shareAsync(filePath, {
+                    mimeType: "application/json",
+                    dialogTitle: "Сохранить резервную копию",
+                    UTI: "public.json",
+                  });
                 } else {
                   Alert.alert("Ошибка", "Функция поделиться недоступна на этом устройстве.");
                 }
               } catch (err) {
-                console.error("[export]", err);
-                Alert.alert("Ошибка", "Не удалось создать файл резервной копии.");
+                const msg = err instanceof Error ? err.message : String(err);
+                console.error("[export] failed:", msg, err);
+                Alert.alert("Ошибка экспорта", `Не удалось создать файл резервной копии.\n\n${msg}`);
               }
             },
           },
@@ -144,7 +158,8 @@ export default function SettingsScreen() {
       if (result.canceled || !result.assets?.length) return;
 
       const asset = result.assets[0];
-      const raw = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
+      console.log("[import] reading file:", asset.uri);
+      const raw = await FileSystem.readAsStringAsync(asset.uri, { encoding: "utf8" });
 
       let parsed: any;
       try {
