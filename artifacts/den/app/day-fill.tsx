@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Platform,
@@ -15,8 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion } from "@/src/data/questions";
-import { saveDay } from "@/src/storage/storage";
-import type { DayAnswers, DayEntry } from "@/src/storage/storage";
+import { saveDay, getTags } from "@/src/storage/storage";
+import type { DayAnswers, DayEntry, UserTags } from "@/src/storage/storage";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
@@ -33,7 +33,7 @@ const MONTHS_GEN = [
   "июля", "августа", "сентября", "октября", "ноября", "декабря",
 ];
 
-type Phase = "mood" | "questions" | "notes" | "done";
+type Phase = "mood" | "tags" | "questions" | "notes" | "done";
 
 function makeInitialAnswers(): DayAnswers {
   return {
@@ -67,6 +67,14 @@ export default function DayFillScreen() {
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [proud, setProud] = useState("");
+  const [selectedPlaces, setSelectedPlaces] = useState<string[]>([]);
+  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
+  const [loadedTags, setLoadedTags] = useState<UserTags | null>(null);
+
+  useEffect(() => {
+    getTags().then(setLoadedTags);
+  }, []);
+
   const [intensities, setIntensities] = useState<{
     learned: IntensityValue;
     met: IntensityValue;
@@ -140,6 +148,8 @@ export default function DayFillScreen() {
       positive_intensity: intensities.positive,
       negative_intensity: intensities.negative,
       proud_intensity: intensities.proud,
+      places: selectedPlaces,
+      activities: selectedActivities,
     };
     await saveDay(date, entry);
     setPhase("done");
@@ -193,7 +203,7 @@ export default function DayFillScreen() {
           <MoodPicker selected={selectedMood} onSelect={setSelectedMood} />
           <TouchableOpacity
             style={[styles.continueButton, { backgroundColor: selectedMood ? theme.primary : theme.muted, marginTop: 32 }]}
-            onPress={() => { if (selectedMood) { setPhase("questions"); setCurrentQuestion(0); } }}
+            onPress={() => { if (selectedMood) { setPhase("tags"); } }}
             disabled={!selectedMood}
             activeOpacity={0.85}
           >
@@ -201,6 +211,85 @@ export default function DayFillScreen() {
               Продолжить
             </Text>
             <Ionicons name="arrow-forward" size={18} color={selectedMood ? theme.primaryForeground : theme.mutedForeground} />
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (phase === "tags") {
+    function togglePlace(id: string) {
+      setSelectedPlaces((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    }
+    function toggleActivity(id: string) {
+      setSelectedActivities((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    }
+    return (
+      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => setPhase("mood")}>
+            <Ionicons name="arrow-back" size={22} color={theme.foreground} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <Text style={[styles.headerDate, { color: theme.foreground }]}>{fullDateStr}</Text>
+            <Text style={[styles.headerDay, { color: theme.mutedForeground }]}>{dayStr}</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+        <ScrollView
+          contentContainerStyle={[styles.tagsContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={[styles.tagsTitle, { color: theme.foreground }]}>Где был и что делал?</Text>
+          <Text style={[styles.tagsSub, { color: theme.mutedForeground }]}>(необязательно)</Text>
+
+          {loadedTags && (
+            <>
+              <Text style={[styles.tagsSectionLabel, { color: theme.mutedForeground }]}>Места</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
+                {loadedTags.places.map((tag) => {
+                  const selected = selectedPlaces.includes(tag.id);
+                  return (
+                    <TouchableOpacity
+                      key={tag.id}
+                      style={[styles.tagChip, { backgroundColor: selected ? "#3D9970" : theme.card, borderColor: selected ? "#3D9970" : theme.border }]}
+                      onPress={() => togglePlace(tag.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
+                      <Text style={[styles.tagChipLabel, { color: selected ? "#fff" : theme.foreground }]}>{tag.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={[styles.tagsSectionLabel, { color: theme.mutedForeground, marginTop: 12 }]}>Активности</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
+                {loadedTags.activities.map((tag) => {
+                  const selected = selectedActivities.includes(tag.id);
+                  return (
+                    <TouchableOpacity
+                      key={tag.id}
+                      style={[styles.tagChip, { backgroundColor: selected ? "#3D9970" : theme.card, borderColor: selected ? "#3D9970" : theme.border }]}
+                      onPress={() => toggleActivity(tag.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
+                      <Text style={[styles.tagChipLabel, { color: selected ? "#fff" : theme.foreground }]}>{tag.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </>
+          )}
+
+          <TouchableOpacity
+            style={[styles.continueButton, { backgroundColor: theme.primary, marginTop: 28 }]}
+            onPress={() => { setPhase("questions"); setCurrentQuestion(0); }}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.continueText, { color: theme.primaryForeground }]}>Далее</Text>
+            <Ionicons name="arrow-forward" size={18} color={theme.primaryForeground} />
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -313,6 +402,14 @@ const styles = StyleSheet.create({
   },
   continueText: { fontSize: 17, fontWeight: "600" },
   questionContainer: { paddingHorizontal: 20, paddingTop: 20, gap: 4 },
+  tagsContainer: { paddingHorizontal: 20, paddingTop: 24, gap: 4 },
+  tagsTitle: { fontSize: 24, fontWeight: "700", letterSpacing: -0.5 },
+  tagsSub: { fontSize: 14, marginBottom: 16 },
+  tagsSectionLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 },
+  tagsScrollRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
+  tagChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 9, borderRadius: 22, borderWidth: 1, gap: 5 },
+  tagChipEmoji: { fontSize: 16 },
+  tagChipLabel: { fontSize: 14, fontWeight: "500" },
   doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   doneContent: { alignItems: "center", gap: 16 },
   doneIcon: {

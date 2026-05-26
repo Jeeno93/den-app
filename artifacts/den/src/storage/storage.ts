@@ -1,4 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { defaultPlaces, defaultActivities } from "@/src/data/defaultTags";
+import type { TagItem } from "@/src/data/defaultTags";
+
+export type { TagItem };
+
+export interface UserTags {
+  places: TagItem[];
+  activities: TagItem[];
+}
+
+const TAGS_KEY = "user_tags";
 
 export interface QuestionAnswer {
   question: string;
@@ -29,6 +40,8 @@ export interface DayEntry {
   positive_intensity: Intensity;
   negative_intensity: Intensity;
   proud_intensity: Intensity;
+  places: string[];
+  activities: string[];
 }
 
 export function formatDate(date: Date): string {
@@ -55,6 +68,9 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
     if (parsed.proud === undefined || parsed.proud === null) {
       parsed.proud = "";
     }
+    // backward compat: places/activities
+    if (!parsed.places) parsed.places = [];
+    if (!parsed.activities) parsed.activities = [];
     // backward compat: intensity fields
     if (parsed.learned_intensity === undefined) parsed.learned_intensity = null;
     if (parsed.met_intensity === undefined) parsed.met_intensity = null;
@@ -164,6 +180,46 @@ export async function getDiagnostics(): Promise<{
     console.error("[storage] getDiagnostics failed:", err);
     return { totalKeys: 0, dayKeys: [], lastEntryRaw: null, lastEntryKey: null };
   }
+}
+
+export async function getTags(): Promise<UserTags> {
+  try {
+    const raw = await AsyncStorage.getItem(TAGS_KEY);
+    if (!raw) return { places: defaultPlaces, activities: defaultActivities };
+    const parsed = JSON.parse(raw) as UserTags;
+    return parsed;
+  } catch {
+    return { places: defaultPlaces, activities: defaultActivities };
+  }
+}
+
+export async function saveTags(tags: UserTags): Promise<void> {
+  await AsyncStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+}
+
+export async function addCustomTag(
+  type: "place" | "activity",
+  label: string,
+  emoji: string
+): Promise<UserTags> {
+  const tags = await getTags();
+  const newTag: TagItem = { id: `custom_${Date.now()}`, label, emoji };
+  const updated: UserTags = {
+    places: type === "place" ? [...tags.places, newTag] : tags.places,
+    activities: type === "activity" ? [...tags.activities, newTag] : tags.activities,
+  };
+  await saveTags(updated);
+  return updated;
+}
+
+export async function deleteTag(type: "place" | "activity", id: string): Promise<UserTags> {
+  const tags = await getTags();
+  const updated: UserTags = {
+    places: type === "place" ? tags.places.filter((t) => t.id !== id) : tags.places,
+    activities: type === "activity" ? tags.activities.filter((t) => t.id !== id) : tags.activities,
+  };
+  await saveTags(updated);
+  return updated;
 }
 
 export async function getStreak(): Promise<{ current: number; best: number }> {

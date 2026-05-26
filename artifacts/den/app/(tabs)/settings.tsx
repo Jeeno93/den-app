@@ -324,6 +324,17 @@ export default function SettingsScreen() {
           })}
         </View>
 
+        <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Персонализация</Text>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <TouchableOpacity style={styles.row} onPress={() => router.push("/tag-editor" as any)} activeOpacity={0.7}>
+            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
+              <Text style={{ fontSize: 18 }}>🏷️</Text>
+            </View>
+            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои места и активности</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>О приложении</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <TouchableOpacity style={styles.row} onPress={() => router.push("/why-diary" as any)} activeOpacity={0.7}>

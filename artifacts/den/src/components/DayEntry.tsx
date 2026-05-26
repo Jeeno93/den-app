@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -18,8 +18,8 @@ import { captureRef } from "react-native-view-shot";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import type { DayAnswers, DayEntry as DayEntryType, QuestionAnswer } from "@/src/storage/storage";
-import { saveDay } from "@/src/storage/storage";
+import type { DayAnswers, DayEntry as DayEntryType, QuestionAnswer, UserTags } from "@/src/storage/storage";
+import { saveDay, getTags } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "./MoodPicker";
 import { getDayQuote } from "@/src/data/quotes";
 import { ShareCard } from "./ShareCard";
@@ -89,6 +89,11 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   const [isSharing, setIsSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const shareCardViewRef = useRef<View>(null);
+
+  const [entryTags, setEntryTags] = useState<UserTags | null>(null);
+  useEffect(() => {
+    getTags().then(setEntryTags);
+  }, []);
 
   // ── Answer editing ─────────────────────────────────────────────────────────
   function startEdit(key: keyof DayAnswers) {
@@ -259,6 +264,32 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
             <Text style={[styles.moodSub, { color: theme.mutedForeground }]}>Настроение за день</Text>
           </View>
         </View>
+
+        {/* Day tags */}
+        {entryTags && ((entry.places?.length ?? 0) > 0 || (entry.activities?.length ?? 0) > 0) && (
+          <View style={styles.tagsRow}>
+            {(entry.places ?? []).map((id) => {
+              const tag = entryTags.places.find((t) => t.id === id);
+              if (!tag) return null;
+              return (
+                <View key={id} style={[styles.tagChip, { backgroundColor: isDark ? theme.muted : "#F0F0F0", borderColor: theme.border }]}>
+                  <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
+                  <Text style={[styles.tagChipLabel, { color: theme.foreground }]}>{tag.label}</Text>
+                </View>
+              );
+            })}
+            {(entry.activities ?? []).map((id) => {
+              const tag = entryTags.activities.find((t) => t.id === id);
+              if (!tag) return null;
+              return (
+                <View key={id} style={[styles.tagChip, { backgroundColor: "#3D997018", borderColor: "#3D997035" }]}>
+                  <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
+                  <Text style={[styles.tagChipLabel, { color: theme.foreground }]}>{tag.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Answer cards */}
         {ANSWER_KEYS.map((key) => {
@@ -666,6 +697,10 @@ const styles = StyleSheet.create({
   },
   quoteAuthor: { fontSize: 12, textAlign: "center", opacity: 0.5 },
   intensityBadge: { fontSize: 12, fontWeight: "500", marginTop: 2 },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  tagChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, gap: 4 },
+  tagChipEmoji: { fontSize: 15 },
+  tagChipLabel: { fontSize: 13, fontWeight: "500" },
   // Photo viewer
   viewerOverlay: {
     flex: 1,

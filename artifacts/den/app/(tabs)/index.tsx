@@ -196,6 +196,8 @@ export default function HomeScreen() {
       positive_intensity: null,
       negative_intensity: null,
       proud_intensity: null,
+      places: [],
+      activities: [],
     };
     await saveDay(viewDate, entry);
     setExistingEntry(entry);
