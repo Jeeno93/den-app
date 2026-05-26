@@ -23,6 +23,8 @@ import { saveDay } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "./MoodPicker";
 import { getDayQuote } from "@/src/data/quotes";
 import { ShareCard } from "./ShareCard";
+import { INTENSITY_CONFIGS } from "@/src/data/intensity";
+import type { IntensityKey } from "@/src/data/intensity";
 
 const MAX_PHOTOS = 3;
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -292,6 +294,20 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
             );
           }
 
+          const INTENSITY_KEY_MAP: Partial<Record<keyof DayAnswers, IntensityKey>> = {
+            learned: "learned",
+            met: "met",
+            positive: "positive",
+            negative: "negative",
+          };
+          const intensityKey = INTENSITY_KEY_MAP[key];
+          const intensityValue = intensityKey
+            ? entry[`${intensityKey}_intensity` as keyof DayEntryType] as (1 | 2 | 3 | null)
+            : null;
+          const intensityTag = intensityKey && intensityValue
+            ? INTENSITY_CONFIGS[intensityKey].tags.find((t) => t.value === intensityValue) ?? null
+            : null;
+
           return (
             <TouchableOpacity key={key} style={[styles.answerCard, { backgroundColor: theme.card, borderColor: theme.border, shadowColor: isDark ? "#000" : "#333" }]} onPress={() => startEdit(key)} activeOpacity={0.75}>
               <View style={styles.answerHeader}>
@@ -299,6 +315,11 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
                 <Ionicons name="pencil-outline" size={15} color={theme.mutedForeground} />
               </View>
               <Text style={[styles.answerText, { color: theme.foreground }]}>{answer}</Text>
+              {intensityTag && (
+                <Text style={[styles.intensityBadge, { color: theme.mutedForeground }]}>
+                  {intensityTag.emoji} {intensityTag.label}
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -308,6 +329,17 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
           <View style={[styles.answerCard, { backgroundColor: theme.primary + "12", borderColor: theme.primary + "30", shadowColor: isDark ? "#000" : "#333" }]}>
             <Text style={[styles.answerLabel, { color: theme.primary }]}>Гордость дня</Text>
             <Text style={[styles.answerText, { color: theme.foreground }]}>{entry.proud}</Text>
+            {(() => {
+              const v = entry.proud_intensity;
+              if (!v) return null;
+              const tag = INTENSITY_CONFIGS.proud.tags.find((t) => t.value === v);
+              if (!tag) return null;
+              return (
+                <Text style={[styles.intensityBadge, { color: theme.mutedForeground }]}>
+                  {tag.emoji} {tag.label}
+                </Text>
+              );
+            })()}
           </View>
         )}
 
@@ -633,6 +665,7 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   quoteAuthor: { fontSize: 12, textAlign: "center", opacity: 0.5 },
+  intensityBadge: { fontSize: 12, fontWeight: "500", marginTop: 2 },
   // Photo viewer
   viewerOverlay: {
     flex: 1,

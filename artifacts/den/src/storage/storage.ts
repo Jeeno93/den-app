@@ -14,6 +14,8 @@ export interface DayAnswers {
   dayQuestion: string;
 }
 
+export type Intensity = 1 | 2 | 3 | null;
+
 export interface DayEntry {
   date: string;
   mood: number;
@@ -22,6 +24,11 @@ export interface DayEntry {
   notes: string;
   photos: string[];
   proud: string;
+  learned_intensity: Intensity;
+  met_intensity: Intensity;
+  positive_intensity: Intensity;
+  negative_intensity: Intensity;
+  proud_intensity: Intensity;
 }
 
 export function formatDate(date: Date): string {
@@ -48,6 +55,12 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
     if (parsed.proud === undefined || parsed.proud === null) {
       parsed.proud = "";
     }
+    // backward compat: intensity fields
+    if (parsed.learned_intensity === undefined) parsed.learned_intensity = null;
+    if (parsed.met_intensity === undefined) parsed.met_intensity = null;
+    if (parsed.positive_intensity === undefined) parsed.positive_intensity = null;
+    if (parsed.negative_intensity === undefined) parsed.negative_intensity = null;
+    if (parsed.proud_intensity === undefined) parsed.proud_intensity = null;
 
     // backward compat: laughed/annoyed → positive/negative QuestionAnswer
     const a = parsed.answers;

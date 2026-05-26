@@ -14,6 +14,9 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
+import { IntensityPicker } from "@/src/components/IntensityPicker";
+import { INTENSITY_CONFIGS } from "@/src/data/intensity";
+import type { IntensityValue } from "@/src/data/intensity";
 
 const MAX_PHOTOS = 3;
 
@@ -24,10 +27,12 @@ interface NotesCardProps {
   onPhotosChange: (photos: string[]) => void;
   proud: string;
   onProudChange: (text: string) => void;
+  proudIntensity: IntensityValue;
+  onProudIntensityChange: (v: IntensityValue) => void;
   onDone: () => void;
 }
 
-export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onProudChange, onDone }: NotesCardProps) {
+export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onProudChange, proudIntensity, onProudIntensityChange, onDone }: NotesCardProps) {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
 
@@ -121,6 +126,13 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
           textAlignVertical="top"
           autoFocus={false}
         />
+        {!!proud && (
+          <IntensityPicker
+            config={INTENSITY_CONFIGS.proud}
+            value={proudIntensity}
+            onChange={onProudIntensityChange}
+          />
+        )}
       </View>
 
       {/* Day summary */}

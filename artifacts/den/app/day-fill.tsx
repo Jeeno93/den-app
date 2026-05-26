@@ -17,6 +17,9 @@ import colors from "@/constants/colors";
 import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion } from "@/src/data/questions";
 import { saveDay } from "@/src/storage/storage";
 import type { DayAnswers, DayEntry } from "@/src/storage/storage";
+import { IntensityPicker } from "@/src/components/IntensityPicker";
+import { INTENSITY_CONFIGS } from "@/src/data/intensity";
+import type { IntensityValue } from "@/src/data/intensity";
 import { MoodPicker } from "@/src/components/MoodPicker";
 import { QuestionCard } from "@/src/components/QuestionCard";
 import { NotesCard } from "@/src/components/NotesCard";
@@ -64,6 +67,20 @@ export default function DayFillScreen() {
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [proud, setProud] = useState("");
+  const [intensities, setIntensities] = useState<{
+    learned: IntensityValue;
+    met: IntensityValue;
+    positive: IntensityValue;
+    negative: IntensityValue;
+    proud: IntensityValue;
+  }>({ learned: null, met: null, positive: null, negative: null, proud: null });
+
+  function setIntensity(key: keyof typeof intensities, v: IntensityValue) {
+    setIntensities((prev) => ({ ...prev, [key]: v }));
+  }
+
+  // Maps question index (0-3) to intensity key; index 4 = dayQuestion, no intensity
+  const QUESTION_INTENSITY_KEYS = ["learned", "met", "positive", "negative"] as const;
 
   const doneOpacity = useRef(new Animated.Value(0)).current;
   const doneScale = useRef(new Animated.Value(0.9)).current;
@@ -118,6 +135,11 @@ export default function DayFillScreen() {
       notes,
       photos,
       proud,
+      learned_intensity: intensities.learned,
+      met_intensity: intensities.met,
+      positive_intensity: intensities.positive,
+      negative_intensity: intensities.negative,
+      proud_intensity: intensities.proud,
     };
     await saveDay(date, entry);
     setPhase("done");
@@ -203,7 +225,17 @@ export default function DayFillScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <NotesCard value={notes} onChange={setNotes} photos={photos} onPhotosChange={setPhotos} proud={proud} onProudChange={setProud} onDone={handleDone} />
+          <NotesCard
+            value={notes}
+            onChange={setNotes}
+            photos={photos}
+            onPhotosChange={setPhotos}
+            proud={proud}
+            onProudChange={setProud}
+            proudIntensity={intensities.proud}
+            onProudIntensityChange={(v) => setIntensity("proud", v)}
+            onDone={handleDone}
+          />
         </ScrollView>
       </View>
     );
@@ -238,6 +270,13 @@ export default function DayFillScreen() {
           onBack={currentQuestion > 0 ? () => setCurrentQuestion((q) => q - 1) : undefined}
           isLast={false}
         />
+        {currentQuestion < QUESTION_INTENSITY_KEYS.length && qConfig.getValue(answers).trim().length > 0 && (
+          <IntensityPicker
+            config={INTENSITY_CONFIGS[QUESTION_INTENSITY_KEYS[currentQuestion]]}
+            value={intensities[QUESTION_INTENSITY_KEYS[currentQuestion]]}
+            onChange={(v) => setIntensity(QUESTION_INTENSITY_KEYS[currentQuestion], v)}
+          />
+        )}
       </ScrollView>
     </View>
   );

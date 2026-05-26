@@ -191,6 +191,11 @@ export default function HomeScreen() {
       notes,
       photos,
       proud,
+      learned_intensity: null,
+      met_intensity: null,
+      positive_intensity: null,
+      negative_intensity: null,
+      proud_intensity: null,
     };
     await saveDay(viewDate, entry);
     setExistingEntry(entry);
@@ -338,7 +343,7 @@ export default function HomeScreen() {
         >
           <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
           <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 20 }]}>{dayStr}</Text>
-          <NotesCard value={notes} onChange={setNotes} photos={photos} onPhotosChange={setPhotos} proud={proud} onProudChange={setProud} onDone={handleDone} />
+          <NotesCard value={notes} onChange={setNotes} photos={photos} onPhotosChange={setPhotos} proud={proud} onProudChange={setProud} proudIntensity={null} onProudIntensityChange={() => {}} onDone={handleDone} />
         </ScrollView>
       </View>
     );
