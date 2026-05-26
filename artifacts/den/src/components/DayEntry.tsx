@@ -81,6 +81,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   const notesInputRef = useRef<TextInput>(null);
 
   const [photos, setPhotos] = useState<string[]>(entry.photos ?? []);
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [viewerPhotoIdx, setViewerPhotoIdx] = useState<number | null>(null);
 
   const [isSharing, setIsSharing] = useState(false);
@@ -137,10 +138,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: "images", quality: 0.7, base64: true });
     if (!result.canceled && result.assets[0].base64) {
-      const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      const updated = [...photos, uri];
-      setPhotos(updated);
-      await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+      setPendingPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   }
 
@@ -152,10 +150,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", quality: 0.7, base64: true });
     if (!result.canceled && result.assets[0].base64) {
-      const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      const updated = [...photos, uri];
-      setPhotos(updated);
-      await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+      setPendingPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   }
 
@@ -167,6 +162,18 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
       { text: "Галерея", onPress: pickFromGallery },
       { text: "Отмена", style: "cancel" },
     ]);
+  }
+
+  async function savePendingPhoto() {
+    if (!pendingPhoto) return;
+    const updated = [...photos, pendingPhoto];
+    setPhotos(updated);
+    setPendingPhoto(null);
+    await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+  }
+
+  function cancelPendingPhoto() {
+    setPendingPhoto(null);
   }
 
   async function handleDeletePhoto(idx: number) {
@@ -343,7 +350,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
           </TouchableOpacity>
         )}
 
-        {/* Photos */}
+        {/* Photos — existing */}
         {photos.length > 0 && (
           <View style={[styles.photoCard, { backgroundColor: theme.card, borderColor: theme.border, shadowColor: isDark ? "#000" : "#333" }]}>
             <Text style={[styles.answerLabel, { color: theme.mutedForeground, marginBottom: 4 }]}>Фото дня</Text>
@@ -358,19 +365,46 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
                   </TouchableOpacity>
                 </View>
               ))}
-              {photos.length < MAX_PHOTOS && (
-                <TouchableOpacity style={[styles.photoAddBtn, { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]} onPress={handleAddPhoto} activeOpacity={0.75}>
-                  <Ionicons name="add" size={24} color={theme.mutedForeground} />
-                </TouchableOpacity>
-              )}
             </ScrollView>
           </View>
         )}
 
-        {photos.length === 0 && (
-          <TouchableOpacity style={[styles.addNoteBtn, { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]} onPress={handleAddPhoto} activeOpacity={0.75}>
+        {/* Pending photo — preview with Save / Cancel */}
+        {pendingPhoto && (
+          <View style={[styles.pendingPhotoCard, { backgroundColor: theme.card, borderColor: theme.primary }]}>
+            <Text style={[styles.answerLabel, { color: theme.primary, marginBottom: 8 }]}>Новое фото</Text>
+            <Image source={{ uri: pendingPhoto }} style={styles.pendingPhotoPreview} resizeMode="cover" />
+            <View style={styles.editButtons}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { backgroundColor: theme.muted, borderColor: theme.border }]}
+                onPress={cancelPendingPhoto}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.cancelButtonText, { color: theme.mutedForeground }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: theme.primary }]}
+                onPress={savePendingPhoto}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark" size={16} color={theme.primaryForeground} />
+                <Text style={[styles.saveButtonText, { color: theme.primaryForeground }]}>Сохранить фото</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Add photo button — always visible when under limit and no pending */}
+        {!pendingPhoto && photos.length < MAX_PHOTOS && (
+          <TouchableOpacity
+            style={[styles.addNoteBtn, { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]}
+            onPress={handleAddPhoto}
+            activeOpacity={0.75}
+          >
             <Ionicons name="camera-outline" size={18} color={theme.mutedForeground} />
-            <Text style={[styles.addBtnText, { color: theme.mutedForeground }]}>Добавить фото</Text>
+            <Text style={[styles.addBtnText, { color: theme.mutedForeground }]}>
+              {photos.length === 0 ? "Добавить фото" : `Добавить фото (${photos.length}/${MAX_PHOTOS})`}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -643,6 +677,18 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   viewerCounterText: { color: "#fff", fontSize: 14, fontWeight: "500" },
+  // Pending photo
+  pendingPhotoCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 16,
+    gap: 10,
+  },
+  pendingPhotoPreview: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+  },
   // Share modal
   shareModalOverlay: {
     flex: 1,

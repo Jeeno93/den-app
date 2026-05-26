@@ -38,17 +38,13 @@ export default function DayDetailScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   useEffect(() => {
-    async function loadAll() {
-      const all = await getAllDays();
-      const dates = all.map((e) => e.date).sort();
-      setSortedDates(dates);
-    }
-    loadAll();
-  }, []);
-
-  useEffect(() => {
     if (!currentDate) return;
+    // Reset content immediately so old entry never bleeds into new date
     setEntry(null);
+    // Reload the full sorted list on every navigation — picks up newly filled days
+    getAllDays().then((all) => {
+      setSortedDates(all.map((e) => e.date).sort());
+    });
     getDay(currentDate).then(setEntry);
   }, [currentDate]);
 
