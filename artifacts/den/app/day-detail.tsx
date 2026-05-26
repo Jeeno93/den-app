@@ -54,14 +54,15 @@ export default function DayDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* ── Top header: back button + date title ── */}
       <View
         style={[
           styles.header,
           { paddingTop: topPad + 10, backgroundColor: theme.background, borderBottomColor: theme.border },
         ]}
       >
-        <TouchableOpacity style={styles.sideBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color={theme.foreground} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={20} color={theme.mutedForeground} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -73,24 +74,33 @@ export default function DayDetailScreen() {
           </Text>
         </View>
 
-        <View style={styles.headerNav}>
-          <TouchableOpacity
-            style={[styles.navBtn, !prevDate && styles.navBtnDisabled]}
-            onPress={() => prevDate && setCurrentDate(prevDate)}
-            disabled={!prevDate}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back" size={20} color={prevDate ? theme.foreground : theme.border} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.navBtn, !nextDate && styles.navBtnDisabled]}
-            onPress={() => nextDate && setCurrentDate(nextDate)}
-            disabled={!nextDate}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-forward" size={20} color={nextDate ? theme.foreground : theme.border} />
-          </TouchableOpacity>
-        </View>
+        {/* Placeholder to keep title centered */}
+        <View style={styles.backBtn} />
+      </View>
+
+      {/* ── Day navigation bar: ← вчера … завтра → ── */}
+      <View style={[styles.dayNav, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
+        <TouchableOpacity
+          style={[styles.dayNavBtn, !prevDate && styles.dayNavBtnDisabled]}
+          onPress={() => prevDate && setCurrentDate(prevDate)}
+          disabled={!prevDate}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={22} color={prevDate ? theme.primary : theme.border} />
+          <Text style={[styles.dayNavLabel, { color: prevDate ? theme.primary : theme.border }]}>вчера</Text>
+        </TouchableOpacity>
+
+        <View style={styles.dayNavCenter} />
+
+        <TouchableOpacity
+          style={[styles.dayNavBtn, !nextDate && styles.dayNavBtnDisabled]}
+          onPress={() => nextDate && setCurrentDate(nextDate)}
+          disabled={!nextDate}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.dayNavLabel, { color: nextDate ? theme.primary : theme.border }]}>завтра</Text>
+          <Ionicons name="arrow-forward" size={22} color={nextDate ? theme.primary : theme.border} />
+        </TouchableOpacity>
       </View>
 
       {entry ? (
@@ -113,19 +123,20 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
   },
+  // Top header — back + date title
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
     paddingBottom: 10,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
   },
-  sideBtn: {
-    width: 40,
-    height: 40,
+  backBtn: {
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 20,
+    borderRadius: 18,
   },
   headerCenter: {
     flex: 1,
@@ -140,18 +151,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "400",
   },
-  headerNav: {
+  // Day navigation bar
+  dayNav: {
     flexDirection: "row",
-    gap: 2,
-  },
-  navBtn: {
-    width: 36,
-    height: 36,
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
   },
-  navBtnDisabled: {
-    opacity: 0.35,
+  dayNavBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  dayNavBtnDisabled: {
+    opacity: 0.3,
+  },
+  dayNavLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  dayNavCenter: {
+    flex: 1,
   },
 });
