@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { getAllDays, getDay } from "@/src/storage/storage";
+import { getAllDays, getDay, formatDate } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { DayEntryView } from "@/src/components/DayEntry";
 
@@ -18,6 +18,11 @@ const WEEKDAYS = ["Воскресенье", "Понедельник", "Втор�
 function formatDateRu(dateStr: string): string {
   const d = new Date(dateStr + "T12:00:00");
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function formatShort(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
 function formatWeekday(dateStr: string): string {
@@ -51,6 +56,15 @@ export default function DayDetailScreen() {
   const currentIdx = sortedDates.indexOf(currentDate);
   const prevDate = currentIdx > 0 ? sortedDates[currentIdx - 1] : null;
   const nextDate = currentIdx < sortedDates.length - 1 ? sortedDates[currentIdx + 1] : null;
+
+  const todayStr = formatDate(new Date());
+  const yd = new Date(); yd.setDate(yd.getDate() - 1);
+  const yesterdayStr = formatDate(yd);
+  const td = new Date(); td.setDate(td.getDate() + 1);
+  const tomorrowStr = formatDate(td);
+
+  const prevLabel = prevDate ? (prevDate === yesterdayStr ? "вчера" : formatShort(prevDate)) : null;
+  const nextLabel = nextDate ? (nextDate === tomorrowStr ? "завтра" : formatShort(nextDate)) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -87,7 +101,7 @@ export default function DayDetailScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={22} color={prevDate ? theme.primary : theme.border} />
-          <Text style={[styles.dayNavLabel, { color: prevDate ? theme.primary : theme.border }]}>вчера</Text>
+          {prevLabel && <Text style={[styles.dayNavLabel, { color: theme.primary }]}>{prevLabel}</Text>}
         </TouchableOpacity>
 
         <View style={styles.dayNavCenter} />
@@ -98,7 +112,7 @@ export default function DayDetailScreen() {
           disabled={!nextDate}
           activeOpacity={0.7}
         >
-          <Text style={[styles.dayNavLabel, { color: nextDate ? theme.primary : theme.border }]}>завтра</Text>
+          {nextLabel && <Text style={[styles.dayNavLabel, { color: theme.primary }]}>{nextLabel}</Text>}
           <Ionicons name="arrow-forward" size={22} color={nextDate ? theme.primary : theme.border} />
         </TouchableOpacity>
       </View>
