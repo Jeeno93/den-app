@@ -59,6 +59,7 @@
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.22",
     "expo-sharing": "~14.0.8",
+    "react-native-draggable-flatlist": "^4.0.3",
     "react-native-view-shot": "4.0.3"
   }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -14,6 +14,8 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import DraggableFlatList, { ScaleDecorator } from "react-native-draggable-flatlist";
+import type { RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { getTags, saveTags } from "@/src/storage/storage";
@@ -77,49 +79,80 @@ export default function TagEditorScreen() {
     setShowModal(false);
   }
 
+  const renderPlaceItem = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<TagItem>) => (
+      <ScaleDecorator activeScale={1.03}>
+        <View
+          style={[
+            styles.tagRow,
+            { backgroundColor: isActive ? (isDark ? "#1e3a2e" : "#eafaf2") : theme.card },
+          ]}
+        >
+          <TouchableOpacity
+            onLongPress={drag}
+            style={styles.dragHandle}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+          >
+            <Ionicons name="reorder-three-outline" size={22} color={theme.mutedForeground} />
+          </TouchableOpacity>
+          <Text style={styles.tagEmoji}>{item.emoji}</Text>
+          <Text style={[styles.tagLabel, { color: theme.foreground }]}>{item.label}</Text>
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => handleDelete("place", item.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color={tags && tags.places.length <= MIN_TAGS ? theme.border : "#FF453A"}
+            />
+          </TouchableOpacity>
+        </View>
+      </ScaleDecorator>
+    ),
+    [tags, isDark, theme]
+  );
+
+  const renderActivityItem = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<TagItem>) => (
+      <ScaleDecorator activeScale={1.03}>
+        <View
+          style={[
+            styles.tagRow,
+            { backgroundColor: isActive ? (isDark ? "#1e3a2e" : "#eafaf2") : theme.card },
+          ]}
+        >
+          <TouchableOpacity
+            onLongPress={drag}
+            style={styles.dragHandle}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+          >
+            <Ionicons name="reorder-three-outline" size={22} color={theme.mutedForeground} />
+          </TouchableOpacity>
+          <Text style={styles.tagEmoji}>{item.emoji}</Text>
+          <Text style={[styles.tagLabel, { color: theme.foreground }]}>{item.label}</Text>
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => handleDelete("activity", item.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color={tags && tags.activities.length <= MIN_TAGS ? theme.border : "#FF453A"}
+            />
+          </TouchableOpacity>
+        </View>
+      </ScaleDecorator>
+    ),
+    [tags, isDark, theme]
+  );
+
   if (!tags) {
     return (
       <View style={[styles.flex, { backgroundColor: theme.background, justifyContent: "center", alignItems: "center" }]}>
         <Text style={{ color: theme.mutedForeground }}>Загрузка…</Text>
-      </View>
-    );
-  }
-
-  function renderSection(title: string, type: "place" | "activity", list: TagItem[]) {
-    return (
-      <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>{title.toUpperCase()}</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {list.map((tag, idx) => (
-            <View
-              key={tag.id}
-              style={[
-                styles.tagRow,
-                idx < list.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
-              ]}
-            >
-              <Text style={styles.tagEmoji}>{tag.emoji}</Text>
-              <Text style={[styles.tagLabel, { color: theme.foreground }]}>{tag.label}</Text>
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => handleDelete(type, tag.id)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="trash-outline" size={18} color={list.length <= MIN_TAGS ? theme.border : "#FF453A"} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: theme.primary + "18", borderColor: theme.primary + "40" }]}
-          onPress={() => openAdd(type)}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
-          <Text style={[styles.addBtnText, { color: theme.primary }]}>
-            Добавить {type === "place" ? "место" : "активность"}
-          </Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -138,8 +171,65 @@ export default function TagEditorScreen() {
         contentContainerStyle={[styles.container, { paddingBottom: Platform.OS === "web" ? 34 : 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        {renderSection("Места", "place", tags.places)}
-        {renderSection("Активности", "activity", tags.activities)}
+        {/* ── Места ── */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>МЕСТА</Text>
+          <View style={[styles.card, { borderColor: theme.border }]}>
+            <DraggableFlatList
+              data={tags.places}
+              keyExtractor={(item) => item.id}
+              renderItem={renderPlaceItem}
+              onDragEnd={({ data }) => {
+                const updated = { ...tags, places: data };
+                setTags(updated);
+                saveTags(updated);
+              }}
+              scrollEnabled={false}
+              activationDistance={8}
+              ItemSeparatorComponent={() => (
+                <View style={[styles.separator, { backgroundColor: theme.border }]} />
+              )}
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: theme.primary + "18", borderColor: theme.primary + "40" }]}
+            onPress={() => openAdd("place")}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+            <Text style={[styles.addBtnText, { color: theme.primary }]}>Добавить место</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Активности ── */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>АКТИВНОСТИ</Text>
+          <View style={[styles.card, { borderColor: theme.border }]}>
+            <DraggableFlatList
+              data={tags.activities}
+              keyExtractor={(item) => item.id}
+              renderItem={renderActivityItem}
+              onDragEnd={({ data }) => {
+                const updated = { ...tags, activities: data };
+                setTags(updated);
+                saveTags(updated);
+              }}
+              scrollEnabled={false}
+              activationDistance={8}
+              ItemSeparatorComponent={() => (
+                <View style={[styles.separator, { backgroundColor: theme.border }]} />
+              )}
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: theme.primary + "18", borderColor: theme.primary + "40" }]}
+            onPress={() => openAdd("activity")}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+            <Text style={[styles.addBtnText, { color: theme.primary }]}>Добавить активность</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
@@ -228,6 +318,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
+  separator: { height: StyleSheet.hairlineWidth },
   tagRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -235,6 +326,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 10,
   },
+  dragHandle: { padding: 2 },
   tagEmoji: { fontSize: 20, width: 28, textAlign: "center" },
   tagLabel: { flex: 1, fontSize: 16, fontWeight: "500" },
   deleteBtn: { padding: 4 },
