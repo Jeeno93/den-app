@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Platform,
   ScrollView,
@@ -133,8 +134,20 @@ export default function DayFillScreen() {
   }
 
   async function handleDone() {
-    if (!selectedMood || !date) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    console.log("[day-fill] handleDone called: mood=", selectedMood, "date=", date, "photos=", photos.length);
+    if (!selectedMood || !date) {
+      console.warn("[day-fill] handleDone aborted: missing mood or date");
+      Alert.alert("Нельзя сохранить", "Не выбрано настроение или дата.");
+      return;
+    }
+
+    // Haptics may throw on web/unsupported devices — never let it block the save flow.
+    try {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (hapticErr) {
+      console.warn("[day-fill] haptics failed (non-fatal):", hapticErr);
+    }
+
     const entry: DayEntry = {
       date,
       mood: selectedMood,
@@ -151,9 +164,37 @@ export default function DayFillScreen() {
       places: selectedPlaces,
       activities: selectedActivities,
     };
-    await saveDay(date, entry);
-    setPhase("done");
 
+    try {
+      const serialized = JSON.stringify(entry);
+      const sizeKB = Math.round(serialized.length / 1024);
+      console.log(`[day-fill] entry serialized OK: ${sizeKB} KB, photos=${entry.photos.length}`);
+      if (sizeKB > 5500) {
+        console.warn(`[day-fill] entry size ${sizeKB} KB approaches AsyncStorage limit (~6 MB on Android)`);
+      }
+    } catch (jsonErr: any) {
+      console.error("[day-fill] JSON.stringify failed:", jsonErr);
+      Alert.alert("Ошибка сохранения", `Не удалось подготовить данные: ${String(jsonErr?.message ?? jsonErr)}`);
+      return;
+    }
+
+    try {
+      await saveDay(date, entry);
+      console.log("[day-fill] saveDay succeeded");
+    } catch (err: any) {
+      console.error("[day-fill] saveDay failed:", err);
+      const isQuota = String(err?.message ?? "").toLowerCase().includes("quota") ||
+                      String(err?.message ?? "").toLowerCase().includes("storage");
+      Alert.alert(
+        "Не удалось сохранить день",
+        isQuota
+          ? "Слишком большой объём данных (вероятно, фото). Попробуйте удалить одно фото и сохранить снова."
+          : String(err?.message ?? err)
+      );
+      return;
+    }
+
+    setPhase("done");
     doneOpacity.setValue(0);
     doneScale.setValue(0.9);
     Animated.parallel([

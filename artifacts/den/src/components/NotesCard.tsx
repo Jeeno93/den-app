@@ -44,12 +44,15 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: "images",
-      allowsEditing: false,
-      quality: 0.7,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.4,
       base64: true,
     });
     if (!result.canceled && result.assets[0].base64) {
-      onPhotosChange([...photos, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+      const b64 = result.assets[0].base64;
+      console.log(`[NotesCard] camera photo base64 size: ${Math.round(b64.length / 1024)} KB`);
+      onPhotosChange([...photos, `data:image/jpeg;base64,${b64}`]);
     }
   }
 
@@ -61,12 +64,15 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
-      allowsEditing: false,
-      quality: 0.7,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.4,
       base64: true,
     });
     if (!result.canceled && result.assets[0].base64) {
-      onPhotosChange([...photos, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+      const b64 = result.assets[0].base64;
+      console.log(`[NotesCard] gallery photo base64 size: ${Math.round(b64.length / 1024)} KB`);
+      onPhotosChange([...photos, `data:image/jpeg;base64,${b64}`]);
     }
   }
 
