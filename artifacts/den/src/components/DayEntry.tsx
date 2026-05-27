@@ -25,6 +25,7 @@ import { getDayQuote } from "@/src/data/quotes";
 import { ShareCard } from "./ShareCard";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityKey } from "@/src/data/intensity";
+import { savePhoto, deletePhoto } from "@/src/utils/photoStorage";
 
 const MAX_PHOTOS = 3;
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -142,12 +143,17 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
       Alert.alert("Нет доступа", "Разрешите доступ к камере в настройках устройства.");
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: "images", quality: 0.7, base64: true });
-    if (!result.canceled && result.assets[0].base64) {
-      const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      const updated = [...photos, uri];
-      setPhotos(updated);
-      await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: "images", allowsEditing: false, quality: 0.7 });
+    if (!result.canceled && result.assets[0]?.uri) {
+      try {
+        const path = await savePhoto(result.assets[0].uri);
+        const updated = [...photos, path];
+        setPhotos(updated);
+        await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+      } catch (err: any) {
+        console.error("[DayEntry] savePhoto (camera) failed:", err);
+        Alert.alert("Не удалось сохранить фото", String(err?.message ?? err));
+      }
     }
   }
 
@@ -157,12 +163,17 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
       Alert.alert("Нет доступа", "Разрешите доступ к галерее в настройках устройства.");
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", quality: 0.7, base64: true });
-    if (!result.canceled && result.assets[0].base64) {
-      const uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      const updated = [...photos, uri];
-      setPhotos(updated);
-      await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", allowsEditing: false, quality: 0.7 });
+    if (!result.canceled && result.assets[0]?.uri) {
+      try {
+        const path = await savePhoto(result.assets[0].uri);
+        const updated = [...photos, path];
+        setPhotos(updated);
+        await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+      } catch (err: any) {
+        console.error("[DayEntry] savePhoto (gallery) failed:", err);
+        Alert.alert("Не удалось сохранить фото", String(err?.message ?? err));
+      }
     }
   }
 
@@ -181,12 +192,18 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
       {
         text: "Удалить", style: "destructive",
         onPress: async () => {
+          const removed = photos[idx];
           const updated = photos.filter((_, i) => i !== idx);
           setPhotos(updated);
           if (viewerPhotoIdx !== null && viewerPhotoIdx >= updated.length) {
             setViewerPhotoIdx(updated.length > 0 ? updated.length - 1 : null);
           }
           await saveDay(entry.date, { ...entry, answers, notes, photos: updated });
+          if (removed) {
+            deletePhoto(removed).catch((err) =>
+              console.warn("[DayEntry] deletePhoto failed (non-fatal):", err)
+            );
+          }
         },
       },
       { text: "Отмена", style: "cancel" },

@@ -17,6 +17,7 @@ import colors from "@/constants/colors";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
+import { savePhoto, deletePhoto } from "@/src/utils/photoStorage";
 
 const MAX_PHOTOS = 3;
 
@@ -45,13 +46,16 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: "images",
       allowsEditing: false,
-      quality: 0.3,
-      base64: true,
+      quality: 0.7,
     });
-    if (!result.canceled && result.assets[0].base64) {
-      const b64 = result.assets[0].base64;
-      console.log(`[NotesCard] camera photo base64 size: ${Math.round(b64.length / 1024)} KB`);
-      onPhotosChange([...photos, `data:image/jpeg;base64,${b64}`]);
+    if (!result.canceled && result.assets[0]?.uri) {
+      try {
+        const path = await savePhoto(result.assets[0].uri);
+        onPhotosChange([...photos, path]);
+      } catch (err: any) {
+        console.error("[NotesCard] savePhoto (camera) failed:", err);
+        Alert.alert("Не удалось сохранить фото", String(err?.message ?? err));
+      }
     }
   }
 
@@ -64,13 +68,16 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       allowsEditing: false,
-      quality: 0.3,
-      base64: true,
+      quality: 0.7,
     });
-    if (!result.canceled && result.assets[0].base64) {
-      const b64 = result.assets[0].base64;
-      console.log(`[NotesCard] gallery photo base64 size: ${Math.round(b64.length / 1024)} KB`);
-      onPhotosChange([...photos, `data:image/jpeg;base64,${b64}`]);
+    if (!result.canceled && result.assets[0]?.uri) {
+      try {
+        const path = await savePhoto(result.assets[0].uri);
+        onPhotosChange([...photos, path]);
+      } catch (err: any) {
+        console.error("[NotesCard] savePhoto (gallery) failed:", err);
+        Alert.alert("Не удалось сохранить фото", String(err?.message ?? err));
+      }
     }
   }
 
@@ -88,7 +95,13 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
   }
 
   function removePhoto(idx: number) {
+    const removed = photos[idx];
     onPhotosChange(photos.filter((_, i) => i !== idx));
+    if (removed) {
+      deletePhoto(removed).catch((err) =>
+        console.warn("[NotesCard] deletePhoto failed (non-fatal):", err)
+      );
+    }
   }
 
   return (
