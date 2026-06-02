@@ -170,6 +170,8 @@ export default function TagEditorScreen() {
       <ScrollView
         contentContainerStyle={[styles.container, { paddingBottom: Platform.OS === "web" ? 34 : 100 }]}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── Места ── */}
         <View style={styles.section}>
@@ -185,7 +187,7 @@ export default function TagEditorScreen() {
                 saveTags(updated);
               }}
               scrollEnabled={false}
-              activationDistance={8}
+              activationDistance={20}
               ItemSeparatorComponent={() => (
                 <View style={[styles.separator, { backgroundColor: theme.border }]} />
               )}
@@ -215,7 +217,7 @@ export default function TagEditorScreen() {
                 saveTags(updated);
               }}
               scrollEnabled={false}
-              activationDistance={8}
+              activationDistance={20}
               ItemSeparatorComponent={() => (
                 <View style={[styles.separator, { backgroundColor: theme.border }]} />
               )}
