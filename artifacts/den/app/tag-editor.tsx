@@ -4,7 +4,6 @@ import {
   FlatList,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,7 +13,11 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import DraggableFlatList, { ScaleDecorator } from "react-native-draggable-flatlist";
+import {
+  NestableScrollContainer,
+  NestableDraggableFlatList,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import type { RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
@@ -167,17 +170,15 @@ export default function TagEditorScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
+      <NestableScrollContainer
         contentContainerStyle={[styles.container, { paddingBottom: Platform.OS === "web" ? 34 : 100 }]}
         showsVerticalScrollIndicator={false}
-        nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
       >
         {/* ── Места ── */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>МЕСТА</Text>
           <View style={[styles.card, { borderColor: theme.border }]}>
-            <DraggableFlatList
+            <NestableDraggableFlatList
               data={tags.places}
               keyExtractor={(item) => item.id}
               renderItem={renderPlaceItem}
@@ -186,8 +187,6 @@ export default function TagEditorScreen() {
                 setTags(updated);
                 saveTags(updated);
               }}
-              scrollEnabled={false}
-              activationDistance={20}
               ItemSeparatorComponent={() => (
                 <View style={[styles.separator, { backgroundColor: theme.border }]} />
               )}
@@ -207,7 +206,7 @@ export default function TagEditorScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>АКТИВНОСТИ</Text>
           <View style={[styles.card, { borderColor: theme.border }]}>
-            <DraggableFlatList
+            <NestableDraggableFlatList
               data={tags.activities}
               keyExtractor={(item) => item.id}
               renderItem={renderActivityItem}
@@ -216,8 +215,6 @@ export default function TagEditorScreen() {
                 setTags(updated);
                 saveTags(updated);
               }}
-              scrollEnabled={false}
-              activationDistance={20}
               ItemSeparatorComponent={() => (
                 <View style={[styles.separator, { backgroundColor: theme.border }]} />
               )}
@@ -232,7 +229,7 @@ export default function TagEditorScreen() {
             <Text style={[styles.addBtnText, { color: theme.primary }]}>Добавить активность</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </NestableScrollContainer>
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <View style={styles.modalOverlay}>
