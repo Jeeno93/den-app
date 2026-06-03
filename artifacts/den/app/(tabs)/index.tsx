@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,17 +13,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion } from "@/src/data/questions";
-import { formatDate, getDay, saveDay } from "@/src/storage/storage";
-import type { DayAnswers, DayEntry } from "@/src/storage/storage";
-import { MoodPicker } from "@/src/components/MoodPicker";
-import { QuestionCard } from "@/src/components/QuestionCard";
-import { NotesCard } from "@/src/components/NotesCard";
+import { getDayQuestion } from "@/src/data/questions";
+import {
+  formatDate,
+  getDay,
+  dismissDeepNudge,
+  saveFillMode,
+  shouldShowDeepNudge,
+} from "@/src/storage/storage";
+import type { DayEntry } from "@/src/storage/storage";
 import { DayEntryView } from "@/src/components/DayEntry";
+import { DayFillFlow } from "@/src/components/DayFillFlow";
+import { DeepNudgeBanner } from "@/src/components/DeepNudgeBanner";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-type Phase = "mood" | "questions" | "notes" | "done" | "view";
+type Screen = "fill" | "view";
 
 const MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
 const WEEKDAYS = ["Воскресенье","Понедельник","Вторник","Среда","Четверг","Пятница","Суббота"];
@@ -44,16 +45,6 @@ function parseDateObj(dateStr: string): Date {
   return new Date(dateStr + "T12:00:00");
 }
 
-function makeInitialAnswers(): DayAnswers {
-  return {
-    learned: "",
-    met: "",
-    positive: { question: getRandomPositiveQuestion(), answer: "", category: "positive" },
-    negative: { question: getRandomNegativeQuestion(), answer: "", category: "negative" },
-    dayQuestion: "",
-  };
-}
-
 export default function HomeScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
@@ -62,23 +53,18 @@ export default function HomeScreen() {
   const todayStr = getTodayStr();
 
   const [viewDate, setViewDate] = useState<string>(todayStr);
-  const [phase, setPhase] = useState<Phase>("mood");
+  const [screen, setScreen] = useState<Screen>("fill");
   const [existingEntry, setExistingEntry] = useState<DayEntry | null>(null);
-  const [selectedMood, setSelectedMood] = useState<number | null>(null);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<DayAnswers>(makeInitialAnswers());
-  const [notes, setNotes] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [proud, setProud] = useState("");
+  const [showNudge, setShowNudge] = useState(false);
+  const [deepSignal, setDeepSignal] = useState(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
-  const doneOpacity = useRef(new Animated.Value(0)).current;
-  const doneScale = useRef(new Animated.Value(0.9)).current;
 
   useFocusEffect(
     useCallback(() => {
       setViewDate(getTodayStr());
+      shouldShowDeepNudge().then(setShowNudge);
     }, [])
   );
 
@@ -89,16 +75,10 @@ export default function HomeScreen() {
       if (cancelled) return;
       if (entry) {
         setExistingEntry(entry);
-        setPhase("view");
+        setScreen("view");
       } else {
         setExistingEntry(null);
-        setPhase("mood");
-        setSelectedMood(null);
-        setCurrentQuestion(0);
-        setAnswers(makeInitialAnswers());
-        setNotes("");
-        setPhotos([]);
-        setProud("");
+        setScreen("fill");
         animateIn();
       }
     }
@@ -127,89 +107,22 @@ export default function HomeScreen() {
   }
   function goToday() { navigateTo(todayStr); }
 
-  function handleMoodSelect(mood: number) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedMood(mood);
+  async function handleDismissNudge() {
+    setShowNudge(false);
+    await dismissDeepNudge();
   }
 
-  function handleMoodContinue() {
-    if (!selectedMood) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setPhase("questions");
-    setCurrentQuestion(0);
+  async function handleTryDeep() {
+    setShowNudge(false);
+    await dismissDeepNudge();
+    await saveFillMode("deep");
+    // Live-switch the active fill flow to deep (no-op on the view screen,
+    // where the preference above already applies to the next fill).
+    setDeepSignal((n) => n + 1);
   }
 
   const viewDateObj = parseDateObj(viewDate);
   const dayQuestion = getDayQuestion(viewDateObj);
-
-  // Question configs — maps each question slot to value getter/setter
-  const questionConfigs = [
-    {
-      getLabel: () => "Что сегодня узнал?",
-      getValue: (a: DayAnswers) => a.learned,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, learned: v }),
-    },
-    {
-      getLabel: () => "Кого встретил или вспомнил?",
-      getValue: (a: DayAnswers) => a.met,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, met: v }),
-    },
-    {
-      getLabel: (a: DayAnswers) => a.positive.question,
-      getValue: (a: DayAnswers) => a.positive.answer,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, positive: { ...a.positive, answer: v } }),
-    },
-    {
-      getLabel: (a: DayAnswers) => a.negative.question,
-      getValue: (a: DayAnswers) => a.negative.answer,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, negative: { ...a.negative, answer: v } }),
-    },
-    {
-      getLabel: () => dayQuestion,
-      getValue: (a: DayAnswers) => a.dayQuestion,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, dayQuestion: v }),
-    },
-  ];
-
-  function handleNext() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentQuestion < questionConfigs.length - 1) {
-      setCurrentQuestion((q) => q + 1);
-    } else {
-      setPhase("notes");
-    }
-  }
-
-  async function handleDone() {
-    if (!selectedMood) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const entry: DayEntry = {
-      date: viewDate,
-      mood: selectedMood,
-      answers,
-      question: dayQuestion,
-      notes,
-      photos,
-      proud,
-      learned_intensity: null,
-      met_intensity: null,
-      positive_intensity: null,
-      negative_intensity: null,
-      proud_intensity: null,
-      places: [],
-      activities: [],
-    };
-    await saveDay(viewDate, entry);
-    setExistingEntry(entry);
-    setPhase("done");
-
-    doneOpacity.setValue(0);
-    doneScale.setValue(0.9);
-    Animated.parallel([
-      Animated.timing(doneOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(doneScale, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
-    ]).start();
-  }
 
   const isToday = viewDate === todayStr;
   const isForwardDisabled = offsetDate(viewDate, 1) > todayStr;
@@ -258,7 +171,13 @@ export default function HomeScreen() {
     );
   }
 
-  if (phase === "view" && existingEntry) {
+  const nudge = showNudge ? (
+    <View style={[styles.nudgeWrap, { bottom: (Platform.OS === "web" ? 24 : insets.bottom) + 16 }]} pointerEvents="box-none">
+      <DeepNudgeBanner onDismiss={handleDismissNudge} onTry={handleTryDeep} />
+    </View>
+  ) : null;
+
+  if (screen === "view" && existingEntry) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.background }}>
         <NavHeader bordered />
@@ -273,109 +192,30 @@ export default function HomeScreen() {
           </View>
         </View>
         <DayEntryView entry={existingEntry} dayQuestion={existingEntry.question || dayQuestion} />
+        {nudge}
       </View>
     );
   }
 
-  if (phase === "done") {
-    return (
-      <View style={[{ flex: 1, backgroundColor: theme.background }]}>
-        <NavHeader />
-        <View style={styles.doneContainer}>
-          <Animated.View style={[styles.doneContent, { opacity: doneOpacity, transform: [{ scale: doneScale }] }]}>
-            <View style={[styles.doneIcon, { backgroundColor: theme.primary }]}>
-              <Ionicons name="checkmark" size={48} color="#fff" />
-            </View>
-            <Text style={[styles.doneTitle, { color: theme.foreground }]}>День записан.</Text>
-            <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>Увидимся завтра.</Text>
-            <TouchableOpacity
-              style={[styles.viewButton, { backgroundColor: theme.secondary }]}
-              onPress={() => setPhase("view")}
-            >
-              <Text style={[styles.viewButtonText, { color: theme.foreground }]}>Посмотреть запись</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </View>
-    );
-  }
-
-  if (phase === "mood") {
-    return (
-      <Animated.View style={[styles.flex, { backgroundColor: theme.background, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <NavHeader />
-        <ScrollView
-          contentContainerStyle={[styles.moodContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
-          <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 32 }]}>{dayStr}</Text>
-
-          <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Как настроение?</Text>
-          <Text style={[styles.sectionSub, { color: theme.mutedForeground }]}>Выбери одно из пяти</Text>
-
-          <View style={styles.moodRow}>
-            <MoodPicker selected={selectedMood} onSelect={handleMoodSelect} />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.continueButton, { backgroundColor: selectedMood ? theme.primary : theme.muted }]}
-            onPress={handleMoodContinue}
-            disabled={!selectedMood}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.continueText, { color: selectedMood ? theme.primaryForeground : theme.mutedForeground }]}>
-              Продолжить
-            </Text>
-            <Ionicons name="arrow-forward" size={18} color={selectedMood ? theme.primaryForeground : theme.mutedForeground} />
-          </TouchableOpacity>
-        </ScrollView>
-      </Animated.View>
-    );
-  }
-
-  if (phase === "notes") {
-    return (
-      <View style={[styles.flex, { backgroundColor: theme.background }]}>
-        <NavHeader />
-        <ScrollView
-          contentContainerStyle={[styles.questionContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
-          <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 20 }]}>{dayStr}</Text>
-          <NotesCard value={notes} onChange={setNotes} photos={photos} onPhotosChange={setPhotos} proud={proud} onProudChange={setProud} proudIntensity={null} onProudIntensityChange={() => {}} onDone={handleDone} />
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // Phase: questions
-  const qConfig = questionConfigs[currentQuestion];
+  // Fill flow (no entry for this date yet)
   return (
-    <View style={[styles.flex, { backgroundColor: theme.background }]}>
-      <NavHeader />
-      <ScrollView
-        contentContainerStyle={[styles.questionContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={[styles.dateText, { color: theme.foreground }]}>{dateStr}</Text>
-        <Text style={[styles.dayText, { color: theme.mutedForeground, marginBottom: 20 }]}>{dayStr}</Text>
-
-        <QuestionCard
-          question={qConfig.getLabel(answers)}
-          questionNumber={currentQuestion + 1}
-          totalQuestions={questionConfigs.length}
-          value={qConfig.getValue(answers)}
-          onChange={(text) => setAnswers((prev) => qConfig.setValue(prev, text))}
-          onNext={handleNext}
-          onBack={currentQuestion > 0 ? () => setCurrentQuestion((q) => q - 1) : undefined}
-          isLast={false}
-        />
-      </ScrollView>
-    </View>
+    <Animated.View style={[styles.flex, { backgroundColor: theme.background, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <DayFillFlow
+        key={viewDate}
+        date={viewDate}
+        topInset={topPad}
+        header={<NavHeader />}
+        showDateLabel
+        doneVariant="view"
+        applyDeepSignal={deepSignal}
+        onSaved={(entry) => {
+          setExistingEntry(entry);
+          shouldShowDeepNudge().then(setShowNudge);
+        }}
+        onView={() => setScreen("view")}
+      />
+      {nudge}
+    </Animated.View>
   );
 }
 
@@ -427,37 +267,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   doneBadgeText: { fontSize: 13, fontWeight: "600" },
-  moodContainer: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
-  sectionTitle: { fontSize: 26, fontWeight: "700", marginBottom: 4, letterSpacing: -0.5 },
-  sectionSub: { fontSize: 15, marginBottom: 28 },
-  moodRow: { marginBottom: 32 },
-  continueButton: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+  nudgeWrap: {
+    position: "absolute",
+    left: 16,
+    right: 16,
   },
-  continueText: { fontSize: 17, fontWeight: "600" },
-  questionContainer: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
-  doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
-  doneContent: { alignItems: "center", gap: 16 },
-  doneIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  doneTitle: { fontSize: 28, fontWeight: "700", textAlign: "center", letterSpacing: -0.5 },
-  doneSub: { fontSize: 18, textAlign: "center" },
-  viewButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  viewButtonText: { fontSize: 16, fontWeight: "500" },
 });

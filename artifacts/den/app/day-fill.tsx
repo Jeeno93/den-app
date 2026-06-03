@@ -1,29 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  Animated,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
-import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion } from "@/src/data/questions";
-import { saveDay, getTags } from "@/src/storage/storage";
-import type { DayAnswers, DayEntry, UserTags } from "@/src/storage/storage";
-import { IntensityPicker } from "@/src/components/IntensityPicker";
-import { INTENSITY_CONFIGS } from "@/src/data/intensity";
-import type { IntensityValue } from "@/src/data/intensity";
-import { MoodPicker } from "@/src/components/MoodPicker";
-import { QuestionCard } from "@/src/components/QuestionCard";
-import { NotesCard } from "@/src/components/NotesCard";
+import { DayFillFlow } from "@/src/components/DayFillFlow";
 
 const WEEK_DAYS = [
   "воскресенье", "понедельник", "вторник", "среда",
@@ -34,26 +15,14 @@ const MONTHS_GEN = [
   "июля", "августа", "сентября", "октября", "ноября", "декабря",
 ];
 
-type Phase = "mood" | "tags" | "questions" | "notes" | "done";
-
-function makeInitialAnswers(): DayAnswers {
-  return {
-    learned: "",
-    met: "",
-    positive: { question: getRandomPositiveQuestion(), answer: "", category: "positive" },
-    negative: { question: getRandomNegativeQuestion(), answer: "", category: "negative" },
-    dayQuestion: "",
-  };
-}
-
 export default function DayFillScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date: string }>();
 
-  const parsedDate = date ? new Date(date) : new Date();
-  const dayQuestion = getDayQuestion(parsedDate);
+  const safeDate = date ?? new Date().toISOString().slice(0, 10);
+  const parsedDate = new Date(safeDate + "T12:00:00");
 
   const dateStr = `${parsedDate.getDate()} ${MONTHS_GEN[parsedDate.getMonth()]}`;
   const dayStr = WEEK_DAYS[parsedDate.getDay()];
@@ -61,359 +30,31 @@ export default function DayFillScreen() {
   const currentYear = new Date().getFullYear();
   const fullDateStr = yearStr !== currentYear ? `${dateStr} ${yearStr}` : dateStr;
 
-  const [phase, setPhase] = useState<Phase>("mood");
-  const [selectedMood, setSelectedMood] = useState<number | null>(null);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<DayAnswers>(makeInitialAnswers());
-  const [notes, setNotes] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [proud, setProud] = useState("");
-  const [selectedPlaces, setSelectedPlaces] = useState<string[]>([]);
-  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
-  const [loadedTags, setLoadedTags] = useState<UserTags | null>(null);
-
-  useEffect(() => {
-    getTags().then(setLoadedTags);
-  }, []);
-
-  const [intensities, setIntensities] = useState<{
-    learned: IntensityValue;
-    met: IntensityValue;
-    positive: IntensityValue;
-    negative: IntensityValue;
-    proud: IntensityValue;
-  }>({ learned: null, met: null, positive: null, negative: null, proud: null });
-
-  function setIntensity(key: keyof typeof intensities, v: IntensityValue) {
-    setIntensities((prev) => ({ ...prev, [key]: v }));
-  }
-
-  // Maps question index (0-3) to intensity key; index 4 = dayQuestion, no intensity
-  const QUESTION_INTENSITY_KEYS = ["learned", "met", "positive", "negative"] as const;
-
-  const doneOpacity = useRef(new Animated.Value(0)).current;
-  const doneScale = useRef(new Animated.Value(0.9)).current;
-
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const questionConfigs = [
-    {
-      getLabel: () => "Что сегодня узнал?",
-      getValue: (a: DayAnswers) => a.learned,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, learned: v }),
-    },
-    {
-      getLabel: () => "Кого встретил или вспомнил?",
-      getValue: (a: DayAnswers) => a.met,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, met: v }),
-    },
-    {
-      getLabel: (a: DayAnswers) => a.positive.question,
-      getValue: (a: DayAnswers) => a.positive.answer,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, positive: { ...a.positive, answer: v } }),
-    },
-    {
-      getLabel: (a: DayAnswers) => a.negative.question,
-      getValue: (a: DayAnswers) => a.negative.answer,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, negative: { ...a.negative, answer: v } }),
-    },
-    {
-      getLabel: () => dayQuestion,
-      getValue: (a: DayAnswers) => a.dayQuestion,
-      setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, dayQuestion: v }),
-    },
-  ];
-
-  function handleNext() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentQuestion < questionConfigs.length - 1) {
-      setCurrentQuestion((q) => q + 1);
-    } else {
-      setPhase("notes");
-    }
-  }
-
-  async function handleDone() {
-    console.log("[day-fill] handleDone called: mood=", selectedMood, "date=", date, "photos=", photos.length);
-    if (!selectedMood || !date) {
-      console.warn("[day-fill] handleDone aborted: missing mood or date");
-      Alert.alert("Нельзя сохранить", "Не выбрано настроение или дата.");
-      return;
-    }
-
-    // Haptics may throw on web/unsupported devices — never let it block the save flow.
-    try {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (hapticErr) {
-      console.warn("[day-fill] haptics failed (non-fatal):", hapticErr);
-    }
-
-    const entry: DayEntry = {
-      date,
-      mood: selectedMood,
-      answers,
-      question: dayQuestion,
-      notes,
-      photos,
-      proud,
-      learned_intensity: intensities.learned,
-      met_intensity: intensities.met,
-      positive_intensity: intensities.positive,
-      negative_intensity: intensities.negative,
-      proud_intensity: intensities.proud,
-      places: selectedPlaces,
-      activities: selectedActivities,
-    };
-
-    try {
-      const serialized = JSON.stringify(entry);
-      const sizeKB = Math.round(serialized.length / 1024);
-      console.log(`[day-fill] entry serialized OK: ${sizeKB} KB, photos=${entry.photos.length}`);
-      if (sizeKB > 5500) {
-        console.warn(`[day-fill] entry size ${sizeKB} KB approaches AsyncStorage limit (~6 MB on Android)`);
-      }
-    } catch (jsonErr: any) {
-      console.error("[day-fill] JSON.stringify failed:", jsonErr);
-      Alert.alert("Ошибка сохранения", `Не удалось подготовить данные: ${String(jsonErr?.message ?? jsonErr)}`);
-      return;
-    }
-
-    try {
-      await saveDay(date, entry);
-      console.log("[day-fill] saveDay succeeded");
-    } catch (err: any) {
-      console.error("[day-fill] saveDay failed:", err);
-      const isQuota = String(err?.message ?? "").toLowerCase().includes("quota") ||
-                      String(err?.message ?? "").toLowerCase().includes("storage");
-      Alert.alert(
-        "Не удалось сохранить день",
-        isQuota
-          ? "Слишком большой объём данных (вероятно, фото). Попробуйте удалить одно фото и сохранить снова."
-          : String(err?.message ?? err)
-      );
-      return;
-    }
-
-    setPhase("done");
-    doneOpacity.setValue(0);
-    doneScale.setValue(0.9);
-    Animated.parallel([
-      Animated.timing(doneOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(doneScale, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
-    ]).start();
-  }
-
-  if (phase === "done") {
-    return (
-      <View style={[styles.flex, { backgroundColor: theme.background }]}>
-        <View style={styles.doneContainer}>
-          <Animated.View style={[styles.doneContent, { opacity: doneOpacity, transform: [{ scale: doneScale }] }]}>
-            <View style={[styles.doneIcon, { backgroundColor: theme.primary }]}>
-              <Ionicons name="checkmark" size={48} color="#fff" />
-            </View>
-            <Text style={[styles.doneTitle, { color: theme.foreground }]}>День записан.</Text>
-            <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>Увидимся завтра.</Text>
-            <TouchableOpacity style={[styles.closeButton, { backgroundColor: theme.secondary }]} onPress={() => router.back()}>
-              <Text style={[styles.closeButtonText, { color: theme.foreground }]}>Закрыть</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
+  const header = (
+    <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View style={{ flex: 1, alignItems: "center" }}>
+        <Text style={[styles.headerDate, { color: theme.foreground }]}>{fullDateStr}</Text>
+        <Text style={[styles.headerDay, { color: theme.mutedForeground }]}>{dayStr}</Text>
       </View>
-    );
-  }
-
-  if (phase === "mood") {
-    return (
-      <View style={[styles.flex, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={theme.foreground} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={[styles.headerDate, { color: theme.foreground }]}>{fullDateStr}</Text>
-            <Text style={[styles.headerDay, { color: theme.mutedForeground }]}>{dayStr}</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-        <ScrollView
-          contentContainerStyle={[styles.moodContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.moodTitle, { color: theme.foreground }]}>Как настроение?</Text>
-          <Text style={[styles.moodSub, { color: theme.mutedForeground }]}>Выбери одно из пяти</Text>
-          <MoodPicker selected={selectedMood} onSelect={setSelectedMood} />
-          <TouchableOpacity
-            style={[styles.continueButton, { backgroundColor: selectedMood ? theme.primary : theme.muted, marginTop: 32 }]}
-            onPress={() => { if (selectedMood) { setPhase("tags"); } }}
-            disabled={!selectedMood}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.continueText, { color: selectedMood ? theme.primaryForeground : theme.mutedForeground }]}>
-              Продолжить
-            </Text>
-            <Ionicons name="arrow-forward" size={18} color={selectedMood ? theme.primaryForeground : theme.mutedForeground} />
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  if (phase === "tags") {
-    function togglePlace(id: string) {
-      setSelectedPlaces((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-    }
-    function toggleActivity(id: string) {
-      setSelectedActivities((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-    }
-    return (
-      <View style={[styles.flex, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={() => setPhase("mood")}>
-            <Ionicons name="arrow-back" size={22} color={theme.foreground} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={[styles.headerDate, { color: theme.foreground }]}>{fullDateStr}</Text>
-            <Text style={[styles.headerDay, { color: theme.mutedForeground }]}>{dayStr}</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-        <ScrollView
-          contentContainerStyle={[styles.tagsContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.tagsTitle, { color: theme.foreground }]}>Где был и что делал?</Text>
-          <Text style={[styles.tagsSub, { color: theme.mutedForeground }]}>(необязательно)</Text>
-
-          {loadedTags && (
-            <>
-              <Text style={[styles.tagsSectionLabel, { color: theme.mutedForeground }]}>Места</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
-                {loadedTags.places.map((tag) => {
-                  const selected = selectedPlaces.includes(tag.id);
-                  return (
-                    <TouchableOpacity
-                      key={tag.id}
-                      style={[styles.tagChip, { backgroundColor: selected ? "#3D9970" : theme.card, borderColor: selected ? "#3D9970" : theme.border }]}
-                      onPress={() => togglePlace(tag.id)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
-                      <Text style={[styles.tagChipLabel, { color: selected ? "#fff" : theme.foreground }]}>{tag.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              <Text style={[styles.tagsSectionLabel, { color: theme.mutedForeground, marginTop: 12 }]}>Активности</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
-                {loadedTags.activities.map((tag) => {
-                  const selected = selectedActivities.includes(tag.id);
-                  return (
-                    <TouchableOpacity
-                      key={tag.id}
-                      style={[styles.tagChip, { backgroundColor: selected ? "#3D9970" : theme.card, borderColor: selected ? "#3D9970" : theme.border }]}
-                      onPress={() => toggleActivity(tag.id)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
-                      <Text style={[styles.tagChipLabel, { color: selected ? "#fff" : theme.foreground }]}>{tag.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </>
-          )}
-
-          <TouchableOpacity
-            style={[styles.continueButton, { backgroundColor: theme.primary, marginTop: 28 }]}
-            onPress={() => { setPhase("questions"); setCurrentQuestion(0); }}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.continueText, { color: theme.primaryForeground }]}>Далее</Text>
-            <Ionicons name="arrow-forward" size={18} color={theme.primaryForeground} />
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  if (phase === "notes") {
-    return (
-      <View style={[styles.flex, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={theme.foreground} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={[styles.headerDate, { color: theme.foreground }]}>{fullDateStr}</Text>
-            <Text style={[styles.headerDay, { color: theme.mutedForeground }]}>{dayStr}</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
-        <ScrollView
-          contentContainerStyle={[styles.questionContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <NotesCard
-            value={notes}
-            onChange={setNotes}
-            photos={photos}
-            onPhotosChange={setPhotos}
-            proud={proud}
-            onProudChange={setProud}
-            proudIntensity={intensities.proud}
-            onProudIntensityChange={(v) => setIntensity("proud", v)}
-            onDone={handleDone}
-          />
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // Questions phase
-  const qConfig = questionConfigs[currentQuestion];
-  return (
-    <View style={[styles.flex, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: theme.border, backgroundColor: theme.background }]}>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={theme.foreground} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={[styles.headerDate, { color: theme.foreground }]}>{fullDateStr}</Text>
-          <Text style={[styles.headerDay, { color: theme.mutedForeground }]}>{dayStr}</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
-      <ScrollView
-        contentContainerStyle={[styles.questionContainer, { paddingBottom: Platform.OS === "web" ? 34 : 120 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <QuestionCard
-          question={qConfig.getLabel(answers)}
-          questionNumber={currentQuestion + 1}
-          totalQuestions={questionConfigs.length}
-          value={qConfig.getValue(answers)}
-          onChange={(text) => setAnswers((prev) => qConfig.setValue(prev, text))}
-          onNext={handleNext}
-          onBack={currentQuestion > 0 ? () => setCurrentQuestion((q) => q - 1) : undefined}
-          isLast={false}
-        />
-        {currentQuestion < QUESTION_INTENSITY_KEYS.length && qConfig.getValue(answers).trim().length > 0 && (
-          <IntensityPicker
-            config={INTENSITY_CONFIGS[QUESTION_INTENSITY_KEYS[currentQuestion]]}
-            value={intensities[QUESTION_INTENSITY_KEYS[currentQuestion]]}
-            onChange={(v) => setIntensity(QUESTION_INTENSITY_KEYS[currentQuestion], v)}
-          />
-        )}
-      </ScrollView>
     </View>
+  );
+
+  return (
+    <DayFillFlow
+      key={safeDate}
+      date={safeDate}
+      topInset={topPad}
+      header={header}
+      doneVariant="close"
+      onClose={() => router.back()}
+      onExit={() => router.back()}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -421,53 +62,6 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
-  closeBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-  },
   headerDate: { fontSize: 16, fontWeight: "700" },
   headerDay: { fontSize: 12, marginTop: 1 },
-  moodContainer: { paddingHorizontal: 20, paddingTop: 28, gap: 8 },
-  moodTitle: { fontSize: 26, fontWeight: "700", letterSpacing: -0.5 },
-  moodSub: { fontSize: 15, marginBottom: 20 },
-  continueButton: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  continueText: { fontSize: 17, fontWeight: "600" },
-  questionContainer: { paddingHorizontal: 20, paddingTop: 20, gap: 4 },
-  tagsContainer: { paddingHorizontal: 20, paddingTop: 24, gap: 4 },
-  tagsTitle: { fontSize: 24, fontWeight: "700", letterSpacing: -0.5 },
-  tagsSub: { fontSize: 14, marginBottom: 16 },
-  tagsSectionLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 },
-  tagsScrollRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
-  tagChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 9, borderRadius: 22, borderWidth: 1, gap: 5 },
-  tagChipEmoji: { fontSize: 16 },
-  tagChipLabel: { fontSize: 14, fontWeight: "500" },
-  doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
-  doneContent: { alignItems: "center", gap: 16 },
-  doneIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  doneTitle: { fontSize: 28, fontWeight: "700", textAlign: "center", letterSpacing: -0.5 },
-  doneSub: { fontSize: 18, textAlign: "center" },
-  closeButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  closeButtonText: { fontSize: 16, fontWeight: "500" },
 });

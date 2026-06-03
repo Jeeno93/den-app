@@ -27,6 +27,22 @@ export interface DayAnswers {
 
 export type Intensity = 1 | 2 | 3 | null;
 
+export type FillMode = "quick" | "standard" | "deep";
+
+/** Sleep tracker data (режим «Глубоко»). Currently a structured stub. */
+export interface SleepData {
+  bedtime: string; // "23:30" or ""
+  wakeTime: string; // "07:00" or ""
+  quality: number | null; // 1-5
+}
+
+/** Habit tracker item (режим «Глубоко»). Currently a structured stub. */
+export interface HabitItem {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
 export interface DayEntry {
   date: string;
   mood: number;
@@ -42,6 +58,11 @@ export interface DayEntry {
   proud_intensity: Intensity;
   places: string[];
   activities: string[];
+  // --- Optional: режимы заполнения (Быстро/Стандарт/Глубоко) ---
+  fillMode?: FillMode;
+  energy?: number | null; // уровень энергии 1-5 (Глубоко)
+  sleep?: SleepData | null; // трекер сна (Глубоко, заглушка)
+  habits?: HabitItem[]; // трекер привычек (Глубоко, заглушка)
 }
 
 export function formatDate(date: Date): string {
@@ -77,6 +98,10 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
     if (parsed.positive_intensity === undefined) parsed.positive_intensity = null;
     if (parsed.negative_intensity === undefined) parsed.negative_intensity = null;
     if (parsed.proud_intensity === undefined) parsed.proud_intensity = null;
+    // backward compat: режимы заполнения (Глубоко)
+    if (parsed.energy === undefined) parsed.energy = null;
+    if (parsed.sleep === undefined) parsed.sleep = null;
+    if (!Array.isArray(parsed.habits)) parsed.habits = [];
 
     // backward compat: laughed/annoyed → positive/negative QuestionAnswer
     const a = parsed.answers;
@@ -220,6 +245,75 @@ export async function deleteTag(type: "place" | "activity", id: string): Promise
   };
   await saveTags(updated);
   return updated;
+}
+
+const FILL_MODE_KEY = "fill_mode";
+const NUDGE_DEEP_KEY = "nudge_deep_dismissed";
+
+function isValidFillMode(v: unknown): v is FillMode {
+  return v === "quick" || v === "standard" || v === "deep";
+}
+
+/** Последний выбранный режим заполнения. По умолчанию «Стандарт». */
+export async function getFillMode(): Promise<FillMode> {
+  try {
+    const raw = await AsyncStorage.getItem(FILL_MODE_KEY);
+    return isValidFillMode(raw) ? raw : "standard";
+  } catch {
+    return "standard";
+  }
+}
+
+export async function saveFillMode(mode: FillMode): Promise<void> {
+  try {
+    await AsyncStorage.setItem(FILL_MODE_KEY, mode);
+  } catch (err) {
+    console.warn("[storage] saveFillMode failed (non-fatal):", err);
+  }
+}
+
+export async function isDeepNudgeDismissed(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(NUDGE_DEEP_KEY)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export async function dismissDeepNudge(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(NUDGE_DEEP_KEY, "1");
+  } catch (err) {
+    console.warn("[storage] dismissDeepNudge failed (non-fatal):", err);
+  }
+}
+
+function isDayBefore(earlier: string, later: string): boolean {
+  const a = new Date(earlier + "T12:00:00");
+  const b = new Date(later + "T12:00:00");
+  const diff = Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+  return diff === 1;
+}
+
+/**
+ * Подсказка Den: показать один раз, если последние 3 календарных дня подряд
+ * заполнены одним и тем же режимом (и это не «Глубоко»), и плашка ещё не закрыта.
+ */
+export async function shouldShowDeepNudge(): Promise<boolean> {
+  try {
+    if (await isDeepNudgeDismissed()) return false;
+    const all = await getAllDays(); // отсортированы по убыванию даты
+    if (all.length < 3) return false;
+    const [d0, d1, d2] = all;
+    const consecutive = isDayBefore(d1.date, d0.date) && isDayBefore(d2.date, d1.date);
+    if (!consecutive) return false;
+    const mode = d0.fillMode;
+    if (!mode || mode === "deep") return false;
+    return d1.fillMode === mode && d2.fillMode === mode;
+  } catch (err) {
+    console.warn("[storage] shouldShowDeepNudge failed (non-fatal):", err);
+    return false;
+  }
 }
 
 export async function getStreak(): Promise<{ current: number; best: number }> {
