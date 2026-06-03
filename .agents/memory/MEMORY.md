@@ -1,0 +1,1 @@
+- [День fill-flow structure](den-fill-flow.md) — three modes (quick/standard/deep); 5 questions never last, final "Готово" lives on notes/deep; don't break Стандарт parity.
