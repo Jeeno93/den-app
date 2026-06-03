@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,12 +14,6 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  NestableScrollContainer,
-  NestableDraggableFlatList,
-  ScaleDecorator,
-} from "react-native-draggable-flatlist";
-import type { RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { getTags, saveTags } from "@/src/storage/storage";
@@ -42,6 +37,20 @@ export default function TagEditorScreen() {
   useEffect(() => {
     getTags().then(setTags);
   }, []);
+
+  async function handleMove(type: "place" | "activity", index: number, direction: -1 | 1) {
+    if (!tags) return;
+    const list = type === "place" ? [...tags.places] : [...tags.activities];
+    const target = index + direction;
+    if (target < 0 || target >= list.length) return;
+    [list[index], list[target]] = [list[target], list[index]];
+    const updated: UserTags = {
+      places: type === "place" ? list : tags.places,
+      activities: type === "activity" ? list : tags.activities,
+    };
+    await saveTags(updated);
+    setTags(updated);
+  }
 
   async function handleDelete(type: "place" | "activity", id: string) {
     if (!tags) return;
@@ -82,75 +91,54 @@ export default function TagEditorScreen() {
     setShowModal(false);
   }
 
-  const renderPlaceItem = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<TagItem>) => (
-      <ScaleDecorator activeScale={1.03}>
-        <View
-          style={[
-            styles.tagRow,
-            { backgroundColor: isActive ? (isDark ? "#1e3a2e" : "#eafaf2") : theme.card },
-          ]}
-        >
-          <TouchableOpacity
-            onLongPress={drag}
-            style={styles.dragHandle}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          >
-            <Ionicons name="reorder-three-outline" size={22} color={theme.mutedForeground} />
-          </TouchableOpacity>
+  function renderTagRow(type: "place" | "activity", item: TagItem, index: number, total: number) {
+    const isFirst = index === 0;
+    const isLast = index === total - 1;
+    return (
+      <View key={item.id}>
+        {index > 0 && <View style={[styles.separator, { backgroundColor: theme.border }]} />}
+        <View style={[styles.tagRow, { backgroundColor: theme.card }]}>
           <Text style={styles.tagEmoji}>{item.emoji}</Text>
           <Text style={[styles.tagLabel, { color: theme.foreground }]}>{item.label}</Text>
           <TouchableOpacity
+            style={styles.moveBtn}
+            onPress={() => handleMove(type, index, -1)}
+            disabled={isFirst}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Ionicons
+              name="chevron-up"
+              size={18}
+              color={isFirst ? theme.border : theme.mutedForeground}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.moveBtn}
+            onPress={() => handleMove(type, index, 1)}
+            disabled={isLast}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={isLast ? theme.border : theme.mutedForeground}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.deleteBtn}
-            onPress={() => handleDelete("place", item.id)}
+            onPress={() => handleDelete(type, item.id)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons
               name="trash-outline"
               size={18}
-              color={tags && tags.places.length <= MIN_TAGS ? theme.border : "#FF453A"}
+              color={total <= MIN_TAGS ? theme.border : "#FF453A"}
             />
           </TouchableOpacity>
         </View>
-      </ScaleDecorator>
-    ),
-    [tags, isDark, theme]
-  );
-
-  const renderActivityItem = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<TagItem>) => (
-      <ScaleDecorator activeScale={1.03}>
-        <View
-          style={[
-            styles.tagRow,
-            { backgroundColor: isActive ? (isDark ? "#1e3a2e" : "#eafaf2") : theme.card },
-          ]}
-        >
-          <TouchableOpacity
-            onLongPress={drag}
-            style={styles.dragHandle}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          >
-            <Ionicons name="reorder-three-outline" size={22} color={theme.mutedForeground} />
-          </TouchableOpacity>
-          <Text style={styles.tagEmoji}>{item.emoji}</Text>
-          <Text style={[styles.tagLabel, { color: theme.foreground }]}>{item.label}</Text>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => handleDelete("activity", item.id)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons
-              name="trash-outline"
-              size={18}
-              color={tags && tags.activities.length <= MIN_TAGS ? theme.border : "#FF453A"}
-            />
-          </TouchableOpacity>
-        </View>
-      </ScaleDecorator>
-    ),
-    [tags, isDark, theme]
-  );
+      </View>
+    );
+  }
 
   if (!tags) {
     return (
@@ -170,7 +158,7 @@ export default function TagEditorScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <NestableScrollContainer
+      <ScrollView
         contentContainerStyle={[styles.container, { paddingBottom: Platform.OS === "web" ? 34 : 100 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -178,19 +166,9 @@ export default function TagEditorScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>МЕСТА</Text>
           <View style={[styles.card, { borderColor: theme.border }]}>
-            <NestableDraggableFlatList
-              data={tags.places}
-              keyExtractor={(item) => item.id}
-              renderItem={renderPlaceItem}
-              onDragEnd={({ data }) => {
-                const updated = { ...tags, places: data };
-                setTags(updated);
-                saveTags(updated);
-              }}
-              ItemSeparatorComponent={() => (
-                <View style={[styles.separator, { backgroundColor: theme.border }]} />
-              )}
-            />
+            {tags.places.map((item, index) =>
+              renderTagRow("place", item, index, tags.places.length)
+            )}
           </View>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: theme.primary + "18", borderColor: theme.primary + "40" }]}
@@ -206,19 +184,9 @@ export default function TagEditorScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>АКТИВНОСТИ</Text>
           <View style={[styles.card, { borderColor: theme.border }]}>
-            <NestableDraggableFlatList
-              data={tags.activities}
-              keyExtractor={(item) => item.id}
-              renderItem={renderActivityItem}
-              onDragEnd={({ data }) => {
-                const updated = { ...tags, activities: data };
-                setTags(updated);
-                saveTags(updated);
-              }}
-              ItemSeparatorComponent={() => (
-                <View style={[styles.separator, { backgroundColor: theme.border }]} />
-              )}
-            />
+            {tags.activities.map((item, index) =>
+              renderTagRow("activity", item, index, tags.activities.length)
+            )}
           </View>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: theme.primary + "18", borderColor: theme.primary + "40" }]}
@@ -229,7 +197,7 @@ export default function TagEditorScreen() {
             <Text style={[styles.addBtnText, { color: theme.primary }]}>Добавить активность</Text>
           </TouchableOpacity>
         </View>
-      </NestableScrollContainer>
+      </ScrollView>
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <View style={styles.modalOverlay}>
@@ -325,10 +293,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 10,
   },
-  dragHandle: { padding: 2 },
   tagEmoji: { fontSize: 20, width: 28, textAlign: "center" },
   tagLabel: { flex: 1, fontSize: 16, fontWeight: "500" },
-  deleteBtn: { padding: 4 },
+  moveBtn: { padding: 4 },
+  deleteBtn: { padding: 4, marginLeft: 2 },
   addBtn: {
     borderRadius: 14,
     borderWidth: 1,
