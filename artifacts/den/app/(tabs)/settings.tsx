@@ -70,7 +70,7 @@ interface DiagResult {
 
 export default function SettingsScreen() {
   const { isDark, themeMode, setThemeMode } = useTheme();
-  const { notifHour, notifMinute, notificationsEnabled, setNotificationTime, setNotificationsEnabled } = useNotifications();
+  const { notifHour, notifMinute, notificationsEnabled, memoryNotifEnabled, setNotificationTime, setNotificationsEnabled, setMemoryNotifEnabled } = useNotifications();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -294,6 +294,23 @@ export default function SettingsScreen() {
               <TimeSelector hour={notifHour} minute={notifMinute} onConfirm={handleTimeConfirm} />
             </View>
           )}
+
+          {/* Memory notification toggle */}
+          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.border }]}>
+            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
+              <Ionicons name="sparkles-outline" size={20} color="#3D9970" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Воспоминания из прошлого</Text>
+              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Случайная цитата раз в 3 дня</Text>
+            </View>
+            <Switch
+              value={memoryNotifEnabled}
+              onValueChange={setMemoryNotifEnabled}
+              trackColor={{ false: theme.border, true: "#3D9970" + "88" }}
+              thumbColor={memoryNotifEnabled ? "#3D9970" : theme.mutedForeground}
+            />
+          </View>
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Оформление</Text>
@@ -326,11 +343,25 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Персонализация</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <TouchableOpacity style={styles.row} onPress={() => router.push("/tag-editor" as any)} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+            onPress={() => router.push("/tag-editor" as any)}
+            activeOpacity={0.7}
+          >
             <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
               <Text style={{ fontSize: 18 }}>🏷️</Text>
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои места и активности</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.row} onPress={() => router.push("/letters" as any)} activeOpacity={0.7}>
+            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
+              <Text style={{ fontSize: 18 }}>💌</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Письма себе</Text>
+              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Капсула времени</Text>
+            </View>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
         </View>

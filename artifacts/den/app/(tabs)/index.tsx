@@ -25,6 +25,7 @@ import type { DayEntry } from "@/src/storage/storage";
 import { DayEntryView } from "@/src/components/DayEntry";
 import { DayFillFlow } from "@/src/components/DayFillFlow";
 import { DeepNudgeBanner } from "@/src/components/DeepNudgeBanner";
+import { getMoodColor } from "@/src/components/MoodPicker";
 
 type Screen = "fill" | "view";
 
@@ -45,6 +46,51 @@ function parseDateObj(dateStr: string): Date {
   return new Date(dateStr + "T12:00:00");
 }
 
+function MoodWeekStrip({
+  data,
+  theme,
+  isDark,
+}: {
+  data: Array<{ date: string; entry: DayEntry | null }>;
+  theme: any;
+  isDark: boolean;
+}) {
+  return (
+    <View style={stripStyles.row}>
+      {data.map(({ date, entry }) => {
+        const d = new Date(date + "T12:00:00");
+        const dowIdx = (d.getDay() + 6) % 7;
+        const dowLabel = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][dowIdx];
+        const dotColor = entry
+          ? getMoodColor(entry.mood)
+          : isDark
+          ? "#333333"
+          : "#dde0e4";
+        return (
+          <View key={date} style={stripStyles.slot}>
+            <View style={[stripStyles.dot, { backgroundColor: dotColor }]} />
+            <Text style={[stripStyles.label, { color: theme.mutedForeground }]}>{dowLabel}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const stripStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  slot: { alignItems: "center", gap: 4 },
+  dot: { width: 11, height: 11, borderRadius: 6 },
+  label: { fontSize: 9, fontWeight: "600", letterSpacing: 0.3, textTransform: "uppercase" },
+});
+
 export default function HomeScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
@@ -57,6 +103,7 @@ export default function HomeScreen() {
   const [existingEntry, setExistingEntry] = useState<DayEntry | null>(null);
   const [showNudge, setShowNudge] = useState(false);
   const [deepSignal, setDeepSignal] = useState(0);
+  const [weekData, setWeekData] = useState<Array<{ date: string; entry: DayEntry | null }>>([]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -65,6 +112,17 @@ export default function HomeScreen() {
     useCallback(() => {
       setViewDate(getTodayStr());
       shouldShowDeepNudge().then(setShowNudge);
+      (async () => {
+        const today = new Date();
+        const dates: string[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          dates.push(formatDate(d));
+        }
+        const entries = await Promise.all(dates.map((d) => getDay(d)));
+        setWeekData(dates.map((date, i) => ({ date, entry: entries[i] })));
+      })();
     }, [])
   );
 
@@ -131,6 +189,12 @@ export default function HomeScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
+  const filledCount = weekData.filter((d) => d.entry !== null).length;
+  const moodStrip =
+    filledCount >= 2 ? (
+      <MoodWeekStrip data={weekData} theme={theme} isDark={isDark} />
+    ) : null;
+
   function NavHeader({ bordered = false }: { bordered?: boolean }) {
     return (
       <View
@@ -191,6 +255,7 @@ export default function HomeScreen() {
             <Text style={[styles.doneBadgeText, { color: theme.primary }]}>Записано</Text>
           </View>
         </View>
+        {moodStrip}
         <DayEntryView entry={existingEntry} dayQuestion={existingEntry.question || dayQuestion} />
         {nudge}
       </View>
@@ -204,7 +269,7 @@ export default function HomeScreen() {
         key={viewDate}
         date={viewDate}
         topInset={topPad}
-        header={<NavHeader />}
+        header={<><NavHeader />{moodStrip}</>}
         showDateLabel
         doneVariant="view"
         applyDeepSignal={deepSignal}

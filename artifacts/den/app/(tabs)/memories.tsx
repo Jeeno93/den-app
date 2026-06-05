@@ -180,6 +180,21 @@ export default function MemoriesScreen() {
           })()}
         </View>
 
+        <TouchableOpacity
+          style={[styles.yearPixelsBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => router.push("/year-pixels" as any)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.yearPixelsIcon, { backgroundColor: "#3D997018" }]}>
+            <Text style={{ fontSize: 20 }}>🟩</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Год в пикселях</Text>
+            <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>Настроение за последний год</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+        </TouchableOpacity>
+
         {/* Quote of the day */}
         {(() => {
           const q = getDayQuote(new Date());
@@ -398,6 +413,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  yearPixelsBtn: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  yearPixelsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  yearPixelsTitle: { fontSize: 16, fontWeight: "600" },
+  yearPixelsSub: { fontSize: 13, marginTop: 1 },
   quoteCard: {
     borderRadius: 20,
     borderWidth: 1,
