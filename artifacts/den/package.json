@@ -57,6 +57,8 @@
   },
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",
+    "expo-auth-session": "^56.0.13",
+    "expo-crypto": "^56.0.4",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.22",
     "expo-sharing": "~14.0.8",

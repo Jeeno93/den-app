@@ -398,3 +398,28 @@ export function getDayQuestion(date: Date): string {
   const dayOfYear = Math.floor(diff / oneDay);
   return questions[(dayOfYear - 1 + questions.length) % questions.length];
 }
+
+/**
+ * Стандартные названия-заглушки для 5 вопросов (используются в редакторе).
+ * Порядок: learned, met, positive, negative, dayQuestion.
+ */
+export const DEFAULT_QUESTION_LABELS: [string, string, string, string, string] = [
+  "Что сегодня узнал?",
+  "Кого встретил или вспомнил?",
+  "Что тебя порадовало?",
+  "Что расстроило или раздражало?",
+  "Вопрос дня",
+];
+
+/**
+ * Мягкие версии вопросов для настроения 1–2.
+ * Применяются только если пользователь не задал свои вопросы.
+ * Порядок: learned, met, positive, negative, dayQuestion.
+ */
+export const SOFT_QUESTION_LABELS: [string, string, string, string, string] = [
+  "Был ли сегодня момент, который хоть немного заинтересовал тебя?",
+  "Был ли рядом кто-то, с кем было чуть легче?",
+  "Было ли что-то, что хоть немного подняло настроение?",
+  "Что было особенно тяжёлым сегодня?",
+  "Как ты себя чувствуешь прямо сейчас?",
+];

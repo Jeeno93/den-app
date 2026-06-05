@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -18,8 +18,12 @@ import * as DocumentPicker from "expo-document-picker";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useNotifications } from "@/src/context/NotificationContext";
 import colors from "@/constants/colors";
-import { getAllDays, saveDay, getDiagnostics } from "@/src/storage/storage";
+import { getAllDays, saveDay, getDiagnostics, getLastGDriveBackup, saveLastGDriveBackup } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+
+WebBrowser.maybeCompleteAuthSession();
 
 function TimeSelector({ hour, minute, onConfirm }: { hour: number; minute: number; onConfirm: (h: number, m: number) => void }) {
   const { isDark } = useTheme();
@@ -66,6 +70,142 @@ interface DiagResult {
   dayKeys: string[];
   lastEntryKey: string | null;
   lastEntryRaw: string | null;
+}
+
+function GoogleDriveSection() {
+  const { isDark } = useTheme();
+  const theme = isDark ? colors.dark : colors.light;
+
+  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: googleClientId,
+    scopes: ["https://www.googleapis.com/auth/drive.file"],
+  });
+
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    getLastGDriveBackup().then(setLastBackup);
+  }, []);
+
+  useEffect(() => {
+    if (response?.type === "success" && response.authentication?.accessToken) {
+      doUpload(response.authentication.accessToken);
+    } else if (response?.type === "error") {
+      Alert.alert(
+        "Ошибка авторизации",
+        response.error?.message ?? "Не удалось войти в аккаунт Google."
+      );
+    }
+  }, [response]);
+
+  async function doUpload(accessToken: string) {
+    setUploading(true);
+    try {
+      const entries = await getAllDays();
+      const today = new Date().toISOString().slice(0, 10);
+      const fileName = `den-backup-${today}.json`;
+      const content = JSON.stringify(
+        { version: 1, exportedAt: new Date().toISOString(), entries },
+        null,
+        2
+      );
+
+      const boundary = "den_gdrive_boundary";
+      const body =
+        `--${boundary}\r\n` +
+        `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+        JSON.stringify({ name: fileName, mimeType: "application/json" }) +
+        `\r\n--${boundary}\r\n` +
+        `Content-Type: application/json\r\n\r\n` +
+        content +
+        `\r\n--${boundary}--`;
+
+      const res = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": `multipart/related; boundary=${boundary}`,
+          },
+          body,
+        }
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Google Drive: ошибка ${res.status} — ${errText.slice(0, 200)}`);
+      }
+
+      const isoNow = new Date().toISOString();
+      await saveLastGDriveBackup(isoNow);
+      setLastBackup(isoNow);
+      Alert.alert("Готово", `Файл ${fileName} сохранён в Google Drive.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert("Ошибка", `Не удалось сохранить в Google Drive.\n\n${msg}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handlePress() {
+    if (!googleClientId) {
+      Alert.alert(
+        "Не настроено",
+        "Добавьте переменную окружения EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID с Web Client ID из Google Cloud Console (OAuth 2.0).",
+        [{ text: "Понятно" }]
+      );
+      return;
+    }
+    promptAsync();
+  }
+
+  const backupLabel = lastBackup
+    ? new Intl.DateTimeFormat("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(lastBackup))
+    : null;
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.row,
+        { borderTopWidth: 1, borderTopColor: theme.border },
+      ]}
+      onPress={handlePress}
+      disabled={uploading || (!!googleClientId && !request)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.rowIcon, { backgroundColor: "#4285F420" }]}>
+        <Ionicons
+          name={uploading ? "cloud-upload" : "cloud-upload-outline"}
+          size={20}
+          color="#4285F4"
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowTitle, { color: theme.foreground }]}>
+          {uploading ? "Загрузка в Drive…" : "Сохранить в Google Drive"}
+        </Text>
+        {backupLabel ? (
+          <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>
+            Последний бэкап: {backupLabel}
+          </Text>
+        ) : (
+          <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>
+            Экспорт JSON в ваш Google Drive
+          </Text>
+        )}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+    </TouchableOpacity>
+  );
 }
 
 export default function SettingsScreen() {
@@ -354,6 +494,17 @@ export default function SettingsScreen() {
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои места и активности</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+            onPress={() => router.push("/question-editor" as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
+              <Text style={{ fontSize: 18 }}>✏️</Text>
+            </View>
+            <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои вопросы</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => router.push("/letters" as any)} activeOpacity={0.7}>
             <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
               <Text style={{ fontSize: 18 }}>💌</Text>
@@ -396,7 +547,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.row}
+            style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.border }]}
             onPress={handleImport}
             activeOpacity={0.7}
             testID="import-button"
@@ -410,6 +561,7 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
+          <GoogleDriveSection />
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Диагностика</Text>

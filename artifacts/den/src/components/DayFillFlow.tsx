@@ -15,9 +15,9 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion } from "@/src/data/questions";
-import { saveDay, getDay, getTags, getFillMode, saveFillMode, formatDate } from "@/src/storage/storage";
-import type { DayAnswers, DayEntry, FillMode, SleepData, TaskItem, UserTags } from "@/src/storage/storage";
+import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion, SOFT_QUESTION_LABELS } from "@/src/data/questions";
+import { saveDay, getDay, getTags, getFillMode, saveFillMode, formatDate, getCustomQuestions, hasAnyCustomQuestion } from "@/src/storage/storage";
+import type { CustomQuestions, DayAnswers, DayEntry, FillMode, SleepData, TaskItem, UserTags } from "@/src/storage/storage";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
@@ -143,12 +143,19 @@ export function DayFillFlow({
   // Переключатель режимов: по умолчанию свёрнут (режим уже выбран).
   const [switcherExpanded, setSwitcherExpanded] = useState(false);
 
+  // Пользовательские вопросы (null = ещё не загружены)
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestions | null>(null);
+
   const doneOpacity = useRef(new Animated.Value(0)).current;
   const doneScale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
     getTags().then(setLoadedTags);
     getFillMode().then(setMode);
+  }, []);
+
+  useEffect(() => {
+    getCustomQuestions().then(setCustomQuestions);
   }, []);
 
   // Загружаем вчерашние задачи «на сегодня» (вчерашние tasksForTomorrow),
@@ -162,6 +169,22 @@ export function DayFillFlow({
       setReviewedTasks(withText.map((t) => ({ ...t, done: false })));
     });
   }, [date]);
+
+  // Синхронизируем текст позитивного/негативного вопроса в answers,
+  // когда известны mood и пользовательские вопросы (кастом или мягкий тон).
+  useEffect(() => {
+    if (customQuestions === null) return;
+    const isSoft = selectedMood !== null && selectedMood <= 2 && !hasAnyCustomQuestion(customQuestions);
+    const newPosQ = customQuestions.positive?.trim() || (isSoft ? SOFT_QUESTION_LABELS[2] : null);
+    const newNegQ = customQuestions.negative?.trim() || (isSoft ? SOFT_QUESTION_LABELS[3] : null);
+    if (newPosQ !== null || newNegQ !== null) {
+      setAnswers((prev) => ({
+        ...prev,
+        positive: newPosQ ? { ...prev.positive, question: newPosQ } : prev.positive,
+        negative: newNegQ ? { ...prev.negative, question: newNegQ } : prev.negative,
+      }));
+    }
+  }, [selectedMood, customQuestions]);
 
   // Live-switch to "deep" when the nudge CTA fires. Edge-triggered: only a
   // *change* of the nonce switches mode, so a remount (e.g. key={date} change)
@@ -207,14 +230,17 @@ export function DayFillFlow({
     }
   }
 
+  const cq = customQuestions ?? { learned: null, met: null, positive: null, negative: null, dayQuestion: null };
+  const isSoftMood = selectedMood !== null && selectedMood <= 2 && customQuestions !== null && !hasAnyCustomQuestion(customQuestions);
+
   const questionConfigs = [
     {
-      getLabel: () => "Что сегодня узнал?",
+      getLabel: () => cq.learned?.trim() || (isSoftMood ? SOFT_QUESTION_LABELS[0] : "Что сегодня узнал?"),
       getValue: (a: DayAnswers) => a.learned,
       setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, learned: v }),
     },
     {
-      getLabel: () => "Кого встретил или вспомнил?",
+      getLabel: () => cq.met?.trim() || (isSoftMood ? SOFT_QUESTION_LABELS[1] : "Кого встретил или вспомнил?"),
       getValue: (a: DayAnswers) => a.met,
       setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, met: v }),
     },
@@ -229,7 +255,7 @@ export function DayFillFlow({
       setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, negative: { ...a.negative, answer: v } }),
     },
     {
-      getLabel: () => dayQuestion,
+      getLabel: () => cq.dayQuestion?.trim() || (isSoftMood ? SOFT_QUESTION_LABELS[4] : dayQuestion),
       getValue: (a: DayAnswers) => a.dayQuestion,
       setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, dayQuestion: v }),
     },

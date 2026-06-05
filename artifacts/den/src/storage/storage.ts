@@ -459,6 +459,60 @@ export async function deleteLetter(id: string): Promise<void> {
   await AsyncStorage.setItem(LETTERS_KEY, JSON.stringify(filtered));
 }
 
+// ─── Пользовательские вопросы ─────────────────────────────────────────────
+
+export interface CustomQuestions {
+  learned: string | null;
+  met: string | null;
+  positive: string | null;
+  negative: string | null;
+  dayQuestion: string | null;
+}
+
+const CUSTOM_QUESTIONS_KEY = "custom_questions";
+
+const EMPTY_CUSTOM_QUESTIONS: CustomQuestions = {
+  learned: null,
+  met: null,
+  positive: null,
+  negative: null,
+  dayQuestion: null,
+};
+
+export async function getCustomQuestions(): Promise<CustomQuestions> {
+  try {
+    const raw = await AsyncStorage.getItem(CUSTOM_QUESTIONS_KEY);
+    if (!raw) return EMPTY_CUSTOM_QUESTIONS;
+    return { ...EMPTY_CUSTOM_QUESTIONS, ...JSON.parse(raw) };
+  } catch {
+    return EMPTY_CUSTOM_QUESTIONS;
+  }
+}
+
+export async function saveCustomQuestions(q: CustomQuestions): Promise<void> {
+  await AsyncStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(q));
+}
+
+export function hasAnyCustomQuestion(q: CustomQuestions): boolean {
+  return Object.values(q).some((v) => typeof v === "string" && v.trim().length > 0);
+}
+
+// ─── Дата последнего бэкапа Google Drive ──────────────────────────────────
+
+const LAST_GDRIVE_BACKUP_KEY = "last_gdrive_backup";
+
+export async function getLastGDriveBackup(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(LAST_GDRIVE_BACKUP_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLastGDriveBackup(isoDate: string): Promise<void> {
+  await AsyncStorage.setItem(LAST_GDRIVE_BACKUP_KEY, isoDate);
+}
+
 // ─── Streak ───────────────────────────────────────────────────────────────
 
 export async function getStreak(): Promise<{ current: number; best: number }> {
