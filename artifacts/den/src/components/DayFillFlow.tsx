@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,8 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion } from "@/src/data/questions";
-import { saveDay, getTags, getFillMode, saveFillMode } from "@/src/storage/storage";
-import type { DayAnswers, DayEntry, FillMode, HabitItem, SleepData, UserTags } from "@/src/storage/storage";
+import { saveDay, getDay, getTags, getFillMode, saveFillMode, formatDate } from "@/src/storage/storage";
+import type { DayAnswers, DayEntry, FillMode, SleepData, TaskItem, UserTags } from "@/src/storage/storage";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
@@ -23,7 +24,15 @@ import { MoodPicker } from "@/src/components/MoodPicker";
 import { QuestionCard } from "@/src/components/QuestionCard";
 import { NotesCard } from "@/src/components/NotesCard";
 import { FillModeSwitcher } from "@/src/components/FillModeSwitcher";
-import { DeepBlocks, DEFAULT_HABITS } from "@/src/components/DeepBlocks";
+import { DeepBlocks } from "@/src/components/DeepBlocks";
+
+function makeEmptyTomorrowTasks(): TaskItem[] {
+  return [
+    { id: "t1", text: "", done: false },
+    { id: "t2", text: "", done: false },
+    { id: "t3", text: "", done: false },
+  ];
+}
 
 const WEEK_DAYS = [
   "воскресенье", "понедельник", "вторник", "среда",
@@ -126,7 +135,12 @@ export function DayFillFlow({
   // Deep-mode blocks
   const [energy, setEnergy] = useState<number | null>(null);
   const [sleep, setSleep] = useState<SleepData>({ bedtime: "", wakeTime: "", quality: null });
-  const [habits, setHabits] = useState<HabitItem[]>(DEFAULT_HABITS);
+  // Задачи: завтрашние (до 3, текстом) + вчерашние на сегодня (галочки).
+  const [tomorrowTasks, setTomorrowTasks] = useState<TaskItem[]>(makeEmptyTomorrowTasks());
+  const [reviewedTasks, setReviewedTasks] = useState<TaskItem[]>([]);
+
+  // Переключатель режимов: по умолчанию свёрнут (режим уже выбран).
+  const [switcherExpanded, setSwitcherExpanded] = useState(false);
 
   const doneOpacity = useRef(new Animated.Value(0)).current;
   const doneScale = useRef(new Animated.Value(0.9)).current;
@@ -135,6 +149,18 @@ export function DayFillFlow({
     getTags().then(setLoadedTags);
     getFillMode().then(setMode);
   }, []);
+
+  // Загружаем вчерашние задачи «на сегодня» (вчерашние tasksForTomorrow),
+  // чтобы пользователь мог отметить их галочками сегодня вечером.
+  useEffect(() => {
+    const prev = new Date(date + "T12:00:00");
+    prev.setDate(prev.getDate() - 1);
+    getDay(formatDate(prev)).then((entry) => {
+      const planned = entry?.tasksForTomorrow ?? [];
+      const withText = planned.filter((t) => t.text.trim().length > 0);
+      setReviewedTasks(withText.map((t) => ({ ...t, done: false })));
+    });
+  }, [date]);
 
   // Live-switch to "deep" when the nudge CTA fires. Edge-triggered: only a
   // *change* of the nonce switches mode, so a remount (e.g. key={date} change)
@@ -172,6 +198,7 @@ export function DayFillFlow({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMode(next);
     saveFillMode(next);
+    setSwitcherExpanded(false); // после выбора сворачиваем обратно в строку
     // Clamp current phase to one that exists in the new mode's order.
     const order = PHASE_ORDER[next];
     if (!order.includes(phase)) {
@@ -257,7 +284,8 @@ export function DayFillFlow({
       fillMode: mode,
       energy: isDeep ? energy : null,
       sleep: isDeep ? sleep : null,
-      habits: isDeep ? habits : [],
+      tasksForTomorrow: isDeep ? tomorrowTasks.filter((t) => t.text.trim().length > 0) : [],
+      tasksReviewed: isDeep ? reviewedTasks : [],
     };
 
     try {
@@ -427,52 +455,65 @@ export function DayFillFlow({
 
     if (phase === "notes") {
       return (
-        <ScrollView
-          contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
         >
-          {dateLabel}
-          <NotesCard
-            value={notes}
-            onChange={setNotes}
-            photos={photos}
-            onPhotosChange={setPhotos}
-            proud={proud}
-            onProudChange={setProud}
-            proudIntensity={intensities.proud}
-            onProudIntensityChange={(v) => setIntensity("proud", v)}
-            onDone={() => advanceFrom("notes")}
-          />
-        </ScrollView>
+          <ScrollView
+            contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {dateLabel}
+            <NotesCard
+              value={notes}
+              onChange={setNotes}
+              photos={photos}
+              onPhotosChange={setPhotos}
+              proud={proud}
+              onProudChange={setProud}
+              proudIntensity={intensities.proud}
+              onProudIntensityChange={(v) => setIntensity("proud", v)}
+              onDone={() => advanceFrom("notes")}
+              isLast={isLastInputPhase}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
       );
     }
 
     if (phase === "deep") {
       return (
-        <ScrollView
-          contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
         >
-          {dateLabel}
-          <DeepBlocks
-            energy={energy}
-            onEnergyChange={setEnergy}
-            sleep={sleep}
-            onSleepChange={setSleep}
-            habits={habits}
-            onHabitsChange={setHabits}
-          />
-          <TouchableOpacity
-            style={[styles.continueButton, { backgroundColor: theme.primary, marginTop: 24 }]}
-            onPress={() => advanceFrom("deep")}
-            activeOpacity={0.85}
+          <ScrollView
+            contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <Text style={[styles.continueText, { color: theme.primaryForeground }]}>Готово</Text>
-            <Ionicons name="checkmark" size={18} color={theme.primaryForeground} />
-          </TouchableOpacity>
-        </ScrollView>
+            {dateLabel}
+            <DeepBlocks
+              energy={energy}
+              onEnergyChange={setEnergy}
+              sleep={sleep}
+              onSleepChange={setSleep}
+              reviewedTasks={reviewedTasks}
+              onReviewedTasksChange={setReviewedTasks}
+              tomorrowTasks={tomorrowTasks}
+              onTomorrowTasksChange={setTomorrowTasks}
+            />
+            <TouchableOpacity
+              style={[styles.continueButton, { backgroundColor: theme.primary, marginTop: 24 }]}
+              onPress={() => advanceFrom("deep")}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.continueText, { color: theme.primaryForeground }]}>Готово</Text>
+              <Ionicons name="checkmark" size={18} color={theme.primaryForeground} />
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
       );
     }
 
@@ -522,7 +563,12 @@ export function DayFillFlow({
             </TouchableOpacity>
           )}
           <View style={styles.switcherFlex}>
-            <FillModeSwitcher value={mode} onChange={changeMode} />
+            <FillModeSwitcher
+              value={mode}
+              onChange={changeMode}
+              expanded={switcherExpanded}
+              onExpand={() => setSwitcherExpanded(true)}
+            />
           </View>
         </View>
       </View>

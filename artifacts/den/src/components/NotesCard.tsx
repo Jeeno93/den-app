@@ -31,9 +31,11 @@ interface NotesCardProps {
   proudIntensity: IntensityValue;
   onProudIntensityChange: (v: IntensityValue) => void;
   onDone: () => void;
+  /** Является ли этот экран последним в потоке (тогда кнопка «Готово»). */
+  isLast: boolean;
 }
 
-export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onProudChange, proudIntensity, onProudIntensityChange, onDone }: NotesCardProps) {
+export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onProudChange, proudIntensity, onProudIntensityChange, onDone, isLast }: NotesCardProps) {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
 
@@ -221,9 +223,9 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
         testID="notes-done-button"
       >
         <Text style={[styles.doneButtonText, { color: theme.primaryForeground }]}>
-          Готово
+          {isLast ? "Готово" : "Далее"}
         </Text>
-        <Ionicons name="checkmark" size={18} color={theme.primaryForeground} />
+        <Ionicons name={isLast ? "checkmark" : "arrow-forward"} size={18} color={theme.primaryForeground} />
       </TouchableOpacity>
     </View>
   );

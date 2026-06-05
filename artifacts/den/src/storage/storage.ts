@@ -35,13 +35,20 @@ export type FillMode = "quick" | "standard" | "deep";
 export interface SleepData {
   bedtime: string; // "23:30" or ""
   wakeTime: string; // "07:00" or ""
-  quality: number | null; // 1-5
+  quality: number | null; // 1-3
 }
 
 /** Habit tracker item (режим «Глубоко»). Currently a structured stub. */
 export interface HabitItem {
   id: string;
   label: string;
+  done: boolean;
+}
+
+/** Задача дня (режим «Глубоко»). Пишется вечером на следующий день. */
+export interface TaskItem {
+  id: string;
+  text: string;
   done: boolean;
 }
 
@@ -62,9 +69,11 @@ export interface DayEntry {
   activities: string[];
   // --- Optional: режимы заполнения (Быстро/Стандарт/Глубоко) ---
   fillMode?: FillMode;
-  energy?: number | null; // уровень энергии 1-5 (Глубоко)
-  sleep?: SleepData | null; // трекер сна (Глубоко, заглушка)
-  habits?: HabitItem[]; // трекер привычек (Глубоко, заглушка)
+  energy?: number | null; // уровень энергии 1-3 (Глубоко)
+  sleep?: SleepData | null; // трекер сна (Глубоко)
+  habits?: HabitItem[]; // трекер привычек — будущая фича (сохраняется для совместимости)
+  tasksForTomorrow?: TaskItem[]; // до 3 задач, записанных вечером на следующий день (Глубоко)
+  tasksReviewed?: TaskItem[]; // вчерашние задачи, отмеченные сегодня (Глубоко)
 }
 
 export function formatDate(date: Date): string {
@@ -104,6 +113,8 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
     if (parsed.energy === undefined) parsed.energy = null;
     if (parsed.sleep === undefined) parsed.sleep = null;
     if (!Array.isArray(parsed.habits)) parsed.habits = [];
+    if (!Array.isArray(parsed.tasksForTomorrow)) parsed.tasksForTomorrow = [];
+    if (!Array.isArray(parsed.tasksReviewed)) parsed.tasksReviewed = [];
 
     // backward compat: laughed/annoyed → positive/negative QuestionAnswer
     const a = parsed.answers;

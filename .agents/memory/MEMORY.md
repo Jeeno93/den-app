@@ -1,2 +1,3 @@
 - [День fill-flow structure](den-fill-flow.md) — three modes (quick/standard/deep); 5 questions never last, final "Готово" lives on notes/deep; don't break Стандарт parity.
 - [День storage & SQLITE_FULL](den-storage-sqlite-full.md) — storage is AsyncStorage (no SQL columns); SQLITE_FULL = Android ~6MB cap from legacy inline base64 photos; keep big blobs on the filesystem.
+- [Expo native module install](expo-native-module-install.md) — `expo install` fails here (npm ERESOLVE); use bundledNativeModules.json version + `pnpm --filter add pkg@ver`.
