@@ -48,8 +48,8 @@ type Phase = "mood" | "tags" | "questions" | "notes" | "tasks" | "deep" | "done"
 
 const PHASE_ORDER: Record<FillMode, Phase[]> = {
   quick: ["mood", "tags", "tasks"],
-  standard: ["mood", "tags", "questions", "notes", "tasks"],
-  deep: ["mood", "tags", "questions", "notes", "tasks", "deep"],
+  standard: ["mood", "tags", "questions", "tasks"],
+  deep: ["mood", "tags", "questions", "tasks", "deep"],
 };
 
 const QUESTION_INTENSITY_KEYS = ["learned", "met", "positive", "negative"] as const;
