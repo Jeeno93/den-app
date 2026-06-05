@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 
@@ -37,7 +38,12 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
                 borderWidth: isSelected ? 2 : 1,
               },
             ]}
-            onPress={() => onSelect(mood.value)}
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              onSelect(mood.value);
+            }}
             activeOpacity={0.7}
             testID={`mood-${mood.value}`}
           >

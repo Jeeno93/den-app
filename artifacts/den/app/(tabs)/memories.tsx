@@ -16,7 +16,19 @@ import colors from "@/constants/colors";
 import { formatDate, getAllDays, getDay, getStreak } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
+import { EmptyState } from "@/src/components/EmptyState";
 import { getDayQuote } from "@/src/data/quotes";
+
+const STREAK_BADGES = [
+  { min: 365, emoji: "👑", label: "Целый год" },
+  { min: 100, emoji: "💎", label: "100 дней" },
+  { min: 30, emoji: "⚡", label: "Месяц подряд" },
+  { min: 7, emoji: "🔥", label: "Неделя подряд" },
+];
+
+function getStreakBadge(current: number): { emoji: string; label: string } | null {
+  return STREAK_BADGES.find((b) => current >= b.min) ?? null;
+}
 
 const MONTHS_GEN = [
   "января", "февраля", "марта", "апреля", "мая", "июня",
@@ -127,6 +139,11 @@ export default function MemoriesScreen() {
         <Text style={[styles.title, { color: theme.foreground }]}>Воспоминания</Text>
       </View>
 
+      {allEntries.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <EmptyState />
+        </View>
+      ) : (
       <ScrollView
         contentContainerStyle={[styles.container, { paddingBottom: Platform.OS === "web" ? 34 : 100 }]}
         showsVerticalScrollIndicator={false}
@@ -151,6 +168,16 @@ export default function MemoriesScreen() {
               <Text style={[styles.streakMore, { color: theme.primary }]}>+{streak.current - 14}</Text>
             )}
           </View>
+          {(() => {
+            const badge = getStreakBadge(streak.current);
+            if (!badge) return null;
+            return (
+              <View style={[styles.badgePlaque, { backgroundColor: theme.primary, shadowColor: theme.primary }]}>
+                <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                <Text style={[styles.badgeLabel, { color: theme.primaryForeground }]}>{badge.label}</Text>
+              </View>
+            );
+          })()}
         </View>
 
         {/* Quote of the day */}
@@ -221,6 +248,7 @@ export default function MemoriesScreen() {
           </>
         )}
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -282,6 +310,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     alignSelf: "center",
+  },
+  badgePlaque: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  badgeEmoji: {
+    fontSize: 18,
+  },
+  badgeLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  emptyWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionTitle: {
     fontSize: 18,

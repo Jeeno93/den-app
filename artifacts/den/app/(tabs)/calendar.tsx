@@ -16,6 +16,7 @@ import colors from "@/constants/colors";
 import { formatDate, getAllDays } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
+import { EmptyState } from "@/src/components/EmptyState";
 
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const MONTHS = [
@@ -284,6 +285,7 @@ export default function CalendarScreen() {
           contentContainerStyle={[styles.container, { paddingBottom: Platform.OS === "web" ? 34 : 100 }]}
           showsVerticalScrollIndicator={false}
         >
+          {Object.keys(entries).length === 0 && <EmptyState />}
           <View style={styles.weekRow}>
             {WEEK_DAYS.map((d) => (
               <Text key={d} style={[styles.weekDay, { color: theme.mutedForeground }]}>{d}</Text>

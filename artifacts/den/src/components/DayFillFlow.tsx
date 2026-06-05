@@ -307,10 +307,16 @@ export function DayFillFlow({
 
     setPhase("done");
     doneOpacity.setValue(0);
-    doneScale.setValue(0.9);
+    doneScale.setValue(0.5);
     Animated.parallel([
-      Animated.timing(doneOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(doneScale, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
+      Animated.timing(doneOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.spring(doneScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 6 }),
+        Animated.timing(doneScale, { toValue: 1.15, duration: 200, useNativeDriver: true }),
+        Animated.timing(doneScale, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.timing(doneScale, { toValue: 1.1, duration: 180, useNativeDriver: true }),
+        Animated.timing(doneScale, { toValue: 1, duration: 160, useNativeDriver: true }),
+      ]),
     ]).start();
   }
 
@@ -365,7 +371,7 @@ export function DayFillFlow({
           <View style={styles.moodRow}>
             <MoodPicker
               selected={selectedMood}
-              onSelect={(m) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedMood(m); }}
+              onSelect={(m) => setSelectedMood(m)}
             />
           </View>
           <TouchableOpacity
