@@ -4,7 +4,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import type { HabitItem, SleepData, TaskItem } from "@/src/storage/storage";
+import type { HabitItem, SleepData } from "@/src/storage/storage";
 
 const ACCENT = "#3D9970";
 
@@ -60,12 +60,6 @@ interface Props {
   onEnergyChange: (v: number | null) => void;
   sleep: SleepData;
   onSleepChange: (s: SleepData) => void;
-  /** Вчерашние задачи на сегодня — отмечаются галочками. */
-  reviewedTasks: TaskItem[];
-  onReviewedTasksChange: (t: TaskItem[]) => void;
-  /** До 3 задач на завтра — текстовые поля. */
-  tomorrowTasks: TaskItem[];
-  onTomorrowTasksChange: (t: TaskItem[]) => void;
 }
 
 export function DeepBlocks({
@@ -73,24 +67,12 @@ export function DeepBlocks({
   onEnergyChange,
   sleep,
   onSleepChange,
-  reviewedTasks,
-  onReviewedTasksChange,
-  tomorrowTasks,
-  onTomorrowTasksChange,
 }: Props) {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const fieldBg = isDark ? theme.muted : "#F8F9FA";
 
   const [picker, setPicker] = useState<null | "bedtime" | "wakeTime">(null);
-
-  function toggleReviewed(id: string) {
-    onReviewedTasksChange(reviewedTasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  }
-
-  function setTomorrowText(id: string, text: string) {
-    onTomorrowTasksChange(tomorrowTasks.map((t) => (t.id === id ? { ...t, text } : t)));
-  }
 
   function renderLevelRow(
     levels: { value: number; label: string }[],
@@ -204,62 +186,6 @@ export function DeepBlocks({
           }}
         />
       )}
-
-      {/* Задачи дня */}
-      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Text style={[styles.cardTitle, { color: theme.foreground }]}>Задачи дня</Text>
-
-        {reviewedTasks.length > 0 && (
-          <>
-            <Text style={[styles.cardSub, { color: theme.mutedForeground }]}>
-              Что планировал на сегодня?
-            </Text>
-            <View style={styles.taskList}>
-              {reviewedTasks.map((t) => (
-                <TouchableOpacity
-                  key={t.id}
-                  style={[styles.taskRow, { borderColor: theme.border, backgroundColor: fieldBg }]}
-                  onPress={() => toggleReviewed(t.id)}
-                  activeOpacity={0.75}
-                  testID={`task-review-${t.id}`}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      { borderColor: t.done ? ACCENT : theme.border, backgroundColor: t.done ? ACCENT : "transparent" },
-                    ]}
-                  >
-                    {t.done && <Ionicons name="checkmark" size={14} color="#fff" />}
-                  </View>
-                  <Text style={[styles.taskLabel, { color: theme.foreground }]}>{t.text}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
-
-        <Text style={[styles.cardSub, { color: theme.mutedForeground, marginTop: reviewedTasks.length > 0 ? 8 : 0 }]}>
-          3 задачи на завтра
-        </Text>
-        <View style={styles.taskList}>
-          {tomorrowTasks.map((t, idx) => (
-            <View
-              key={t.id}
-              style={[styles.taskInputRow, { borderColor: theme.border, backgroundColor: fieldBg }]}
-            >
-              <Text style={[styles.taskIndex, { color: theme.mutedForeground }]}>{idx + 1}</Text>
-              <TextInput
-                style={[styles.taskInput, { color: theme.foreground }]}
-                placeholder="Задача…"
-                placeholderTextColor={theme.mutedForeground}
-                value={t.text}
-                onChangeText={(text) => setTomorrowText(t.id, text)}
-                testID={`task-tomorrow-${idx}`}
-              />
-            </View>
-          ))}
-        </View>
-      </View>
     </View>
   );
 }
@@ -300,37 +226,4 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   timeValue: { fontSize: 16 },
-  taskList: { gap: 8, marginTop: 4 },
-  taskRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  taskLabel: { fontSize: 16, fontWeight: "500", flexShrink: 1 },
-  taskInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  taskIndex: { fontSize: 14, fontWeight: "700", width: 16, textAlign: "center" },
-  taskInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
 });

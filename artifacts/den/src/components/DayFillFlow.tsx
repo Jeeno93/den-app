@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -43,12 +44,12 @@ const MONTHS_GEN = [
   "июля", "августа", "сентября", "октября", "ноября", "декабря",
 ];
 
-type Phase = "mood" | "tags" | "questions" | "notes" | "deep" | "done";
+type Phase = "mood" | "tags" | "questions" | "notes" | "tasks" | "deep" | "done";
 
 const PHASE_ORDER: Record<FillMode, Phase[]> = {
-  quick: ["mood", "tags"],
-  standard: ["mood", "tags", "questions", "notes"],
-  deep: ["mood", "tags", "questions", "notes", "deep"],
+  quick: ["mood", "tags", "tasks"],
+  standard: ["mood", "tags", "questions", "notes", "tasks"],
+  deep: ["mood", "tags", "questions", "notes", "tasks", "deep"],
 };
 
 const QUESTION_INTENSITY_KEYS = ["learned", "met", "positive", "negative"] as const;
@@ -284,8 +285,8 @@ export function DayFillFlow({
       fillMode: mode,
       energy: isDeep ? energy : null,
       sleep: isDeep ? sleep : null,
-      tasksForTomorrow: isDeep ? tomorrowTasks.filter((t) => t.text.trim().length > 0) : [],
-      tasksReviewed: isDeep ? reviewedTasks : [],
+      tasksForTomorrow: tomorrowTasks.filter((t) => t.text.trim().length > 0),
+      tasksReviewed: reviewedTasks,
     };
 
     try {
@@ -488,6 +489,105 @@ export function DayFillFlow({
       );
     }
 
+    if (phase === "tasks") {
+      const fieldBg = isDark ? theme.muted : "#F8F9FA";
+      return (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        >
+          <ScrollView
+            contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {dateLabel}
+            <View style={[taskStyles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[taskStyles.cardTitle, { color: theme.foreground }]}>Задачи дня</Text>
+
+              {reviewedTasks.length > 0 && (
+                <>
+                  <Text style={[taskStyles.cardSub, { color: theme.mutedForeground }]}>
+                    Что планировал на сегодня?
+                  </Text>
+                  <View style={taskStyles.list}>
+                    {reviewedTasks.map((t) => (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={[taskStyles.checkRow, { borderColor: theme.border, backgroundColor: fieldBg }]}
+                        onPress={() =>
+                          setReviewedTasks(
+                            reviewedTasks.map((r) => (r.id === t.id ? { ...r, done: !r.done } : r))
+                          )
+                        }
+                        activeOpacity={0.75}
+                      >
+                        <View
+                          style={[
+                            taskStyles.checkbox,
+                            {
+                              borderColor: t.done ? theme.primary : theme.border,
+                              backgroundColor: t.done ? theme.primary : "transparent",
+                            },
+                          ]}
+                        >
+                          {t.done && <Ionicons name="checkmark" size={14} color="#fff" />}
+                        </View>
+                        <Text style={[taskStyles.checkLabel, { color: theme.foreground }]}>{t.text}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              <Text
+                style={[
+                  taskStyles.cardSub,
+                  { color: theme.mutedForeground, marginTop: reviewedTasks.length > 0 ? 12 : 0 },
+                ]}
+              >
+                3 задачи на завтра
+              </Text>
+              <View style={taskStyles.list}>
+                {tomorrowTasks.map((t, idx) => (
+                  <View
+                    key={t.id}
+                    style={[taskStyles.inputRow, { borderColor: theme.border, backgroundColor: fieldBg }]}
+                  >
+                    <Text style={[taskStyles.inputIdx, { color: theme.mutedForeground }]}>{idx + 1}</Text>
+                    <TextInput
+                      style={[taskStyles.input, { color: theme.foreground }]}
+                      placeholder="Задача…"
+                      placeholderTextColor={theme.mutedForeground}
+                      value={t.text}
+                      onChangeText={(text) =>
+                        setTomorrowTasks(tomorrowTasks.map((r) => (r.id === t.id ? { ...r, text } : r)))
+                      }
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.continueButton, { backgroundColor: theme.primary, marginTop: 24 }]}
+              onPress={() => advanceFrom("tasks")}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.continueText, { color: theme.primaryForeground }]}>
+                {isLastInputPhase ? "Готово" : "Далее"}
+              </Text>
+              <Ionicons
+                name={isLastInputPhase ? "checkmark" : "arrow-forward"}
+                size={18}
+                color={theme.primaryForeground}
+              />
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      );
+    }
+
     if (phase === "deep") {
       return (
         <KeyboardAvoidingView
@@ -505,10 +605,6 @@ export function DayFillFlow({
               onEnergyChange={setEnergy}
               sleep={sleep}
               onSleepChange={setSleep}
-              reviewedTasks={reviewedTasks}
-              onReviewedTasksChange={setReviewedTasks}
-              tomorrowTasks={tomorrowTasks}
-              onTomorrowTasksChange={setTomorrowTasks}
             />
             <TouchableOpacity
               style={[styles.continueButton, { backgroundColor: theme.primary, marginTop: 24 }]}
@@ -628,4 +724,44 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   doneButtonText: { fontSize: 16, fontWeight: "500" },
+});
+
+const taskStyles = StyleSheet.create({
+  card: {
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    gap: 10,
+  },
+  cardTitle: { fontSize: 18, fontWeight: "600" },
+  cardSub: { fontSize: 13, marginTop: -4 },
+  list: { gap: 8, marginTop: 4 },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkLabel: { fontSize: 16, fontWeight: "500", flexShrink: 1 },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  inputIdx: { fontSize: 14, fontWeight: "700", width: 16, textAlign: "center" },
+  input: { flex: 1, paddingVertical: 12, fontSize: 16 },
 });
