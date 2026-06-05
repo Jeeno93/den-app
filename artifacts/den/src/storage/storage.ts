@@ -419,6 +419,48 @@ export async function shouldShowDeepNudge(): Promise<boolean> {
   }
 }
 
+// ─── Time Capsule Letters ─────────────────────────────────────────────────
+
+export interface TimeCapsuleLetter {
+  id: string;
+  text: string;
+  openDate: string; // "YYYY-MM-DD"
+  createdAt: string; // ISO string
+  opened: boolean;
+  notifId?: string;
+}
+
+const LETTERS_KEY = "time_capsule_letters";
+
+export async function getLetters(): Promise<TimeCapsuleLetter[]> {
+  try {
+    const raw = await AsyncStorage.getItem(LETTERS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as TimeCapsuleLetter[];
+  } catch {
+    return [];
+  }
+}
+
+export async function upsertLetter(letter: TimeCapsuleLetter): Promise<void> {
+  const letters = await getLetters();
+  const idx = letters.findIndex((l) => l.id === letter.id);
+  if (idx >= 0) {
+    letters[idx] = letter;
+  } else {
+    letters.push(letter);
+  }
+  await AsyncStorage.setItem(LETTERS_KEY, JSON.stringify(letters));
+}
+
+export async function deleteLetter(id: string): Promise<void> {
+  const letters = await getLetters();
+  const filtered = letters.filter((l) => l.id !== id);
+  await AsyncStorage.setItem(LETTERS_KEY, JSON.stringify(filtered));
+}
+
+// ─── Streak ───────────────────────────────────────────────────────────────
+
 export async function getStreak(): Promise<{ current: number; best: number }> {
   const all = await getAllDays();
   if (all.length === 0) return { current: 0, best: 0 };

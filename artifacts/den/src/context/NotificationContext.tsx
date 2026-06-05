@@ -2,27 +2,38 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
+import { router } from "expo-router";
 import { getDayQuestion } from "@/src/data/questions";
+import {
+  scheduleMemoryNotification,
+  cancelMemoryNotification,
+} from "@/src/utils/notifications";
 
 const NOTIF_TIME_KEY = "notification_time";
 const NOTIF_ID_KEY = "notification_id";
 const NOTIF_SCHEDULED_DATE_KEY = "notification_scheduled_date";
 const NOTIF_ENABLED_KEY = "notifications_enabled";
+const MEMORY_NOTIF_ENABLED_KEY = "memory_notif_enabled";
+const MEMORY_NOTIF_SCHEDULED_KEY = "memory_notif_scheduled_date";
 
 interface NotificationContextValue {
   notifHour: number;
   notifMinute: number;
   notificationsEnabled: boolean;
+  memoryNotifEnabled: boolean;
   setNotificationTime: (hour: number, minute: number) => Promise<void>;
   setNotificationsEnabled: (enabled: boolean) => Promise<void>;
+  setMemoryNotifEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue>({
   notifHour: 21,
   notifMinute: 0,
   notificationsEnabled: true,
+  memoryNotifEnabled: false,
   setNotificationTime: async () => {},
   setNotificationsEnabled: async () => {},
+  setMemoryNotifEnabled: async () => {},
 });
 
 Notifications.setNotificationHandler({
@@ -45,14 +56,11 @@ async function scheduleNextDayNotification(hour: number, minute: number): Promis
 
   const lastScheduled = await AsyncStorage.getItem(NOTIF_SCHEDULED_DATE_KEY);
   const today = todayDateString();
-
   if (lastScheduled === today) return;
 
   const oldId = await AsyncStorage.getItem(NOTIF_ID_KEY);
   if (oldId) {
-    try {
-      await Notifications.cancelScheduledNotificationAsync(oldId);
-    } catch {}
+    try { await Notifications.cancelScheduledNotificationAsync(oldId); } catch {}
   }
 
   const tomorrow = new Date();
@@ -75,10 +83,13 @@ async function scheduleNextDayNotification(hour: number, minute: number): Promis
   await AsyncStorage.setItem(NOTIF_SCHEDULED_DATE_KEY, today);
 }
 
-async function cancelAllNotifications(): Promise<void> {
+async function cancelDailyNotification(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    const id = await AsyncStorage.getItem(NOTIF_ID_KEY);
+    if (id) {
+      try { await Notifications.cancelScheduledNotificationAsync(id); } catch {}
+    }
     await AsyncStorage.removeItem(NOTIF_ID_KEY);
     await AsyncStorage.removeItem(NOTIF_SCHEDULED_DATE_KEY);
   } catch {}
@@ -88,6 +99,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifHour, setNotifHour] = useState(21);
   const [notifMinute, setNotifMinute] = useState(0);
   const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
+  const [memoryNotifEnabled, setMemoryNotifEnabledState] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
@@ -96,9 +108,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         Promise.all([
           AsyncStorage.getItem(NOTIF_TIME_KEY),
           AsyncStorage.getItem(NOTIF_ENABLED_KEY),
-        ]).then(([timeVal, enabledVal]) => {
+          AsyncStorage.getItem(MEMORY_NOTIF_ENABLED_KEY),
+          AsyncStorage.getItem(MEMORY_NOTIF_SCHEDULED_KEY),
+        ]).then(([timeVal, enabledVal, memEnabledVal, memScheduled]) => {
           const enabled = enabledVal !== "false";
           setNotificationsEnabledState(enabled);
+
+          const memEnabled = memEnabledVal === "true";
+          setMemoryNotifEnabledState(memEnabled);
 
           if (timeVal) {
             const [h, m] = timeVal.split(":").map(Number);
@@ -108,9 +125,35 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           } else {
             if (enabled) scheduleNextDayNotification(21, 0);
           }
+
+          if (memEnabled) {
+            const today = todayDateString();
+            if (memScheduled !== today) {
+              scheduleMemoryNotification().then(() => {
+                AsyncStorage.setItem(MEMORY_NOTIF_SCHEDULED_KEY, today);
+              });
+            }
+          }
         });
       });
     }
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      if (data?.type === "memory" && typeof data?.date === "string") {
+        setTimeout(() => {
+          router.push({ pathname: "/day-detail", params: { date: data.date as string } } as any);
+        }, 300);
+      } else if (data?.type === "letter") {
+        setTimeout(() => {
+          router.push("/letters" as any);
+        }, 300);
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const setNotificationTime = async (hour: number, minute: number) => {
@@ -130,13 +173,33 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       await AsyncStorage.removeItem(NOTIF_SCHEDULED_DATE_KEY);
       await scheduleNextDayNotification(notifHour, notifMinute);
     } else {
-      await cancelAllNotifications();
+      await cancelDailyNotification();
+    }
+  };
+
+  const setMemoryNotifEnabled = async (enabled: boolean) => {
+    setMemoryNotifEnabledState(enabled);
+    await AsyncStorage.setItem(MEMORY_NOTIF_ENABLED_KEY, enabled ? "true" : "false");
+    if (enabled) {
+      await scheduleMemoryNotification();
+      await AsyncStorage.setItem(MEMORY_NOTIF_SCHEDULED_KEY, todayDateString());
+    } else {
+      await cancelMemoryNotification();
+      await AsyncStorage.removeItem(MEMORY_NOTIF_SCHEDULED_KEY);
     }
   };
 
   return (
     <NotificationContext.Provider
-      value={{ notifHour, notifMinute, notificationsEnabled, setNotificationTime, setNotificationsEnabled }}
+      value={{
+        notifHour,
+        notifMinute,
+        notificationsEnabled,
+        memoryNotifEnabled,
+        setNotificationTime,
+        setNotificationsEnabled,
+        setMemoryNotifEnabled,
+      }}
     >
       {children}
     </NotificationContext.Provider>
