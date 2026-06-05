@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
+import { compactPhotoStorage } from "@/src/storage/storage";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -41,6 +42,12 @@ export default function RootLayout() {
   });
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    // Relocate any legacy inline base64 photos out of AsyncStorage so writes
+    // stop failing with SQLITE_FULL. Fire-and-forget; safe to run every launch.
+    compactPhotoStorage();
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

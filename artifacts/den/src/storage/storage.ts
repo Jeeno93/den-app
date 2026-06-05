@@ -1,5 +1,7 @@
+import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { defaultPlaces, defaultActivities } from "@/src/data/defaultTags";
+import { isInlinePhoto, persistInlinePhoto } from "@/src/utils/photoStorage";
 import type { TagItem } from "@/src/data/defaultTags";
 
 export type { TagItem };
@@ -125,6 +127,96 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
   } catch (err) {
     console.error(`[storage] JSON.parse failed for key "${key}":`, err, "raw:", raw?.slice(0, 100));
     return null;
+  }
+}
+
+/**
+ * One-time data migration that fixes "SQLITE_FULL (code 13)" on save.
+ *
+ * Storage here is AsyncStorage (key/value JSON blobs per day) — NOT a
+ * relational table, so there are no columns to migrate. On Android,
+ * AsyncStorage is backed by SQLite with a ~6MB cap (independent of free
+ * device space). Older versions of the app stored captured photos as inline
+ * base64 `data:` URIs inside each `day_*` blob; accumulated images eventually
+ * fill the cap and every write fails with SQLITE_FULL.
+ *
+ * This relocates any inline base64 photos to the filesystem (keeping the
+ * image — no data loss) and rewrites the entry with short `file://` paths.
+ * Replacing a large value with a much smaller one nets free space, so the
+ * rewrite typically succeeds even on a near-full DB (failures are logged and
+ * retried on the next launch). Handles the legacy single-`photo` shape too.
+ * Idempotent and safe to run on every launch; a no-op once entries are clean.
+ */
+export async function compactPhotoStorage(): Promise<void> {
+  // Web has no filesystem, so photos must stay as data URIs there.
+  if (Platform.OS === "web") return;
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const dayKeys = (allKeys as string[]).filter((k) => k.startsWith("day_"));
+    if (dayKeys.length === 0) return;
+
+    let rewrote = 0;
+
+    for (const key of dayKeys) {
+      // Read fresh per key (not a bulk snapshot) so we operate on current data.
+      const raw = await AsyncStorage.getItem(key);
+      // Fast pre-filter: skip entries that cannot contain a base64 image.
+      if (!raw || !raw.includes("data:")) continue;
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        continue;
+      }
+
+      // Normalize legacy shapes (mirror of parseEntry): some old entries store
+      // a single `photo` string instead of a `photos` array.
+      if (!Array.isArray(parsed.photos)) {
+        parsed.photos = parsed.photo ? [parsed.photo] : [];
+      }
+      const photos: unknown[] = parsed.photos;
+      if (!photos.some(isInlinePhoto)) continue;
+
+      const migrated: string[] = [];
+      for (const p of photos) {
+        if (isInlinePhoto(p)) {
+          try {
+            migrated.push(await persistInlinePhoto(p));
+          } catch (err) {
+            // Keep the original on failure so no photo is ever lost.
+            console.warn(`[storage] compact: keep inline photo in "${key}":`, err);
+            migrated.push(p);
+          }
+        } else if (typeof p === "string") {
+          migrated.push(p);
+        }
+      }
+      parsed.photos = migrated;
+      delete parsed.photo; // legacy singular field folded into photos[]
+
+      // Optimistic concurrency guard: if the entry changed since we read it
+      // (e.g. the user saved this day mid-migration), skip the rewrite so we
+      // never clobber a newer save. It will be picked up on the next launch.
+      const current = await AsyncStorage.getItem(key);
+      if (current !== raw) {
+        console.log(`[storage] compact: "${key}" changed during migration, skipping`);
+        continue;
+      }
+
+      try {
+        await AsyncStorage.setItem(key, JSON.stringify(parsed));
+        rewrote++;
+      } catch (err) {
+        console.warn(`[storage] compact: rewrite failed for "${key}":`, err);
+      }
+    }
+
+    if (rewrote > 0) {
+      console.log(`[storage] compactPhotoStorage relocated photos in ${rewrote} entr${rewrote === 1 ? "y" : "ies"}`);
+    }
+  } catch (err) {
+    console.warn("[storage] compactPhotoStorage failed (non-fatal):", err);
   }
 }
 

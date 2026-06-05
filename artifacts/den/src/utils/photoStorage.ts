@@ -24,6 +24,37 @@ function uniqueName(ext: string): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 }
 
+function extFromDataUri(uri: string): string {
+  const m = uri.match(/^data:image\/(jpeg|jpg|png|webp|heic|heif)/i);
+  const ext = (m?.[1] ?? "jpg").toLowerCase();
+  return ext === "jpeg" ? "jpg" : ext;
+}
+
+/** True for legacy inline base64 photos (`data:image/...;base64,...`). */
+export function isInlinePhoto(uri: unknown): uri is string {
+  return typeof uri === "string" && uri.startsWith("data:");
+}
+
+/**
+ * Moves a base64 `data:` image into a real file on disk and returns its
+ * file:// path. On web (or when there is no filesystem) the data URI is
+ * returned unchanged. Used by the storage compaction migration to evict
+ * large inline images out of AsyncStorage (root cause of SQLITE_FULL).
+ */
+export async function persistInlinePhoto(dataUri: string): Promise<string> {
+  if (!PHOTOS_DIR || !dataUri.startsWith("data:")) return dataUri;
+  const commaIdx = dataUri.indexOf(",");
+  if (commaIdx === -1) return dataUri;
+  const base64 = dataUri.slice(commaIdx + 1);
+  await ensurePhotosDir();
+  const dest = PHOTOS_DIR + uniqueName(extFromDataUri(dataUri));
+  await FileSystem.writeAsStringAsync(dest, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  console.log(`[photoStorage] relocated inline photo → ${dest}`);
+  return dest;
+}
+
 /**
  * Copies a photo from the image picker into permanent app storage.
  * Returns a string suitable for use as <Image source={{ uri }}>.
