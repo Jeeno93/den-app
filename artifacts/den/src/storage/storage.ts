@@ -497,22 +497,6 @@ export function hasAnyCustomQuestion(q: CustomQuestions): boolean {
   return Object.values(q).some((v) => typeof v === "string" && v.trim().length > 0);
 }
 
-// ─── Дата последнего бэкапа Google Drive ──────────────────────────────────
-
-const LAST_GDRIVE_BACKUP_KEY = "last_gdrive_backup";
-
-export async function getLastGDriveBackup(): Promise<string | null> {
-  try {
-    return await AsyncStorage.getItem(LAST_GDRIVE_BACKUP_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export async function saveLastGDriveBackup(isoDate: string): Promise<void> {
-  await AsyncStorage.setItem(LAST_GDRIVE_BACKUP_KEY, isoDate);
-}
-
 // ─── Streak ───────────────────────────────────────────────────────────────
 
 export async function getStreak(): Promise<{ current: number; best: number }> {
