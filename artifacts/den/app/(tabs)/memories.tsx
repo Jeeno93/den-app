@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { formatDate, getAllDays, getDay, getStreak } from "@/src/storage/storage";
@@ -148,15 +149,21 @@ export default function MemoriesScreen() {
         contentContainerStyle={[styles.container, { paddingBottom: Platform.OS === "web" ? 34 : 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.streakCard, { backgroundColor: theme.primary + "15", borderColor: theme.primary + "30" }]}>
+        <View style={[styles.streakCard, { borderColor: "rgba(94,230,168,0.15)" }]}>
+          <LinearGradient
+            colors={["#111C15", "#0A1410"]}
+            style={styles.streakFireCircle}
+          >
+            <Text style={{ fontSize: 28 }}>🔥</Text>
+          </LinearGradient>
           <View style={styles.streakRow}>
             <View style={styles.streakItem}>
-              <Text style={[styles.streakNum, { color: theme.primary }]}>{streak.current}</Text>
+              <Text style={styles.streakNum}>{streak.current}</Text>
               <Text style={[styles.streakLabel, { color: theme.mutedForeground }]}>Текущая серия</Text>
             </View>
             <View style={[styles.streakDivider, { backgroundColor: theme.border }]} />
             <View style={styles.streakItem}>
-              <Text style={[styles.streakNum, { color: theme.primary }]}>{streak.best}</Text>
+              <Text style={styles.streakNum}>{streak.best}</Text>
               <Text style={[styles.streakLabel, { color: theme.mutedForeground }]}>Рекорд</Text>
             </View>
           </View>
@@ -185,7 +192,7 @@ export default function MemoriesScreen() {
           onPress={() => router.push("/year-pixels" as any)}
           activeOpacity={0.8}
         >
-          <View style={[styles.yearPixelsIcon, { backgroundColor: "#3D997018" }]}>
+          <View style={[styles.yearPixelsIcon, { backgroundColor: "#5EE6A818" }]}>
             <Text style={{ fontSize: 20 }}>🟩</Text>
           </View>
           <View style={{ flex: 1 }}>
@@ -283,11 +290,32 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   streakCard: {
-    borderRadius: 20,
+    borderRadius: 32,
     borderWidth: 1,
-    padding: 20,
+    padding: 24,
     gap: 16,
     marginBottom: 8,
+    backgroundColor: "#0D1117",
+    shadowColor: "#000",
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 20,
+  },
+  streakFireCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(94,230,168,0.3)",
+    shadowColor: "#5EE6A8",
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+    alignSelf: "center",
   },
   streakRow: {
     flexDirection: "row",
@@ -303,9 +331,10 @@ const styles = StyleSheet.create({
     height: 48,
   },
   streakNum: {
-    fontSize: 40,
-    fontWeight: "800",
-    letterSpacing: -1,
+    fontSize: 64,
+    fontWeight: "200",
+    letterSpacing: -3,
+    color: "#FFFFFF",
   },
   streakLabel: {
     fontSize: 13,

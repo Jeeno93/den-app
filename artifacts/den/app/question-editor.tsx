@@ -107,7 +107,7 @@ export default function QuestionEditorScreen() {
   }
 
   const fieldBg = isDark ? theme.muted : "#F8F9FA";
-  const ACCENT = "#3D9970";
+  const ACCENT = "#5EE6A8";
 
   return (
     <KeyboardAvoidingView

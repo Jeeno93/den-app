@@ -1,77 +1,42 @@
+const DARK = {
+  text: "#FFFFFF",
+  tint: "#5EE6A8",
+
+  background: "#06080B",
+  foreground: "#FFFFFF",
+
+  card: "#0D1117",
+  cardForeground: "#FFFFFF",
+
+  primary: "#5EE6A8",
+  primaryForeground: "#06080B",
+
+  secondary: "#10141A",
+  secondaryForeground: "#FFFFFF",
+
+  muted: "#10141A",
+  mutedForeground: "#6B7585",
+
+  accent: "#5EE6A8",
+  accentForeground: "#06080B",
+
+  destructive: "#EF4444",
+  destructiveForeground: "#FFFFFF",
+
+  border: "rgba(255,255,255,0.08)",
+  input: "rgba(255,255,255,0.08)",
+
+  moodBad: "#7B8FA1",
+  moodNeutral: "#A8B5C1",
+  moodGood: "#90C8A8",
+  moodGreat: "#5BAD8F",
+  moodSuper: "#5EE6A8",
+};
+
 const colors = {
-  light: {
-    text: "#1a1a1a",
-    tint: "#3D9970",
-
-    background: "#F8F9FA",
-    foreground: "#1a1a1a",
-
-    card: "#FFFFFF",
-    cardForeground: "#1a1a1a",
-
-    primary: "#3D9970",
-    primaryForeground: "#FFFFFF",
-
-    secondary: "#EEF7F2",
-    secondaryForeground: "#1a1a1a",
-
-    muted: "#F0F0F0",
-    mutedForeground: "#888888",
-
-    accent: "#3D9970",
-    accentForeground: "#FFFFFF",
-
-    destructive: "#EF4444",
-    destructiveForeground: "#FFFFFF",
-
-    border: "#E8E8E8",
-    input: "#E8E8E8",
-
-    // Mood colors
-    moodBad: "#7B8FA1",
-    moodNeutral: "#A8B5C1",
-    moodGood: "#90C8A8",
-    moodGreat: "#5BAD8F",
-    moodSuper: "#3D9970",
-  },
-
-  dark: {
-    text: "#F0F0F0",
-    tint: "#5BAD8F",
-
-    background: "#121212",
-    foreground: "#F0F0F0",
-
-    card: "#1E1E1E",
-    cardForeground: "#F0F0F0",
-
-    primary: "#5BAD8F",
-    primaryForeground: "#121212",
-
-    secondary: "#2A2A2A",
-    secondaryForeground: "#F0F0F0",
-
-    muted: "#2A2A2A",
-    mutedForeground: "#888888",
-
-    accent: "#5BAD8F",
-    accentForeground: "#121212",
-
-    destructive: "#EF4444",
-    destructiveForeground: "#FFFFFF",
-
-    border: "#2E2E2E",
-    input: "#2E2E2E",
-
-    // Mood colors (same in dark)
-    moodBad: "#7B8FA1",
-    moodNeutral: "#A8B5C1",
-    moodGood: "#90C8A8",
-    moodGreat: "#5BAD8F",
-    moodSuper: "#3D9970",
-  },
-
-  radius: 12,
+  light: DARK,
+  dark: DARK,
+  radius: 20,
 };
 
 export default colors;

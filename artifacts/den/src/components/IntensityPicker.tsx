@@ -4,7 +4,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import type { IntensityConfig, IntensityValue } from "@/src/data/intensity";
 
-const ACCENT = "#3D9970";
+const ACCENT = "#5EE6A8";
 
 interface Props {
   config: IntensityConfig;

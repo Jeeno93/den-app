@@ -29,7 +29,7 @@ import {
   cancelLetterNotification,
 } from "@/src/utils/notifications";
 
-const ACCENT = "#3D9970";
+const ACCENT = "#5EE6A8";
 
 const MONTHS = [
   "января","февраля","марта","апреля","мая","июня",

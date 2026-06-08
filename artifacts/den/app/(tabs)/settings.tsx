@@ -299,8 +299,8 @@ export default function SettingsScreen() {
 
           {/* Memory notification toggle */}
           <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.border }]}>
-            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
-              <Ionicons name="sparkles-outline" size={20} color="#3D9970" />
+            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
+              <Ionicons name="sparkles-outline" size={20} color="#5EE6A8" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, { color: theme.foreground }]}>Воспоминания из прошлого</Text>
@@ -309,8 +309,8 @@ export default function SettingsScreen() {
             <Switch
               value={memoryNotifEnabled}
               onValueChange={setMemoryNotifEnabled}
-              trackColor={{ false: theme.border, true: "#3D9970" + "88" }}
-              thumbColor={memoryNotifEnabled ? "#3D9970" : theme.mutedForeground}
+              trackColor={{ false: theme.border, true: "#5EE6A8" + "88" }}
+              thumbColor={memoryNotifEnabled ? "#5EE6A8" : theme.mutedForeground}
             />
           </View>
         </View>
@@ -350,7 +350,7 @@ export default function SettingsScreen() {
             onPress={() => router.push("/tag-editor" as any)}
             activeOpacity={0.7}
           >
-            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
+            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
               <Text style={{ fontSize: 18 }}>🏷️</Text>
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои места и активности</Text>
@@ -361,14 +361,14 @@ export default function SettingsScreen() {
             onPress={() => router.push("/question-editor" as any)}
             activeOpacity={0.7}
           >
-            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
+            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
               <Text style={{ fontSize: 18 }}>✏️</Text>
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои вопросы</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => router.push("/letters" as any)} activeOpacity={0.7}>
-            <View style={[styles.rowIcon, { backgroundColor: "#3D997020" }]}>
+            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
               <Text style={{ fontSize: 18 }}>💌</Text>
             </View>
             <View style={{ flex: 1 }}>

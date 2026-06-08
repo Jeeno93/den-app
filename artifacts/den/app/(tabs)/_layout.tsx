@@ -9,7 +9,11 @@ import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/src/context/ThemeContext";
-import colors from "@/constants/colors";
+
+const ACTIVE   = "#5EE6A8";
+const INACTIVE = "#6B7585";
+const TAB_BG   = "rgba(6,8,11,0.95)";
+const TAB_BORDER = "rgba(255,255,255,0.05)";
 
 function NativeTabLayout() {
   return (
@@ -36,7 +40,6 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const { isDark } = useTheme();
-  const theme = isDark ? colors.dark : colors.light;
   const safeAreaInsets = useSafeAreaInsets();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
@@ -44,14 +47,14 @@ function ClassicTabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.mutedForeground,
+        tabBarActiveTintColor: ACTIVE,
+        tabBarInactiveTintColor: INACTIVE,
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : theme.background,
-          borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: theme.border,
+          backgroundColor: isIOS ? "transparent" : TAB_BG,
+          borderTopWidth: 1,
+          borderTopColor: TAB_BORDER,
           elevation: 0,
           paddingBottom: safeAreaInsets.bottom,
           ...(isWeb ? { height: 84 } : {}),
@@ -59,17 +62,12 @@ function ClassicTabLayout() {
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
+              intensity={80}
+              tint="dark"
+              style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(6,8,11,0.6)" }]}
             />
           ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: theme.background },
-              ]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: TAB_BG }]} />
           ) : null,
       }}
     >

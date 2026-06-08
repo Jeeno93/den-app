@@ -17,7 +17,7 @@ const CARD_BG = "rgba(255,255,255,0.10)";
 const CARD_BORDER = "rgba(255,255,255,0.18)";
 const WHITE = "#ffffff";
 const WHITE_DIM = "rgba(255,255,255,0.75)";
-const ACCENT = "#3D9970";
+const ACCENT = "#5EE6A8";
 
 const BLOCKS = [
   {

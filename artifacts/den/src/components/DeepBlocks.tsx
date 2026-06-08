@@ -6,7 +6,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import type { HabitItem, SleepData } from "@/src/storage/storage";
 
-const ACCENT = "#3D9970";
+const ACCENT = "#5EE6A8";
 
 export const DEFAULT_HABITS: HabitItem[] = [
   { id: "sport", label: "Спорт", done: false },

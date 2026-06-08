@@ -324,7 +324,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
               const tag = entryTags.activities.find((t) => t.id === id);
               if (!tag) return null;
               return (
-                <View key={id} style={[styles.tagChip, { backgroundColor: "#3D997018", borderColor: "#3D997035" }]}>
+                <View key={id} style={[styles.tagChip, { backgroundColor: "#5EE6A818", borderColor: "#5EE6A835" }]}>
                   <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
                   <Text style={[styles.tagChipLabel, { color: theme.foreground }]}>{tag.label}</Text>
                 </View>
@@ -497,7 +497,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
                 <Ionicons
                   name={task.done ? "checkmark-circle" : "ellipse-outline"}
                   size={18}
-                  color={task.done ? "#3D9970" : theme.mutedForeground}
+                  color={task.done ? "#5EE6A8" : theme.mutedForeground}
                 />
                 <Text style={[
                   styles.taskText,

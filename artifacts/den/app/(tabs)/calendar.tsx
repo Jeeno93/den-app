@@ -355,7 +355,7 @@ export default function CalendarScreen() {
                 { color: "#A8B5C1", label: "Нейтр." },
                 { color: "#90C8A8", label: "Хорошо" },
                 { color: "#5BAD8F", label: "Отлично" },
-                { color: "#3D9970", label: "Супер" },
+                { color: "#5EE6A8", label: "Супер" },
               ].map((item) => (
                 <View key={item.color} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: item.color }]} />

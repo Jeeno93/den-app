@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const ONBOARDING_KEY = "onboarding_done";
 
 const BG = "#1a5c42";
-const ACCENT = "#3D9970";
+const ACCENT = "#5EE6A8";
 const WHITE = "#ffffff";
 const WHITE_DIM = "rgba(255,255,255,0.75)";
 const CARD_BG = "rgba(255,255,255,0.10)";

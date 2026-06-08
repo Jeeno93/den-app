@@ -1,15 +1,14 @@
 import React from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { useTheme } from "@/src/context/ThemeContext";
-import colors from "@/constants/colors";
 
 const MOODS = [
-  { value: 1, emoji: "😞", label: "Плохо", color: "#7B8FA1" },
+  { value: 1, emoji: "😞", label: "Плохо",      color: "#7B8FA1" },
   { value: 2, emoji: "😐", label: "Нейтрально", color: "#A8B5C1" },
-  { value: 3, emoji: "🙂", label: "Хорошо", color: "#90C8A8" },
-  { value: 4, emoji: "😄", label: "Отлично", color: "#5BAD8F" },
-  { value: 5, emoji: "🤩", label: "Супер", color: "#3D9970" },
+  { value: 3, emoji: "🙂", label: "Хорошо",     color: "#90C8A8" },
+  { value: 4, emoji: "😄", label: "Отлично",    color: "#5BAD8F" },
+  { value: 5, emoji: "🤩", label: "Супер",      color: "#5EE6A8" },
 ];
 
 interface MoodPickerProps {
@@ -18,9 +17,6 @@ interface MoodPickerProps {
 }
 
 export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
-  const { isDark } = useTheme();
-  const theme = isDark ? colors.dark : colors.light;
-
   return (
     <View style={styles.container}>
       {MOODS.map((mood) => {
@@ -28,26 +24,37 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
         return (
           <TouchableOpacity
             key={mood.value}
-            style={[
-              styles.moodButton,
-              {
-                backgroundColor: isSelected
-                  ? mood.color + "22"
-                  : theme.card,
-                borderColor: isSelected ? mood.color : theme.border,
-                borderWidth: isSelected ? 2 : 1,
-              },
-            ]}
             onPress={() => {
               if (Platform.OS !== "web") {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }
               onSelect(mood.value);
             }}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
             testID={`mood-${mood.value}`}
+            style={[
+              styles.outer,
+              isSelected && {
+                shadowColor: "#5EE6A8",
+                shadowOpacity: 0.55,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 12,
+                transform: [{ scale: 1.15 }],
+              },
+            ]}
           >
-            <Text style={styles.emoji}>{mood.emoji}</Text>
+            <LinearGradient
+              colors={["#FFFFFF", "#C8D1D9"]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={[
+                styles.circle,
+                isSelected && styles.circleActive,
+              ]}
+            >
+              <Text style={styles.emoji}>{mood.emoji}</Text>
+            </LinearGradient>
           </TouchableOpacity>
         );
       })}
@@ -74,15 +81,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     gap: 8,
   },
-  moodButton: {
+  outer: {
     flex: 1,
-    aspectRatio: 1,
-    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     maxWidth: 64,
   },
+  circle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  circleActive: {
+    borderWidth: 2,
+    borderColor: "#5EE6A8",
+  },
   emoji: {
-    fontSize: 28,
+    fontSize: 26,
   },
 });

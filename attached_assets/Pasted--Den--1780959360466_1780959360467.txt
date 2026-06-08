@@ -1,0 +1,68 @@
+Обнови визуальный дизайн всего приложения Den по новой дизайн-системе. Не меняй логику — только визуал.
+Токены (добавь в theme.ts или constants/theme.ts):
+typescriptexport const theme = {
+  colors: {
+    bgPrimary: "#06080B",
+    bgSecondary: "#0A0D11",
+    bgTertiary: "#10141A",
+    card: "#0D1117",
+    textPrimary: "#FFFFFF",
+    textSecondary: "#B3BCC8",
+    textTertiary: "#6B7585",
+    accent: "#5EE6A8",
+    accentBright: "#73FFBA",
+    accentDark: "#1B6B4A",
+    border: "rgba(255,255,255,0.08)",
+    borderLight: "rgba(255,255,255,0.12)",
+    glowGreen: "rgba(94,230,168,0.35)",
+  },
+  radius: { sm: 12, md: 20, lg: 32, xl: 40 },
+  shadow: {
+    card: {
+      shadowColor: "#000",
+      shadowOpacity: 0.5,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 16 },
+      elevation: 20,
+    },
+  },
+};
+Общие правила для всех экранов:
+Фон всех экранов: #06080B
+Все карточки:
+background: linear-gradient(180deg, rgba(20,25,31,0.95) 0%, rgba(13,17,23,0.98) 100%)
+border: 1px solid rgba(255,255,255,0.08)
+border-radius: 32
+shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 24, elevation: 20
+Внутренняя подсветка карточек — тонкая линия сверху: rgba(255,255,255,0.06)
+Кнопка "Готово" / "Продолжить" / "Заполнить день":
+background: linear-gradient(90deg, #214E3C, #4DD894, #2F7D58)
+box-shadow: 0 0 50px rgba(94,230,168,0.25)
+border-radius: 28
+Смайлики настроения:
+background: linear-gradient(180deg, #FFFFFF, #C8D1D9)
+width: 52, height: 52, border-radius: 26
+shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 10, elevation: 8
+Активный смайлик:
+border: 2px solid #5EE6A8
+shadowColor: "#5EE6A8", shadowOpacity: 0.5, shadowRadius: 15
+scale: 1.15
+Карточка стрика:
+Огонь в круге:
+background: linear-gradient(180deg, #111C15, #0A1410)
+border: 2px solid rgba(94,230,168,0.3)
+shadowColor: "#5EE6A8", shadowOpacity: 0.2, shadowRadius: 15
+Число стрика: font-size: 64, fontWeight: "200", color: "#FFFFFF", letterSpacing: -3
+Типографика:
+
+Заголовки экранов: fontSize: 28, fontWeight: "500", letterSpacing: -1
+Заголовки карточек: fontSize: 15, fontWeight: "500", color: "#FFFFFF"
+Подписи: fontSize: 11, color: "#6B7585", letterSpacing: 1
+Акцентный текст: color: "#5EE6A8"
+
+Навбар:
+background: rgba(6,8,11,0.95)
+borderTopColor: rgba(255,255,255,0.05)
+border-radius снизу: 30
+Активная иконка: color: "#5EE6A8"
+Применить эту систему ко всем экранам: Сегодня, Календарь, Воспоминания, Настройки, все экраны заполнения, просмотр дня. TypeScript чистый.
