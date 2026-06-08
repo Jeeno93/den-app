@@ -20,7 +20,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import type { DayAnswers, DayEntry as DayEntryType, QuestionAnswer, UserTags } from "@/src/storage/storage";
 import { saveDay, getTags } from "@/src/storage/storage";
-import { getMoodColor, getMoodEmoji, getMoodLabel } from "./MoodPicker";
+import { getMoodColor, getMoodEmoji, getMoodLabel, MoodPicker } from "./MoodPicker";
 import { getDayQuote } from "@/src/data/quotes";
 import { ShareCard } from "./ShareCard";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
@@ -68,10 +68,18 @@ interface DayEntryProps {
   dayQuestion?: string;
 }
 
+const ENERGY_LABELS: Record<number, string> = { 1: "Мало сил", 2: "Нормально", 3: "Полон сил" };
+const ENERGY_ICONS: Record<number, string> = { 1: "🔋", 2: "⚡", 3: "🔥" };
+const SLEEP_QUALITY_LABELS: Record<number, string> = { 1: "Плохо", 2: "Нормально", 3: "Отлично" };
+const SLEEP_QUALITY_ICONS: Record<number, string> = { 1: "😴", 2: "🌙", 3: "⭐" };
+
 export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
-  const moodColor = getMoodColor(entry.mood);
+
+  const [mood, setMood] = useState<number>(entry.mood);
+  const [isEditingMood, setIsEditingMood] = useState(false);
+  const moodColor = getMoodColor(mood);
 
   const [answers, setAnswers] = useState<DayAnswers>({ ...entry.answers });
   const [editingKey, setEditingKey] = useState<keyof DayAnswers | null>(null);
@@ -268,12 +276,36 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
       >
         {/* Mood */}
         <View style={[styles.moodCard, { backgroundColor: moodColor + "22", borderColor: moodColor + "44" }]}>
-          <Text style={styles.moodEmoji}>{getMoodEmoji(entry.mood)}</Text>
-          <View>
-            <Text style={[styles.moodLabel, { color: moodColor }]}>{getMoodLabel(entry.mood)}</Text>
+          <Text style={styles.moodEmoji}>{getMoodEmoji(mood)}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.moodLabel, { color: moodColor }]}>{getMoodLabel(mood)}</Text>
             <Text style={[styles.moodSub, { color: theme.mutedForeground }]}>Настроение за день</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => setIsEditingMood((v) => !v)}
+            activeOpacity={0.7}
+            hitSlop={10}
+          >
+            <Ionicons
+              name={isEditingMood ? "close-outline" : "pencil-outline"}
+              size={18}
+              color={theme.mutedForeground}
+            />
+          </TouchableOpacity>
         </View>
+        {isEditingMood && (
+          <View style={[styles.answerCard, { backgroundColor: theme.card, borderColor: theme.border, shadowColor: isDark ? "#000" : "#333" }]}>
+            <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>Изменить настроение</Text>
+            <MoodPicker
+              selected={mood}
+              onSelect={async (m) => {
+                setMood(m);
+                setIsEditingMood(false);
+                await saveDay(entry.date, { ...entry, mood: m, answers, notes, photos });
+              }}
+            />
+          </View>
+        )}
 
         {/* Day tags */}
         {entryTags && ((entry.places?.length ?? 0) > 0 || (entry.activities?.length ?? 0) > 0) && (
@@ -454,6 +486,80 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
               {photos.length === 0 ? "Добавить фото" : `Добавить фото (${photos.length}/${MAX_PHOTOS})`}
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* Tasks reviewed (вчерашние задачи, отмеченные сегодня) */}
+        {(entry.tasksReviewed?.some((t) => t.text.trim())) && (
+          <View style={[styles.answerCard, { backgroundColor: theme.card, borderColor: theme.border, shadowColor: isDark ? "#000" : "#333" }]}>
+            <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>Задачи дня</Text>
+            {entry.tasksReviewed.filter((t) => t.text.trim()).map((task) => (
+              <View key={task.id} style={styles.taskRow}>
+                <Ionicons
+                  name={task.done ? "checkmark-circle" : "ellipse-outline"}
+                  size={18}
+                  color={task.done ? "#3D9970" : theme.mutedForeground}
+                />
+                <Text style={[
+                  styles.taskText,
+                  { color: task.done ? theme.mutedForeground : theme.foreground },
+                  task.done && styles.taskDone,
+                ]}>
+                  {task.text}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Tasks for tomorrow */}
+        {(entry.tasksForTomorrow?.some((t) => t.text.trim())) && (
+          <View style={[styles.answerCard, { backgroundColor: theme.card, borderColor: theme.border, shadowColor: isDark ? "#000" : "#333" }]}>
+            <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>Планы на завтра</Text>
+            {entry.tasksForTomorrow.filter((t) => t.text.trim()).map((task) => (
+              <View key={task.id} style={styles.taskRow}>
+                <Ionicons name="arrow-forward-circle-outline" size={18} color={theme.mutedForeground} />
+                <Text style={[styles.taskText, { color: theme.foreground }]}>{task.text}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Deep mode: energy */}
+        {!!entry.energy && (
+          <View style={[styles.answerCard, { backgroundColor: theme.card, borderColor: theme.border, shadowColor: isDark ? "#000" : "#333" }]}>
+            <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>Энергия</Text>
+            <Text style={[styles.deepValue, { color: theme.foreground }]}>
+              {ENERGY_ICONS[entry.energy]} {ENERGY_LABELS[entry.energy] ?? ""}
+            </Text>
+          </View>
+        )}
+
+        {/* Deep mode: sleep */}
+        {(!!entry.sleep?.quality || !!entry.sleep?.bedtime || !!entry.sleep?.wakeTime) && (
+          <View style={[styles.answerCard, { backgroundColor: theme.card, borderColor: theme.border, shadowColor: isDark ? "#000" : "#333" }]}>
+            <Text style={[styles.answerLabel, { color: theme.mutedForeground }]}>Сон</Text>
+            {!!entry.sleep?.quality && (
+              <Text style={[styles.deepValue, { color: theme.foreground }]}>
+                {SLEEP_QUALITY_ICONS[entry.sleep.quality]} {SLEEP_QUALITY_LABELS[entry.sleep.quality] ?? ""}
+              </Text>
+            )}
+            {(!!entry.sleep?.bedtime || !!entry.sleep?.wakeTime) && (
+              <View style={styles.sleepTimes}>
+                {!!entry.sleep?.bedtime && (
+                  <View style={styles.sleepTimeItem}>
+                    <Text style={[styles.sleepTimeLabel, { color: theme.mutedForeground }]}>Лёг</Text>
+                    <Text style={[styles.sleepTimeValue, { color: theme.foreground }]}>{entry.sleep.bedtime}</Text>
+                  </View>
+                )}
+                {!!entry.sleep?.wakeTime && (
+                  <View style={styles.sleepTimeItem}>
+                    <Text style={[styles.sleepTimeLabel, { color: theme.mutedForeground }]}>Встал</Text>
+                    <Text style={[styles.sleepTimeValue, { color: theme.foreground }]}>{entry.sleep.wakeTime}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
         )}
 
         {/* Share button */}
@@ -682,6 +788,14 @@ const styles = StyleSheet.create({
   },
   quoteAuthor: { fontSize: 12, textAlign: "center", opacity: 0.5 },
   intensityBadge: { fontSize: 12, fontWeight: "500", marginTop: 2 },
+  taskRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  taskText: { fontSize: 15, lineHeight: 22, flex: 1 },
+  taskDone: { textDecorationLine: "line-through", opacity: 0.55 },
+  deepValue: { fontSize: 16, lineHeight: 24 },
+  sleepTimes: { flexDirection: "row", gap: 24, marginTop: 4 },
+  sleepTimeItem: { gap: 2 },
+  sleepTimeLabel: { fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.4 },
+  sleepTimeValue: { fontSize: 20, fontWeight: "700" },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   tagChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, gap: 4 },
   tagChipEmoji: { fontSize: 15 },

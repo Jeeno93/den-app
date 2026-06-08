@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Platform,
   StyleSheet,
   Text,
@@ -54,24 +55,24 @@ function getMonthLabelForRow(row: (string | null)[]): string | null {
   return null;
 }
 
-function formatRu(dateStr: string): string {
-  const d = new Date(dateStr + "T12:00:00");
-  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
-}
-
 export default function YearPixelsScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const todayString = formatDate(now);
+
   const [year, setYear] = useState(currentYear);
   const [entryMap, setEntryMap] = useState<Map<string, DayEntry>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<string | null>(null);
 
-  const todayString = formatDate(new Date());
+  const [toast, setToast] = useState<string | null>(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getAllDays().then((entries) => {
@@ -82,8 +83,33 @@ export default function YearPixelsScreen() {
     });
   }, []);
 
-  const { cells, numRows } = useMemo(() => buildYearGrid(year), [year]);
-  const rows = useMemo(() => toRows(cells), [cells]);
+  function showToast(msg: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.delay(1600),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => setToast(null));
+    toastTimer.current = setTimeout(() => setToast(null), 2100);
+  }
+
+  const { cells, numRows: rawNumRows } = useMemo(() => buildYearGrid(year), [year]);
+  const allRows = useMemo(() => toRows(cells), [cells]);
+
+  // Task 3: for current year hide rows that are entirely in future months
+  const rows = useMemo(() => {
+    if (year < currentYear) return allRows;
+    const lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
+    const lastISO = formatDate(lastDayOfCurrentMonth);
+    return allRows.filter((row) => {
+      const realDates = row.filter((d): d is string => d !== null);
+      if (realDates.length === 0) return false;
+      return realDates.some((d) => d <= lastISO);
+    });
+  }, [allRows, year, currentYear, currentMonth]);
+
+  const numRows = rows.length;
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 24 : insets.bottom;
@@ -94,9 +120,8 @@ export default function YearPixelsScreen() {
   const MONTH_LABEL_W = 26;
   const H_PAD = 10;
   const GAP = 2;
-  const TOOLTIP_RESERVE = selected ? 68 : 0;
 
-  const availableH = screenHeight - HEADER_H - YEAR_NAV_H - DOW_ROW_H - bottomPad - TOOLTIP_RESERVE - 20;
+  const availableH = screenHeight - HEADER_H - YEAR_NAV_H - DOW_ROW_H - bottomPad - 20;
   const availableW = screenWidth - H_PAD * 2 - MONTH_LABEL_W - GAP * 6;
 
   const cellByH = Math.floor((availableH - GAP * (numRows - 1)) / numRows);
@@ -104,8 +129,6 @@ export default function YearPixelsScreen() {
   const cellSize = Math.max(4, Math.min(cellByH, cellByW));
 
   const labelFontSize = Math.max(7, Math.floor(cellSize * 0.6));
-
-  const selectedEntry = selected ? entryMap.get(selected) : undefined;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -125,7 +148,7 @@ export default function YearPixelsScreen() {
       <View style={[styles.yearNav, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.iconBtn}
-          onPress={() => { setYear((y) => y - 1); setSelected(null); }}
+          onPress={() => setYear((y) => y - 1)}
           activeOpacity={0.7}
         >
           <Ionicons name="chevron-back" size={22} color={theme.foreground} />
@@ -133,7 +156,7 @@ export default function YearPixelsScreen() {
         <Text style={[styles.yearText, { color: theme.foreground }]}>{year}</Text>
         <TouchableOpacity
           style={[styles.iconBtn, year >= currentYear && { opacity: 0.3 }]}
-          onPress={() => { setYear((y) => Math.min(y + 1, currentYear)); setSelected(null); }}
+          onPress={() => setYear((y) => Math.min(y + 1, currentYear))}
           disabled={year >= currentYear}
           activeOpacity={0.7}
         >
@@ -193,7 +216,6 @@ export default function YearPixelsScreen() {
                   }
                   const entry = entryMap.get(date);
                   const isToday = date === todayString;
-                  const isSelected = date === selected;
                   const bgColor = entry
                     ? getMoodColor(entry.mood)
                     : isDark
@@ -208,15 +230,18 @@ export default function YearPixelsScreen() {
                         height: cellSize,
                         backgroundColor: bgColor,
                         borderRadius: Math.max(1, Math.floor(cellSize * 0.2)),
-                        borderWidth: isToday || isSelected ? Math.max(1, Math.floor(cellSize * 0.13)) : 0,
-                        borderColor: isToday
-                          ? theme.foreground
-                          : isSelected
-                          ? "#3D9970"
-                          : "transparent",
+                        borderWidth: isToday ? Math.max(1, Math.floor(cellSize * 0.13)) : 0,
+                        borderColor: isToday ? theme.foreground : "transparent",
                         marginRight: di < 6 ? GAP : 0,
                       }}
-                      onPress={() => setSelected(date === selected ? null : date)}
+                      onPress={() => {
+                        if (entry) {
+                          router.push({ pathname: "/day-detail", params: { date } });
+                        } else {
+                          // future dates have no cell (filtered), only past empty days reach here
+                          showToast("В этот день нет записи");
+                        }
+                      }}
                       activeOpacity={0.75}
                     />
                   );
@@ -227,35 +252,18 @@ export default function YearPixelsScreen() {
         </View>
       )}
 
-      {selected && (
-        <View
+      {/* Toast */}
+      {toast !== null && (
+        <Animated.View
           style={[
-            styles.tooltip,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-              bottom: bottomPad + 8,
-              left: H_PAD,
-              right: H_PAD,
-            },
+            styles.toast,
+            { backgroundColor: isDark ? "#333" : "#222", bottom: bottomPad + 24 },
+            { opacity: toastOpacity },
           ]}
+          pointerEvents="none"
         >
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.tooltipDate, { color: theme.mutedForeground }]}>
-              {formatRu(selected)}
-            </Text>
-            {selectedEntry ? (
-              <Text style={[styles.tooltipMood, { color: theme.foreground }]}>
-                {getMoodEmoji(selectedEntry.mood)} {getMoodLabel(selectedEntry.mood)}
-              </Text>
-            ) : (
-              <Text style={[styles.tooltipMood, { color: theme.mutedForeground }]}>Нет записи</Text>
-            )}
-          </View>
-          <TouchableOpacity onPress={() => setSelected(null)} style={styles.tooltipClose}>
-            <Ionicons name="close" size={20} color={theme.mutedForeground} />
-          </TouchableOpacity>
-        </View>
+          <Text style={styles.toastText}>{toast}</Text>
+        </Animated.View>
       )}
     </View>
   );
@@ -289,22 +297,12 @@ const styles = StyleSheet.create({
   yearText: { fontSize: 17, fontWeight: "700" },
   dowRow: { flexDirection: "row", marginBottom: 2 },
   gridRow: { flexDirection: "row" },
-  tooltip: {
+  toast: {
     position: "absolute",
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    alignSelf: "center",
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
   },
-  tooltipDate: { fontSize: 13 },
-  tooltipMood: { fontSize: 16, fontWeight: "600", marginTop: 2 },
-  tooltipClose: { padding: 4 },
+  toastText: { color: "#fff", fontSize: 14, fontWeight: "500" },
 });

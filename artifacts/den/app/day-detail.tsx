@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -88,8 +88,27 @@ export default function DayDetailScreen() {
           </Text>
         </View>
 
-        {/* Placeholder to keep title centered */}
-        <View style={styles.backBtn} />
+        {/* Refill day button */}
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => {
+            Alert.alert(
+              "Заполнить заново?",
+              "Текущие данные будут перезаписаны новыми ответами.",
+              [
+                { text: "Отмена", style: "cancel" },
+                {
+                  text: "Продолжить",
+                  style: "destructive",
+                  onPress: () => router.push({ pathname: "/day-fill", params: { date: currentDate } }),
+                },
+              ]
+            );
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="refresh-outline" size={20} color={theme.mutedForeground} />
+        </TouchableOpacity>
       </View>
 
       {/* ── Day navigation bar: ← вчера … завтра → ── */}

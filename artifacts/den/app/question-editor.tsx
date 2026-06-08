@@ -44,6 +44,9 @@ export default function QuestionEditorScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const [questions, setQuestions] = useState<CustomQuestions>(EMPTY);
+  const [drafts, setDrafts] = useState<Record<keyof CustomQuestions, string>>({
+    learned: "", met: "", positive: "", negative: "", dayQuestion: "",
+  });
 
   const placeholders: string[] = [
     DEFAULT_QUESTION_LABELS[0],
@@ -54,11 +57,25 @@ export default function QuestionEditorScreen() {
   ];
 
   useEffect(() => {
-    getCustomQuestions().then(setQuestions);
+    getCustomQuestions().then((q) => {
+      setQuestions(q);
+      setDrafts({
+        learned: q.learned ?? "",
+        met: q.met ?? "",
+        positive: q.positive ?? "",
+        negative: q.negative ?? "",
+        dayQuestion: q.dayQuestion ?? "",
+      });
+    });
   }, []);
 
-  async function updateQuestion(key: keyof CustomQuestions, text: string) {
-    const updated: CustomQuestions = { ...questions, [key]: text.trim() || null };
+  function handleDraftChange(key: keyof CustomQuestions, text: string) {
+    setDrafts((prev) => ({ ...prev, [key]: text }));
+  }
+
+  async function handleBlur(key: keyof CustomQuestions) {
+    const trimmed = drafts[key].trim();
+    const updated: CustomQuestions = { ...questions, [key]: trimmed || null };
     setQuestions(updated);
     await saveCustomQuestions(updated);
   }
@@ -66,6 +83,7 @@ export default function QuestionEditorScreen() {
   async function resetQuestion(key: keyof CustomQuestions) {
     const updated: CustomQuestions = { ...questions, [key]: null };
     setQuestions(updated);
+    setDrafts((prev) => ({ ...prev, [key]: "" }));
     await saveCustomQuestions(updated);
   }
 
@@ -80,6 +98,7 @@ export default function QuestionEditorScreen() {
           style: "destructive",
           onPress: async () => {
             setQuestions(EMPTY);
+            setDrafts({ learned: "", met: "", positive: "", negative: "", dayQuestion: "" });
             await saveCustomQuestions(EMPTY);
           },
         },
@@ -113,7 +132,6 @@ export default function QuestionEditorScreen() {
         </Text>
 
         {KEYS.map((key, i) => {
-          const value = questions[key] ?? "";
           const isCustomized = !!(questions[key]?.trim());
           return (
             <View
@@ -156,8 +174,9 @@ export default function QuestionEditorScreen() {
                     borderColor: isCustomized ? ACCENT + "50" : theme.border,
                   },
                 ]}
-                value={value}
-                onChangeText={(text) => updateQuestion(key, text)}
+                value={drafts[key]}
+                onChangeText={(text) => handleDraftChange(key, text)}
+                onBlur={() => handleBlur(key)}
                 placeholder={placeholders[i]}
                 placeholderTextColor={theme.mutedForeground}
                 multiline
