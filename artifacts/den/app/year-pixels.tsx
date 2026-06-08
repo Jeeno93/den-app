@@ -116,19 +116,20 @@ export default function YearPixelsScreen() {
 
   const HEADER_H = topPad + 52;
   const YEAR_NAV_H = 44;
-  const DOW_ROW_H = 20;
-  const MONTH_LABEL_W = 26;
+  const DOW_ROW_H = 22;
+  const MONTH_LABEL_W = 28;
   const H_PAD = 10;
-  const GAP = 2;
+  const GAP = 1;
 
-  const availableH = screenHeight - HEADER_H - YEAR_NAV_H - DOW_ROW_H - bottomPad - 20;
+  // Rectangular cells: width and height calculated independently so everything
+  // fits on screen without scrolling.
   const availableW = screenWidth - H_PAD * 2 - MONTH_LABEL_W - GAP * 6;
+  const availableH = screenHeight - HEADER_H - YEAR_NAV_H - DOW_ROW_H - bottomPad - 12;
 
-  const cellByH = Math.floor((availableH - GAP * (numRows - 1)) / numRows);
-  const cellByW = Math.floor(availableW / 7);
-  const cellSize = Math.max(4, Math.min(cellByH, cellByW));
+  const cellW = Math.max(4, Math.floor(availableW / 7));
+  const cellH = Math.max(3, Math.floor((availableH - GAP * (numRows - 1)) / numRows));
 
-  const labelFontSize = Math.max(7, Math.floor(cellSize * 0.6));
+  const labelFontSize = Math.max(7, Math.floor(Math.min(cellW, cellH * 1.4) * 0.55));
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -175,7 +176,7 @@ export default function YearPixelsScreen() {
               <View
                 key={d}
                 style={{
-                  width: cellSize,
+                  width: cellW,
                   alignItems: "center",
                   marginRight: i < 6 ? GAP : 0,
                 }}
@@ -191,7 +192,7 @@ export default function YearPixelsScreen() {
             const monthLabel = getMonthLabelForRow(row);
             return (
               <View key={ri} style={[styles.gridRow, { marginTop: GAP }]}>
-                <View style={{ width: MONTH_LABEL_W, height: cellSize, justifyContent: "center" }}>
+                <View style={{ width: MONTH_LABEL_W, height: cellH, justifyContent: "center" }}>
                   {monthLabel && (
                     <Text
                       style={{
@@ -210,7 +211,7 @@ export default function YearPixelsScreen() {
                     return (
                       <View
                         key={di}
-                        style={{ width: cellSize, height: cellSize, marginRight: di < 6 ? GAP : 0 }}
+                        style={{ width: cellW, height: cellH, marginRight: di < 6 ? GAP : 0 }}
                       />
                     );
                   }
@@ -226,11 +227,11 @@ export default function YearPixelsScreen() {
                     <TouchableOpacity
                       key={di}
                       style={{
-                        width: cellSize,
-                        height: cellSize,
+                        width: cellW,
+                        height: cellH,
                         backgroundColor: bgColor,
-                        borderRadius: Math.max(1, Math.floor(cellSize * 0.2)),
-                        borderWidth: isToday ? Math.max(1, Math.floor(cellSize * 0.13)) : 0,
+                        borderRadius: 2,
+                        borderWidth: isToday ? 1 : 0,
                         borderColor: isToday ? theme.foreground : "transparent",
                         marginRight: di < 6 ? GAP : 0,
                       }}
@@ -238,7 +239,6 @@ export default function YearPixelsScreen() {
                         if (entry) {
                           router.push({ pathname: "/day-detail", params: { date } });
                         } else {
-                          // future dates have no cell (filtered), only past empty days reach here
                           showToast("В этот день нет записи");
                         }
                       }}
