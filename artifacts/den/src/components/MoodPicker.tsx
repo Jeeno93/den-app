@@ -1,6 +1,5 @@
 import React from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 const MOODS = [
@@ -36,25 +35,22 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
               styles.outer,
               isSelected && {
                 shadowColor: "#5EE6A8",
-                shadowOpacity: 0.55,
-                shadowRadius: 16,
+                shadowOpacity: 0.45,
+                shadowRadius: 24,
                 shadowOffset: { width: 0, height: 0 },
-                elevation: 12,
-                transform: [{ scale: 1.15 }],
+                elevation: 18,
+                transform: [{ scale: 1.1 }],
               },
             ]}
           >
-            <LinearGradient
-              colors={["#FFFFFF", "#C8D1D9"]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
+            <View
               style={[
                 styles.circle,
                 isSelected && styles.circleActive,
               ]}
             >
               <Text style={styles.emoji}>{mood.emoji}</Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         );
       })}
@@ -85,25 +81,27 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    maxWidth: 64,
+    maxWidth: 72,
   },
   circle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#11161D",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
     shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 12,
   },
   circleActive: {
-    borderWidth: 2,
     borderColor: "#5EE6A8",
   },
   emoji: {
-    fontSize: 26,
+    fontSize: 32,
   },
 });

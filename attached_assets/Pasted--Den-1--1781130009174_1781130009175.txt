@@ -1,0 +1,81 @@
+Обнови дизайн всех экранов Den по единой дизайн-системе. Только визуал — логику не трогай.
+Шаг 1 — добавь базовые стили в constants/styles.ts (создай файл):
+typescriptexport const card = {
+  backgroundColor: '#0D1117',
+  borderRadius: 32,
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.07)',
+  shadowColor: '#000',
+  shadowOpacity: 0.45,
+  shadowRadius: 22,
+  shadowOffset: { width: 0, height: 12 },
+  elevation: 14,
+};
+
+export const glow = {
+  shadowColor: '#5EE6A8',
+  shadowOpacity: 0.35,
+  shadowRadius: 24,
+  shadowOffset: { width: 0, height: 0 },
+  elevation: 16,
+};
+Шаг 2 — Экран заполнения дня (DayFillFlow, MoodPicker, QuestionCard, NotesCard, DeepBlocks):
+Смайлики настроения:
+width: 72, height: 72, borderRadius: 36
+backgroundColor: '#11161D'
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)'
+shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 20
+shadowOffset: {width:0, height:10}, elevation: 12
+Активный смайлик:
+borderColor: '#5EE6A8'
+shadowColor: '#5EE6A8', shadowOpacity: 0.45, shadowRadius: 24
+elevation: 18, scale: 1.1
+Теги:
+paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18
+backgroundColor: '#11161D'
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)'
+Активный тег:
+backgroundColor: 'rgba(94,230,168,0.15)', borderColor: '#5EE6A8'
+Карточки вопросов:
+backgroundColor: '#0D1117', borderRadius: 28, padding: 20
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)'
+shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 18
+shadowOffset: {width:0, height:8}, elevation: 10
+Кнопка Далее/Готово:
+height: 64, borderRadius: 32
+LinearGradient: ['#1B6B4A', '#5EE6A8', '#2A7A58']
+Шаг 3 — Просмотр дня (DayEntryView):
+Hero карточка настроения:
+height: 180, borderRadius: 36
+backgroundColor: '#0D1117'
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)'
+shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 24
+shadowOffset: {width:0, height:14}, elevation: 16
+Смайлик настроения: fontSize: 88
+Остальные карточки (ответы, теги, задачи): использовать базовый card
+Шаг 4 — Календарь:
+Дни:
+width: 44, height: 44, borderRadius: 22
+Цвета настроения: плохо #FF6767, нейтральное #C7CDD4, хорошее #5EE6A8
+Выбранный день:
+backgroundColor: '#11161D'
+borderWidth: 1, borderColor: '#5EE6A8'
+shadowColor: '#5EE6A8', shadowOpacity: 0.4, shadowRadius: 18, elevation: 14
+Шаг 5 — Воспоминания:
+Карточка стрика: borderRadius: 36, padding: 24, backgroundColor: '#0D1117'
+Огонь в кольце: gradient ['#5EE6A8', '#9CFFCE']
+Цитата дня (стеклянная карточка):
+borderRadius: 30, padding: 24
+backgroundColor: 'rgba(255,255,255,0.03)'
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)'
+Карточки воспоминаний: borderRadius: 32, backgroundColor: '#0D1117'
+Шаг 6 — Настройки:
+Каждый пункт:
+height: 72, paddingHorizontal: 20, borderRadius: 24
+backgroundColor: '#0D1117'
+flexDirection: 'row', alignItems: 'center'
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)'
+Иконка пункта:
+width: 42, height: 42, borderRadius: 21
+backgroundColor: 'rgba(94,230,168,0.08)'
+TypeScript чистый.

@@ -124,6 +124,12 @@ function HighlightedText({ segments, style }: { segments: MatchSegment[]; style?
   );
 }
 
+function getCalendarMoodColor(mood: number): string {
+  if (mood <= 2) return "#FF6767";
+  if (mood === 3) return "#C7CDD4";
+  return "#5EE6A8";
+}
+
 export default function CalendarScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
@@ -322,11 +328,21 @@ export default function CalendarScreen() {
                     <View
                       style={[
                         styles.dayCircle,
-                        {
-                          backgroundColor: entry ? getMoodColor(entry.mood) : "transparent",
-                          borderWidth: isToday ? 2 : 0,
-                          borderColor: isToday ? theme.primary : "transparent",
-                        },
+                        entry ? { backgroundColor: getCalendarMoodColor(entry.mood) } : {},
+                        isToday && !entry ? {
+                          backgroundColor: "#11161D",
+                          borderWidth: 1,
+                          borderColor: "#5EE6A8",
+                          shadowColor: "#5EE6A8",
+                          shadowOpacity: 0.4,
+                          shadowRadius: 18,
+                          shadowOffset: { width: 0, height: 0 },
+                          elevation: 14,
+                        } : {},
+                        isToday && entry ? {
+                          borderWidth: 2,
+                          borderColor: "#5EE6A8",
+                        } : {},
                       ]}
                     >
                       <Text
@@ -428,9 +444,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dayCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },

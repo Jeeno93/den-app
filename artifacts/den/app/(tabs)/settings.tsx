@@ -251,10 +251,10 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Уведомления</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={styles.card}>
           {/* Toggle row */}
-          <View style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
-            <View style={[styles.rowIcon, { backgroundColor: theme.primary + "20" }]}>
+          <View style={styles.row}>
+            <View style={[styles.rowIcon, { backgroundColor: "rgba(94,230,168,0.12)" }]}>
               <Ionicons name="notifications-outline" size={20} color={theme.primary} />
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Напоминания</Text>
@@ -298,8 +298,8 @@ export default function SettingsScreen() {
           )}
 
           {/* Memory notification toggle */}
-          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: theme.border }]}>
-            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
               <Ionicons name="sparkles-outline" size={20} color="#5EE6A8" />
             </View>
             <View style={{ flex: 1 }}>
@@ -316,24 +316,23 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Оформление</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {(["system", "light", "dark"] as const).map((mode, idx) => {
+        <View style={styles.card}>
+          {(["system", "light", "dark"] as const).map((mode) => {
             const labels = { system: "Системная", light: "Светлая", dark: "Тёмная" };
             const icons: Record<typeof mode, React.ComponentProps<typeof Ionicons>["name"]> = {
               system: "phone-portrait-outline",
               light: "sunny-outline",
               dark: "moon-outline",
             };
-            const isLast = idx === 2;
             return (
               <TouchableOpacity
                 key={mode}
-                style={[styles.row, !isLast && { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+                style={styles.row}
                 onPress={() => setThemeMode(mode)}
                 activeOpacity={0.7}
                 testID={`theme-${mode}`}
               >
-                <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
+                <View style={styles.rowIcon}>
                   <Ionicons name={icons[mode]} size={20} color={theme.foreground} />
                 </View>
                 <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>{labels[mode]}</Text>
@@ -344,31 +343,31 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Персонализация</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={styles.card}>
           <TouchableOpacity
-            style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+            style={styles.row}
             onPress={() => router.push("/tag-editor" as any)}
             activeOpacity={0.7}
           >
-            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
+            <View style={styles.rowIcon}>
               <Text style={{ fontSize: 18 }}>🏷️</Text>
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои места и активности</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+            style={styles.row}
             onPress={() => router.push("/question-editor" as any)}
             activeOpacity={0.7}
           >
-            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
+            <View style={styles.rowIcon}>
               <Text style={{ fontSize: 18 }}>✏️</Text>
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои вопросы</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => router.push("/letters" as any)} activeOpacity={0.7}>
-            <View style={[styles.rowIcon, { backgroundColor: "#5EE6A820" }]}>
+            <View style={styles.rowIcon}>
               <Text style={{ fontSize: 18 }}>💌</Text>
             </View>
             <View style={{ flex: 1 }}>
@@ -380,9 +379,9 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>О приложении</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={styles.card}>
           <TouchableOpacity style={styles.row} onPress={() => router.push("/why-diary" as any)} activeOpacity={0.7}>
-            <View style={[styles.rowIcon, { backgroundColor: "#1a5c4220" }]}>
+            <View style={styles.rowIcon}>
               <Text style={{ fontSize: 18 }}>🧠</Text>
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Зачем вести дневник</Text>
@@ -391,15 +390,15 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Данные</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={styles.card}>
           <TouchableOpacity
-            style={[styles.row, { borderBottomWidth: 1, borderBottomColor: theme.border }]}
+            style={styles.row}
             onPress={handleExport}
             activeOpacity={0.7}
             testID="export-button"
           >
-            <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
-              <Ionicons name="archive-outline" size={20} color={theme.foreground} />
+            <View style={styles.rowIcon}>
+              <Ionicons name="archive-outline" size={20} color={theme.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, { color: theme.foreground }]}>Экспортировать данные</Text>
@@ -414,8 +413,8 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
             testID="import-button"
           >
-            <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
-              <Ionicons name="cloud-download-outline" size={20} color={theme.foreground} />
+            <View style={styles.rowIcon}>
+              <Ionicons name="cloud-download-outline" size={20} color={theme.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, { color: theme.foreground }]}>Восстановить данные</Text>
@@ -426,10 +425,10 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Диагностика</Text>
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={styles.card}>
           <TouchableOpacity style={styles.row} onPress={handleDiagnose} activeOpacity={0.7} testID="diagnostics-button">
-            <View style={[styles.rowIcon, { backgroundColor: theme.muted }]}>
-              <Ionicons name="bug-outline" size={20} color={theme.foreground} />
+            <View style={styles.rowIcon}>
+              <Ionicons name="bug-outline" size={20} color={theme.primary} />
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>
               {diagLoading ? "Проверка…" : "Проверить хранилище"}
@@ -501,18 +500,23 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 4,
   },
-  card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
+  card: { gap: 8 },
   row: {
+    height: 72,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    backgroundColor: "#0D1117",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
     gap: 12,
   },
   rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(94,230,168,0.08)",
     alignItems: "center",
     justifyContent: "center",
   },

@@ -151,7 +151,7 @@ export default function MemoriesScreen() {
       >
         <View style={[styles.streakCard, { borderColor: "rgba(94,230,168,0.15)" }]}>
           <LinearGradient
-            colors={["#111C15", "#0A1410"]}
+            colors={["#5EE6A8", "#9CFFCE"]}
             style={styles.streakFireCircle}
           >
             <Text style={{ fontSize: 28 }}>🔥</Text>
@@ -206,7 +206,7 @@ export default function MemoriesScreen() {
         {(() => {
           const q = getDayQuote(new Date());
           return (
-            <View style={[styles.quoteCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.quoteCard}>
               <Text style={[styles.quoteHeader, { color: theme.mutedForeground }]}>Мысль дня</Text>
               <Text style={[styles.quoteOpenMark, { color: theme.primary }]}>"</Text>
               <Text style={[styles.quoteText, { color: theme.foreground }]}>{q.text}</Text>
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   streakCard: {
-    borderRadius: 32,
+    borderRadius: 36,
     borderWidth: 1,
     padding: 24,
     gap: 16,
@@ -387,16 +387,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   miniCard: {
-    borderRadius: 16,
+    borderRadius: 32,
     borderWidth: 1,
-    padding: 16,
+    padding: 18,
+    backgroundColor: "#0D1117",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 22,
+    elevation: 14,
   },
   miniMoodBadge: {
     width: 44,
@@ -461,9 +463,11 @@ const styles = StyleSheet.create({
   yearPixelsTitle: { fontSize: 16, fontWeight: "600" },
   yearPixelsSub: { fontSize: 13, marginTop: 1 },
   quoteCard: {
-    borderRadius: 20,
+    borderRadius: 30,
     borderWidth: 1,
-    padding: 20,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: 24,
+    backgroundColor: "rgba(255,255,255,0.03)",
     gap: 4,
   },
   quoteHeader: {

@@ -405,7 +405,7 @@ export function DayFillFlow({
           {selectedMood ? (
             <TouchableOpacity onPress={() => advanceFrom("mood")} activeOpacity={0.85}>
               <LinearGradient
-                colors={["#214E3C", "#4DD894", "#2F7D58"]}
+                colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.continueButton}
@@ -443,12 +443,12 @@ export function DayFillFlow({
                   return (
                     <TouchableOpacity
                       key={tag.id}
-                      style={[styles.tagChip, { backgroundColor: selected ? "#5EE6A8" : theme.card, borderColor: selected ? "#5EE6A8" : theme.border }]}
+                      style={[styles.tagChip, selected && { backgroundColor: "rgba(94,230,168,0.15)", borderColor: "#5EE6A8" }]}
                       onPress={() => togglePlace(tag.id)}
                       activeOpacity={0.75}
                     >
                       <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
-                      <Text style={[styles.tagChipLabel, { color: selected ? "#06080B" : theme.foreground }]}>{tag.label}</Text>
+                      <Text style={[styles.tagChipLabel, { color: theme.foreground }]}>{tag.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -460,12 +460,12 @@ export function DayFillFlow({
                   return (
                     <TouchableOpacity
                       key={tag.id}
-                      style={[styles.tagChip, { backgroundColor: selected ? "#5EE6A8" : theme.card, borderColor: selected ? "#5EE6A8" : theme.border }]}
+                      style={[styles.tagChip, selected && { backgroundColor: "rgba(94,230,168,0.15)", borderColor: "#5EE6A8" }]}
                       onPress={() => toggleActivity(tag.id)}
                       activeOpacity={0.75}
                     >
                       <Text style={styles.tagChipEmoji}>{tag.emoji}</Text>
-                      <Text style={[styles.tagChipLabel, { color: selected ? "#06080B" : theme.foreground }]}>{tag.label}</Text>
+                      <Text style={[styles.tagChipLabel, { color: theme.foreground }]}>{tag.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -474,7 +474,7 @@ export function DayFillFlow({
           )}
           <TouchableOpacity style={{ marginTop: 28 }} onPress={() => { setCurrentQuestion(0); advanceFrom("tags"); }} activeOpacity={0.85}>
             <LinearGradient
-              colors={["#214E3C", "#4DD894", "#2F7D58"]}
+              colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.continueButton}
@@ -598,7 +598,7 @@ export function DayFillFlow({
 
             <TouchableOpacity style={{ marginTop: 24 }} onPress={() => advanceFrom("tasks")} activeOpacity={0.85}>
               <LinearGradient
-                colors={["#214E3C", "#4DD894", "#2F7D58"]}
+                colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.continueButton}
@@ -632,7 +632,7 @@ export function DayFillFlow({
             />
             <TouchableOpacity style={{ marginTop: 24 }} onPress={() => advanceFrom("deep")} activeOpacity={0.85}>
               <LinearGradient
-                colors={["#214E3C", "#4DD894", "#2F7D58"]}
+                colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.continueButton}
@@ -719,8 +719,8 @@ const styles = StyleSheet.create({
   sub: { fontSize: 15, marginBottom: 16 },
   moodRow: { marginTop: 12, marginBottom: 28 },
   continueButton: {
-    borderRadius: 28,
-    paddingVertical: 16,
+    height: 64,
+    borderRadius: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
   continueText: { fontSize: 17, fontWeight: "600", color: "#FFFFFF" },
   sectionLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
   tagsScrollRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
-  tagChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 9, borderRadius: 22, borderWidth: 1, gap: 5 },
+  tagChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18, backgroundColor: "#11161D", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", gap: 5 },
   tagChipEmoji: { fontSize: 16 },
   tagChipLabel: { fontSize: 14, fontWeight: "500" },
   doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },

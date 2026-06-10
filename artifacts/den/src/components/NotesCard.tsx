@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
@@ -107,16 +108,7 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
   }
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: theme.card,
-          borderColor: theme.border,
-          shadowColor: isDark ? "#000" : "#333",
-        },
-      ]}
-    >
+    <View style={styles.card}>
       {/* Proud */}
       <View style={styles.section}>
         <View style={styles.titleRow}>
@@ -217,15 +209,22 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
       </View>
 
       <TouchableOpacity
-        style={[styles.doneButton, { backgroundColor: theme.primary }]}
+        style={styles.doneButtonWrap}
         onPress={onDone}
         activeOpacity={0.85}
         testID="notes-done-button"
       >
-        <Text style={[styles.doneButtonText, { color: theme.primaryForeground }]}>
-          {isLast ? "Готово" : "Далее"}
-        </Text>
-        <Ionicons name={isLast ? "checkmark" : "arrow-forward"} size={18} color={theme.primaryForeground} />
+        <LinearGradient
+          colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.doneButton}
+        >
+          <Text style={styles.doneButtonText}>
+            {isLast ? "Готово" : "Далее"}
+          </Text>
+          <Ionicons name={isLast ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -233,13 +232,16 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 28,
+    padding: 20,
+    backgroundColor: "#0D1117",
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderColor: "rgba(255,255,255,0.06)",
+    shadowColor: "#000",
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
     gap: 20,
   },
   section: {
@@ -311,10 +313,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  doneButtonWrap: {
+    borderRadius: 32,
+    overflow: "hidden",
+  },
   doneButton: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -323,5 +327,6 @@ const styles = StyleSheet.create({
   doneButtonText: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

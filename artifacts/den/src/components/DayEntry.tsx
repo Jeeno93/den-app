@@ -275,7 +275,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
         keyboardShouldPersistTaps="handled"
       >
         {/* Mood */}
-        <View style={[styles.moodCard, { backgroundColor: moodColor + "22", borderColor: moodColor + "44" }]}>
+        <View style={[styles.moodCard, { backgroundColor: "#0D1117", borderColor: "rgba(255,255,255,0.08)", shadowColor: "#000" }]}>
           <Text style={styles.moodEmoji}>{getMoodEmoji(mood)}</Text>
           <View style={{ flex: 1 }}>
             <Text style={[styles.moodLabel, { color: moodColor }]}>{getMoodLabel(mood)}</Text>
@@ -663,25 +663,31 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   moodCard: {
-    borderRadius: 16,
+    height: 180,
+    borderRadius: 36,
     borderWidth: 1,
-    padding: 16,
+    padding: 24,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 16,
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 16,
   },
-  moodEmoji: { fontSize: 36 },
+  moodEmoji: { fontSize: 88 },
   moodLabel: { fontSize: 18, fontWeight: "700" },
   moodSub: { fontSize: 13, marginTop: 2 },
   answerCard: {
-    borderRadius: 16,
+    borderRadius: 32,
     borderWidth: 1,
-    padding: 16,
+    padding: 18,
     gap: 8,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 22,
+    elevation: 14,
   },
   editingCard: { borderWidth: 1.5 },
   answerHeader: { flexDirection: "row", alignItems: "center" },
@@ -729,14 +735,15 @@ const styles = StyleSheet.create({
   },
   addBtnText: { fontSize: 15, fontWeight: "500" },
   photoCard: {
-    borderRadius: 16,
+    borderRadius: 32,
     borderWidth: 1,
-    padding: 16,
+    padding: 18,
     gap: 10,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 22,
+    elevation: 14,
   },
   photoScrollContent: { gap: 10, alignItems: "center" },
   photoThumbWrapper: { position: "relative" },

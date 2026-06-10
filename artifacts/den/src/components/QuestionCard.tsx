@@ -6,6 +6,7 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
@@ -40,9 +41,7 @@ export function QuestionCard({
       style={[
         styles.card,
         {
-          backgroundColor: theme.card,
-          borderColor: theme.border,
-          shadowColor: isDark ? "#000" : "#333",
+          shadowColor: "#000",
         },
       ]}
     >
@@ -109,24 +108,27 @@ export function QuestionCard({
         ) : null}
 
         <TouchableOpacity
-          style={[
-            styles.nextButton,
-            { backgroundColor: theme.primary },
-            !onBack && styles.nextButtonFull,
-          ]}
+          style={[styles.nextButtonWrap, !onBack && styles.nextButtonFull]}
           onPress={onNext}
           activeOpacity={0.85}
           testID={isLast ? "done-button" : "next-button"}
         >
-          <Text style={[styles.nextButtonText, { color: theme.primaryForeground }]}>
-            {isLast ? "Готово" : "Далее"}
-          </Text>
-          {!isLast && (
-            <Ionicons name="arrow-forward" size={18} color={theme.primaryForeground} />
-          )}
-          {isLast && (
-            <Ionicons name="checkmark" size={18} color={theme.primaryForeground} />
-          )}
+          <LinearGradient
+            colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.nextButton}
+          >
+            <Text style={styles.nextButtonText}>
+              {isLast ? "Готово" : "Далее"}
+            </Text>
+            {!isLast && (
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            )}
+            {isLast && (
+              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
@@ -135,13 +137,15 @@ export function QuestionCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 28,
+    padding: 20,
+    backgroundColor: "#0D1117",
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderColor: "rgba(255,255,255,0.06)",
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
     gap: 20,
   },
   header: {
@@ -181,8 +185,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     flex: 1,
-    borderRadius: 14,
-    paddingVertical: 14,
+    height: 64,
+    borderRadius: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -193,21 +197,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-  nextButton: {
+  nextButtonWrap: {
     flex: 2,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    borderRadius: 32,
+    overflow: "hidden",
+  },
+  nextButtonFull: {
+    flex: 1,
+  },
+  nextButton: {
+    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
-  nextButtonFull: {
-    flex: 1,
-  },
   nextButtonText: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#FFFFFF",
   },
 });
