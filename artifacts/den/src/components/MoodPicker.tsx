@@ -1,6 +1,7 @@
 import React from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 
 const MOODS = [
   { value: 1, emoji: "😞", label: "Плохо",      color: "#7B8FA1" },
@@ -35,22 +36,25 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
               styles.outer,
               isSelected && {
                 shadowColor: "#5EE6A8",
-                shadowOpacity: 0.45,
-                shadowRadius: 24,
+                shadowOpacity: 0.5,
+                shadowRadius: 20,
                 shadowOffset: { width: 0, height: 0 },
                 elevation: 18,
-                transform: [{ scale: 1.1 }],
+                transform: [{ scale: 1.12 }],
               },
             ]}
           >
-            <View
+            <LinearGradient
+              colors={["#2A2E35", "#1A1D22"]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
               style={[
                 styles.circle,
                 isSelected && styles.circleActive,
               ]}
             >
               <Text style={styles.emoji}>{mood.emoji}</Text>
-            </View>
+            </LinearGradient>
           </TouchableOpacity>
         );
       })}
@@ -81,27 +85,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    maxWidth: 72,
+    maxWidth: 64,
   },
   circle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#11161D",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 12,
   },
   circleActive: {
     borderColor: "#5EE6A8",
   },
   emoji: {
-    fontSize: 32,
+    fontSize: 28,
   },
 });

@@ -6,7 +6,6 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
@@ -37,14 +36,9 @@ export function QuestionCard({
   const inputRef = useRef<TextInput>(null);
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          shadowColor: "#000",
-        },
-      ]}
-    >
+    <View style={styles.card}>
+      <View style={styles.cardShine} />
+
       <View style={styles.header}>
         <Text style={[styles.counter, { color: theme.mutedForeground }]}>
           {questionNumber} / {totalQuestions}
@@ -108,27 +102,21 @@ export function QuestionCard({
         ) : null}
 
         <TouchableOpacity
-          style={[styles.nextButtonWrap, !onBack && styles.nextButtonFull]}
+          style={[styles.nextButton, !onBack && styles.nextButtonFull]}
           onPress={onNext}
           activeOpacity={0.85}
           testID={isLast ? "done-button" : "next-button"}
         >
-          <LinearGradient
-            colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.nextButton}
-          >
-            <Text style={styles.nextButtonText}>
-              {isLast ? "Готово" : "Далее"}
-            </Text>
-            {!isLast && (
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-            )}
-            {isLast && (
-              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-            )}
-          </LinearGradient>
+          <View style={styles.nextButtonGlow} />
+          <Text style={styles.nextButtonText}>
+            {isLast ? "Готово" : "Далее"}
+          </Text>
+          {!isLast && (
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          )}
+          {isLast && (
+            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -142,11 +130,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#0D1117",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 16,
     gap: 20,
+    overflow: "hidden",
+  },
+  cardShine: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
   header: {
     flexDirection: "row",
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   backButton: {
     flex: 1,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 28,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -197,20 +197,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-  nextButtonWrap: {
+  nextButton: {
     flex: 2,
-    borderRadius: 32,
+    height: 64,
+    borderRadius: 28,
+    backgroundColor: "#0D2B1A",
+    borderWidth: 1,
+    borderColor: "rgba(94,230,168,0.3)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     overflow: "hidden",
   },
   nextButtonFull: {
     flex: 1,
   },
-  nextButton: {
-    height: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+  nextButtonGlow: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(94,230,168,0.12)",
+    alignSelf: "center",
+    top: -60,
   },
   nextButtonText: {
     fontSize: 16,

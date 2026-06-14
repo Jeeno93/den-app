@@ -1,0 +1,55 @@
+Обнови визуальный стиль приложения Den. Только визуал — логику, навигацию и данные не трогай. TypeScript чистый.
+Главное изменение — смайлики настроения
+В MoodPicker замени жёлтые эмодзи на серые объёмные шары с текстом-символом внутри. Каждый шар:
+width: 64, height: 64, borderRadius: 32
+background: LinearGradient(['#2A2E35', '#1A1D22'])
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)'
+shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 16
+shadowOffset: { width: 0, height: 8 }, elevation: 12
+Внутри каждого шара — символ настроения текстом (не эмодзи):
+
+1 → "︎😞" заменить на просто круглый серый шар с линиями грусти нарисованными через View
+Или оставить эмодзи но применить tintColor серый через Image если возможно
+Если сложно — оставить эмодзи но сделать шары серыми с тенью как описано выше
+
+Активный шар:
+borderColor: '#5EE6A8'
+shadowColor: '#5EE6A8', shadowOpacity: 0.5, shadowRadius: 20
+elevation: 18, transform: [{ scale: 1.12 }]
+Кнопка заполнения дня
+Не градиент слева направо — а радиальное свечение из центра:
+backgroundColor: '#0D2B1A'
+borderRadius: 28
+borderWidth: 1, borderColor: 'rgba(94,230,168,0.3)'
+Поверх кнопки добавить View с:
+position: 'absolute'
+width: 200, height: 200
+borderRadius: 100
+backgroundColor: 'rgba(94,230,168,0.12)'
+alignSelf: 'center'
+top: -60
+Это создаст эффект радиального свечения из центра как на референсе.
+Карточки — добавить внутреннюю подсветку сверху
+Для всех карточек (card токен и все View с backgroundColor: '#0D1117') добавить псевдо-бордер сверху через отдельный View:
+position: 'absolute', top: 0, left: 0, right: 0
+height: 1
+backgroundColor: 'rgba(255,255,255,0.07)'
+borderTopLeftRadius: 32, borderTopRightRadius: 32
+Фон
+Все экраны: backgroundColor: '#06080B' — абсолютно чёрный, без оттенков. Проверить что нет ни одного белого или серого фона на любом экране или ScrollView.
+Карточки вопросов в заполнении
+Сделать их более "плавающими":
+backgroundColor: '#0D1117'
+borderRadius: 28, padding: 20
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)'
+shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 24
+shadowOffset: { width: 0, height: 16 }, elevation: 16
+Между карточками отступ минимум 16px — воздух важен.
+Теги мест и активностей
+Неактивный:
+backgroundColor: '#11161D'
+borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10
+borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)'
+Активный:
+backgroundColor: 'rgba(94,230,168,0.12)'
+borderColor: 'rgba(94,230,168,0.4)'
