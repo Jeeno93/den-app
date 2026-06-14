@@ -329,19 +329,14 @@ export default function CalendarScreen() {
                       style={[
                         styles.dayCircle,
                         entry ? { backgroundColor: getCalendarMoodColor(entry.mood) } : {},
-                        isToday && !entry ? {
-                          backgroundColor: "#11161D",
-                          borderWidth: 1,
-                          borderColor: "#5EE6A8",
-                          shadowColor: "#5EE6A8",
-                          shadowOpacity: 0.4,
-                          shadowRadius: 18,
-                          shadowOffset: { width: 0, height: 0 },
-                          elevation: 14,
-                        } : {},
-                        isToday && entry ? {
+                        isToday ? {
                           borderWidth: 2,
                           borderColor: "#5EE6A8",
+                          shadowColor: "#5EE6A8",
+                          shadowOpacity: 0.45,
+                          shadowRadius: 10,
+                          shadowOffset: { width: 0, height: 0 },
+                          elevation: 10,
                         } : {},
                       ]}
                     >
@@ -422,7 +417,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
     paddingTop: 8,
-    gap: 4,
+    gap: 8,
   },
   weekRow: {
     flexDirection: "row",
@@ -439,7 +434,7 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: 44,
-    height: 52,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },

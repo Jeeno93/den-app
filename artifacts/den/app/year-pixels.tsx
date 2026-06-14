@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,55 +16,43 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { formatDate, getAllDays } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
-import { getMoodColor, getMoodEmoji, getMoodLabel } from "@/src/components/MoodPicker";
 
 const DOW_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-const MONTHS_SHORT = [
-  "янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек",
+const MONTHS_FULL = [
+  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
 ];
 
-function buildYearGrid(year: number): { cells: (string | null)[], numRows: number } {
-  const jan1 = new Date(year, 0, 1);
-  const dec31 = new Date(year, 11, 31);
-  const totalDays = Math.round((dec31.getTime() - jan1.getTime()) / 86400000) + 1;
+function getCalendarMoodColor(mood: number): string {
+  if (mood <= 2) return "#FF6767";
+  if (mood === 3) return "#C7CDD4";
+  return "#5EE6A8";
+}
 
-  const rawDow = jan1.getDay();
-  const leadingPad = (rawDow + 6) % 7;
-
+function buildMonthGrid(year: number, month: number): (string | null)[][] {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const rawFirst = new Date(year, month, 1).getDay();
+  const leadingPad = (rawFirst + 6) % 7;
   const cells: (string | null)[] = Array(leadingPad).fill(null);
-  for (let i = 0; i < totalDays; i++) {
-    const d = new Date(year, 0, 1 + i);
+  for (let i = 0; i < daysInMonth; i++) {
+    const d = new Date(year, month, i + 1);
     cells.push(formatDate(d));
   }
   while (cells.length % 7 !== 0) cells.push(null);
-
-  return { cells, numRows: cells.length / 7 };
-}
-
-function toRows(cells: (string | null)[]): (string | null)[][] {
   const rows: (string | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
   return rows;
-}
-
-function getMonthLabelForRow(row: (string | null)[]): string | null {
-  for (const date of row) {
-    if (!date) continue;
-    const d = new Date(date + "T12:00:00");
-    if (d.getDate() === 1) return MONTHS_SHORT[d.getMonth()];
-  }
-  return null;
 }
 
 export default function YearPixelsScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: screenWidth } = useWindowDimensions();
 
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed
+  const currentMonth = now.getMonth();
   const todayString = formatDate(now);
 
   const [year, setYear] = useState(currentYear);
@@ -73,6 +62,9 @@ export default function YearPixelsScreen() {
   const [toast, setToast] = useState<string | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 24 : insets.bottom;
 
   useEffect(() => {
     getAllDays().then((entries) => {
@@ -94,49 +86,24 @@ export default function YearPixelsScreen() {
     toastTimer.current = setTimeout(() => setToast(null), 2100);
   }
 
-  const { cells, numRows: rawNumRows } = useMemo(() => buildYearGrid(year), [year]);
-  const allRows = useMemo(() => toRows(cells), [cells]);
+  const H_PAD = 16;
+  const CELL_GAP = 3;
+  const cellSize = Math.floor((screenWidth - H_PAD * 2 - CELL_GAP * 6) / 7);
 
-  // Task 3: for current year hide rows that are entirely in future months
-  const rows = useMemo(() => {
-    if (year < currentYear) return allRows;
-    const lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
-    const lastISO = formatDate(lastDayOfCurrentMonth);
-    return allRows.filter((row) => {
-      const realDates = row.filter((d): d is string => d !== null);
-      if (realDates.length === 0) return false;
-      return realDates.some((d) => d <= lastISO);
-    });
-  }, [allRows, year, currentYear, currentMonth]);
-
-  const numRows = rows.length;
-
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPad = Platform.OS === "web" ? 24 : insets.bottom;
-
-  const HEADER_H = topPad + 52;
-  const YEAR_NAV_H = 44;
-  const DOW_ROW_H = 22;
-  const MONTH_LABEL_W = 28;
-  const H_PAD = 10;
-  const GAP = 1;
-
-  // Rectangular cells: width and height calculated independently so everything
-  // fits on screen without scrolling.
-  const availableW = screenWidth - H_PAD * 2 - MONTH_LABEL_W - GAP * 6;
-  const availableH = screenHeight - HEADER_H - YEAR_NAV_H - DOW_ROW_H - bottomPad - 12;
-
-  const cellW = Math.max(4, Math.floor(availableW / 7));
-  const cellH = Math.max(3, Math.floor((availableH - GAP * (numRows - 1)) / numRows));
-
-  const labelFontSize = Math.max(7, Math.floor(Math.min(cellW, cellH * 1.4) * 0.55));
+  const maxMonth = year === currentYear ? currentMonth : 11;
+  const months = useMemo(() => {
+    return Array.from({ length: maxMonth + 1 }, (_, m) => ({
+      month: m,
+      rows: buildMonthGrid(year, m),
+    }));
+  }, [year, maxMonth]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View style={{ flex: 1, backgroundColor: "#06080B" }}>
       <View
         style={[
           styles.header,
-          { paddingTop: topPad + 8, backgroundColor: theme.background, borderBottomColor: theme.border },
+          { paddingTop: topPad + 8, backgroundColor: "#06080B", borderBottomColor: theme.border },
         ]}
       >
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.7}>
@@ -146,7 +113,7 @@ export default function YearPixelsScreen() {
         <View style={styles.iconBtn} />
       </View>
 
-      <View style={[styles.yearNav, { borderBottomColor: theme.border }]}>
+      <View style={[styles.yearNav, { borderBottomColor: theme.border, backgroundColor: "#06080B" }]}>
         <TouchableOpacity
           style={styles.iconBtn}
           onPress={() => setYear((y) => y - 1)}
@@ -166,98 +133,82 @@ export default function YearPixelsScreen() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#06080B" }}>
           <Text style={{ color: theme.mutedForeground, fontSize: 16 }}>Загрузка…</Text>
         </View>
       ) : (
-        <View style={{ paddingHorizontal: H_PAD, paddingTop: 6 }}>
-          <View style={[styles.dowRow, { marginLeft: MONTH_LABEL_W }]}>
-            {DOW_LABELS.map((d, i) => (
-              <View
-                key={d}
-                style={{
-                  width: cellW,
-                  alignItems: "center",
-                  marginRight: i < 6 ? GAP : 0,
-                }}
-              >
-                <Text style={{ color: theme.mutedForeground, fontSize: labelFontSize, fontWeight: "600" }}>
-                  {d}
+        <ScrollView
+          style={{ flex: 1, backgroundColor: "#06080B" }}
+          contentContainerStyle={{ paddingHorizontal: H_PAD, paddingBottom: bottomPad + 60 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {months.map(({ month, rows }) => (
+            <View key={month} style={{ marginTop: 28 }}>
+              <View style={styles.monthHeader}>
+                <Text style={[styles.monthName, { color: theme.foreground }]}>
+                  {MONTHS_FULL[month]}
                 </Text>
+                <View style={[styles.monthDivider, { backgroundColor: theme.border }]} />
               </View>
-            ))}
-          </View>
 
-          {rows.map((row, ri) => {
-            const monthLabel = getMonthLabelForRow(row);
-            return (
-              <View key={ri} style={[styles.gridRow, { marginTop: GAP }]}>
-                <View style={{ width: MONTH_LABEL_W, height: cellH, justifyContent: "center" }}>
-                  {monthLabel && (
-                    <Text
-                      style={{
-                        color: theme.mutedForeground,
-                        fontSize: labelFontSize,
-                        fontWeight: "600",
-                      }}
-                      numberOfLines={1}
-                    >
-                      {monthLabel}
+              <View style={[styles.dowRow, { gap: CELL_GAP }]}>
+                {DOW_LABELS.map((d) => (
+                  <View key={d} style={{ width: cellSize, alignItems: "center" }}>
+                    <Text style={{ color: theme.mutedForeground, fontSize: 11, fontWeight: "600" }}>
+                      {d}
                     </Text>
-                  )}
-                </View>
-                {row.map((date, di) => {
-                  if (!date) {
+                  </View>
+                ))}
+              </View>
+
+              {rows.map((row, ri) => (
+                <View key={ri} style={[styles.weekRow, { gap: CELL_GAP, marginTop: CELL_GAP }]}>
+                  {row.map((date, di) => {
+                    if (!date) {
+                      return (
+                        <View key={di} style={{ width: cellSize, height: cellSize }} />
+                      );
+                    }
+                    const entry = entryMap.get(date);
+                    const isToday = date === todayString;
+                    const bgColor = entry
+                      ? getCalendarMoodColor(entry.mood)
+                      : "#1A2030";
+
                     return (
-                      <View
+                      <TouchableOpacity
                         key={di}
-                        style={{ width: cellW, height: cellH, marginRight: di < 6 ? GAP : 0 }}
+                        style={{
+                          width: cellSize,
+                          height: cellSize,
+                          backgroundColor: bgColor,
+                          borderRadius: 6,
+                          borderWidth: isToday ? 2 : 0,
+                          borderColor: isToday ? "#5EE6A8" : "transparent",
+                        }}
+                        onPress={() => {
+                          if (entry) {
+                            router.push({ pathname: "/day-detail", params: { date } });
+                          } else {
+                            showToast("В этот день нет записи");
+                          }
+                        }}
+                        activeOpacity={0.75}
                       />
                     );
-                  }
-                  const entry = entryMap.get(date);
-                  const isToday = date === todayString;
-                  const bgColor = entry
-                    ? getMoodColor(entry.mood)
-                    : isDark
-                    ? "#2a2a2a"
-                    : "#e5e5e5";
-
-                  return (
-                    <TouchableOpacity
-                      key={di}
-                      style={{
-                        width: cellW,
-                        height: cellH,
-                        backgroundColor: bgColor,
-                        borderRadius: 2,
-                        borderWidth: isToday ? 1 : 0,
-                        borderColor: isToday ? theme.foreground : "transparent",
-                        marginRight: di < 6 ? GAP : 0,
-                      }}
-                      onPress={() => {
-                        if (entry) {
-                          router.push({ pathname: "/day-detail", params: { date } });
-                        } else {
-                          showToast("В этот день нет записи");
-                        }
-                      }}
-                      activeOpacity={0.75}
-                    />
-                  );
-                })}
-              </View>
-            );
-          })}
-        </View>
+                  })}
+                </View>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
       )}
 
-      {/* Toast */}
       {toast !== null && (
         <Animated.View
           style={[
             styles.toast,
-            { backgroundColor: isDark ? "#333" : "#222", bottom: bottomPad + 24 },
+            { bottom: bottomPad + 24 },
             { opacity: toastOpacity },
           ]}
           pointerEvents="none"
@@ -295,11 +246,32 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   yearText: { fontSize: 17, fontWeight: "700" },
-  dowRow: { flexDirection: "row", marginBottom: 2 },
-  gridRow: { flexDirection: "row" },
+  monthHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  monthName: {
+    fontSize: 15,
+    fontWeight: "700",
+    minWidth: 100,
+  },
+  monthDivider: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dowRow: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  weekRow: {
+    flexDirection: "row",
+  },
   toast: {
     position: "absolute",
     alignSelf: "center",
+    backgroundColor: "#333",
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 10,

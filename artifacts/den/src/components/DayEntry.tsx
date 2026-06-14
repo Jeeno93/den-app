@@ -267,9 +267,9 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: "#06080B" }}>
       <ScrollView
-        style={{ flex: 1, backgroundColor: theme.background }}
+        style={{ flex: 1, backgroundColor: "#06080B" }}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -663,19 +663,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   moodCard: {
-    height: 180,
+    height: 120,
     borderRadius: 36,
     borderWidth: 1,
-    padding: 24,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
     shadowOpacity: 0.5,
     shadowRadius: 24,
-    shadowOffset: { width: 0, height: 14 },
+    shadowOffset: { width: 0, height: 8 },
     elevation: 16,
   },
-  moodEmoji: { fontSize: 88 },
+  moodEmoji: { fontSize: 56 },
   moodLabel: { fontSize: 18, fontWeight: "700" },
   moodSub: { fontSize: 13, marginTop: 2 },
   answerCard: {

@@ -139,7 +139,7 @@ export default function DayDetailScreen() {
       {entry ? (
         <DayEntryView key={currentDate} entry={entry} dayQuestion={entry.question} />
       ) : (
-        <View style={styles.loading}>
+        <View style={[styles.loading, { backgroundColor: theme.background }]}>
           <Text style={[styles.loadingText, { color: theme.mutedForeground }]}>Загрузка...</Text>
         </View>
       )}
