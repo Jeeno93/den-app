@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
@@ -402,13 +403,14 @@ export function DayFillFlow({
             />
           </View>
           {selectedMood ? (
-            <TouchableOpacity style={styles.continueButton} onPress={() => advanceFrom("mood")} activeOpacity={0.85}>
-              <View style={styles.continueGlow} />
-              <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Продолжить"}</Text>
-              <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+            <TouchableOpacity onPress={() => advanceFrom("mood")} activeOpacity={0.85}>
+              <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+                <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Продолжить"}</Text>
+                <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+              </LinearGradient>
             </TouchableOpacity>
           ) : (
-            <View style={[styles.continueButton, { backgroundColor: theme.muted, borderColor: theme.border, opacity: 0.5 }]}>
+            <View style={[styles.continueButton, { backgroundColor: theme.muted, opacity: 0.5 }]}>
               <Text style={[styles.continueText, { color: theme.mutedForeground }]}>{isLastInputPhase ? "Готово" : "Продолжить"}</Text>
               <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color={theme.mutedForeground} />
             </View>
@@ -465,10 +467,11 @@ export function DayFillFlow({
               </ScrollView>
             </>
           )}
-          <TouchableOpacity style={[styles.continueButton, { marginTop: 28 }]} onPress={() => { setCurrentQuestion(0); advanceFrom("tags"); }} activeOpacity={0.85}>
-            <View style={styles.continueGlow} />
-            <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Далее"}</Text>
-            <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+          <TouchableOpacity style={{ marginTop: 28 }} onPress={() => { setCurrentQuestion(0); advanceFrom("tags"); }} activeOpacity={0.85}>
+            <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+              <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Далее"}</Text>
+              <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+            </LinearGradient>
           </TouchableOpacity>
         </ScrollView>
       );
@@ -583,10 +586,11 @@ export function DayFillFlow({
               </View>
             </View>
 
-            <TouchableOpacity style={[styles.continueButton, { marginTop: 24 }]} onPress={() => advanceFrom("tasks")} activeOpacity={0.85}>
-              <View style={styles.continueGlow} />
-              <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Далее"}</Text>
-              <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+            <TouchableOpacity style={{ marginTop: 24 }} onPress={() => advanceFrom("tasks")} activeOpacity={0.85}>
+              <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+                <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Далее"}</Text>
+                <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+              </LinearGradient>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -611,10 +615,11 @@ export function DayFillFlow({
               sleep={sleep}
               onSleepChange={setSleep}
             />
-            <TouchableOpacity style={[styles.continueButton, { marginTop: 24 }]} onPress={() => advanceFrom("deep")} activeOpacity={0.85}>
-              <View style={styles.continueGlow} />
-              <Text style={styles.continueText}>Готово</Text>
-              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+            <TouchableOpacity style={{ marginTop: 24 }} onPress={() => advanceFrom("deep")} activeOpacity={0.85}>
+              <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+                <Text style={styles.continueText}>Готово</Text>
+                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+              </LinearGradient>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -695,24 +700,11 @@ const styles = StyleSheet.create({
   moodRow: { marginTop: 12, marginBottom: 28 },
   continueButton: {
     height: 64,
-    borderRadius: 28,
-    backgroundColor: "#0D2B1A",
-    borderWidth: 1,
-    borderColor: "rgba(94,230,168,0.3)",
+    borderRadius: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    overflow: "hidden",
-  },
-  continueGlow: {
-    position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(94,230,168,0.12)",
-    alignSelf: "center",
-    top: -60,
   },
   continueText: { fontSize: 17, fontWeight: "600", color: "#FFFFFF" },
   sectionLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
