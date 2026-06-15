@@ -16,10 +16,7 @@ import colors from "@/constants/colors";
 import { formatDate, getAllDays } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 
-const MONTH_LABELS = [
-  "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
-  "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек",
-];
+const MONTH_SHORT = ["Я", "Ф", "М", "А", "М", "И", "И", "А", "С", "О", "Н", "Д"];
 
 function getCalendarMoodColor(mood: number): string {
   if (mood <= 2) return "#FF6767";
@@ -72,12 +69,13 @@ export default function YearPixelsScreen() {
     toastTimer.current = setTimeout(() => setToast(null), 2100);
   }
 
+  // Layout: 31 rows × 12 cols
   const H_PAD = 12;
-  const MONTH_W = 28;
-  const MONTH_GAP = 3;
-  const CELL_GAP = 1;
-  const gridWidth = screenWidth - H_PAD * 2 - MONTH_W - MONTH_GAP;
-  const cellSize = Math.floor((gridWidth - CELL_GAP * 30) / 31);
+  const DAY_W = 20;
+  const DAY_GAP = 3;
+  const CELL_GAP = 2;
+  const gridWidth = screenWidth - H_PAD * 2 - DAY_W - DAY_GAP;
+  const cellSize = Math.floor((gridWidth - CELL_GAP * 11) / 12);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#06080B" }}>
@@ -118,43 +116,47 @@ export default function YearPixelsScreen() {
             paddingBottom: bottomPad + 16,
           }}
         >
-          {/* Day-number header row */}
-          <View style={{ flexDirection: "row", marginLeft: MONTH_W + MONTH_GAP, marginBottom: 4 }}>
-            {Array.from({ length: 31 }, (_, i) => (
+          {/* Month header row */}
+          <View style={{ flexDirection: "row", marginLeft: DAY_W + DAY_GAP, marginBottom: 4 }}>
+            {MONTH_SHORT.map((m, i) => (
               <View
                 key={i}
                 style={{ width: cellSize, marginLeft: i > 0 ? CELL_GAP : 0, alignItems: "center" }}
               >
-                <Text style={{ fontSize: 7, color: "#6B7585" }}>{i + 1}</Text>
+                <Text style={{ fontSize: 9, color: "#6B7585" }}>{m}</Text>
               </View>
             ))}
           </View>
 
-          {/* Month rows — flex distributes vertical space evenly */}
+          {/* Day rows 1–31, flex distributes vertical space evenly */}
           <View style={{ flex: 1, justifyContent: "space-evenly" }}>
-            {MONTH_LABELS.map((label, monthIdx) => {
-              const dim = daysInMonth(year, monthIdx);
+            {Array.from({ length: 31 }, (_, dayIdx) => {
+              const dayNum = dayIdx + 1;
               return (
-                <View key={monthIdx} style={{ flexDirection: "row", alignItems: "center" }}>
+                <View key={dayIdx} style={{ flexDirection: "row", alignItems: "center" }}>
+                  {/* Day label */}
                   <Text
                     style={{
-                      width: MONTH_W,
-                      fontSize: 10,
+                      width: DAY_W,
+                      fontSize: 9,
                       color: "#6B7585",
-                      fontWeight: "500",
+                      textAlign: "right",
                     }}
                   >
-                    {label}
+                    {dayNum}
                   </Text>
-                  <View style={{ width: MONTH_GAP }} />
-                  {Array.from({ length: 31 }, (_, dayIdx) => {
-                    const dayNum = dayIdx + 1;
+                  <View style={{ width: DAY_GAP }} />
+
+                  {/* 12 month cells */}
+                  {Array.from({ length: 12 }, (_, monthIdx) => {
+                    const dim = daysInMonth(year, monthIdx);
 
                     if (dayNum > dim) {
+                      // Non-existent day (e.g. Feb 30)
                       return (
                         <View
-                          key={dayIdx}
-                          style={{ width: cellSize, height: cellSize, marginLeft: dayIdx > 0 ? CELL_GAP : 0 }}
+                          key={monthIdx}
+                          style={{ width: cellSize, height: cellSize, marginLeft: monthIdx > 0 ? CELL_GAP : 0 }}
                         />
                       );
                     }
@@ -168,13 +170,13 @@ export default function YearPixelsScreen() {
 
                     return (
                       <TouchableOpacity
-                        key={dayIdx}
+                        key={monthIdx}
                         style={{
                           width: cellSize,
                           height: cellSize,
                           backgroundColor: bgColor,
                           borderRadius: 3,
-                          marginLeft: dayIdx > 0 ? CELL_GAP : 0,
+                          marginLeft: monthIdx > 0 ? CELL_GAP : 0,
                           borderWidth: isToday ? 1.5 : 0,
                           borderColor: isToday ? "#5EE6A8" : "transparent",
                         }}

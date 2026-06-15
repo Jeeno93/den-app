@@ -332,6 +332,7 @@ export default function CalendarScreen() {
                         isToday ? {
                           borderWidth: 2,
                           borderColor: "#5EE6A8",
+                          borderRadius: 22,
                           shadowColor: "#5EE6A8",
                           shadowOpacity: 0.45,
                           shadowRadius: 10,
