@@ -1,3 +1,4 @@
+import * as amplitude from "@amplitude/analytics-react-native";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -18,6 +19,8 @@ import { ThemeProvider } from "@/src/context/ThemeContext";
 import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
 import { compactPhotoStorage } from "@/src/storage/storage";
+
+amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? "");
 
 SplashScreen.preventAutoHideAsync();
 

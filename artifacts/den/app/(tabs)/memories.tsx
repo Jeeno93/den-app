@@ -1,3 +1,4 @@
+import * as amplitude from "@amplitude/analytics-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Platform,
@@ -89,6 +90,7 @@ export default function MemoriesScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      amplitude.track("memories_viewed");
       loadData();
     }, [])
   );
@@ -121,6 +123,11 @@ export default function MemoriesScreen() {
     setMonthAgoEntry(ma);
     setAllEntries(all);
     setStreak(streakData);
+
+    const MILESTONES = [7, 30, 100, 365] as const;
+    if ((MILESTONES as readonly number[]).includes(streakData.current)) {
+      amplitude.track("streak_milestone", { days: streakData.current as 7 | 30 | 100 | 365 });
+    }
   }
 
   function handleSurprise() {
@@ -217,7 +224,7 @@ export default function MemoriesScreen() {
 
         <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Неделя назад</Text>
         {weekAgoEntry ? (
-          <MiniCard entry={weekAgoEntry} onPress={() => goToEntry(weekAgoEntry)} />
+          <MiniCard entry={weekAgoEntry} onPress={() => { amplitude.track("memory_tapped", { type: "week" }); goToEntry(weekAgoEntry); }} />
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>7 дней назад записей не было.</Text>
@@ -226,7 +233,7 @@ export default function MemoriesScreen() {
 
         <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Месяц назад</Text>
         {monthAgoEntry ? (
-          <MiniCard entry={monthAgoEntry} onPress={() => goToEntry(monthAgoEntry)} />
+          <MiniCard entry={monthAgoEntry} onPress={() => { amplitude.track("memory_tapped", { type: "month" }); goToEntry(monthAgoEntry); }} />
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>30 дней назад записей не было.</Text>
@@ -235,7 +242,7 @@ export default function MemoriesScreen() {
 
         <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Год назад</Text>
         {yearAgoEntry ? (
-          <MiniCard entry={yearAgoEntry} onPress={() => goToEntry(yearAgoEntry)} />
+          <MiniCard entry={yearAgoEntry} onPress={() => { amplitude.track("memory_tapped", { type: "year" }); goToEntry(yearAgoEntry); }} />
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Ionicons name="time-outline" size={32} color={theme.mutedForeground} />
@@ -265,7 +272,7 @@ export default function MemoriesScreen() {
               <Text style={[styles.surpriseBtnText, { color: theme.foreground }]}>Удиви меня</Text>
             </TouchableOpacity>
             {randomEntry && (
-              <MiniCard entry={randomEntry} onPress={() => goToEntry(randomEntry)} />
+              <MiniCard entry={randomEntry} onPress={() => { amplitude.track("memory_tapped", { type: "random" }); goToEntry(randomEntry); }} />
             )}
           </>
         )}

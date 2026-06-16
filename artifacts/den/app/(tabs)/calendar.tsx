@@ -1,3 +1,4 @@
+import * as amplitude from "@amplitude/analytics-react-native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Platform,
@@ -146,6 +147,7 @@ export default function CalendarScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      amplitude.track("calendar_viewed");
       loadEntries();
     }, [])
   );
@@ -190,8 +192,10 @@ export default function CalendarScreen() {
   function handleDayPress(day: number) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     if (entries[dateStr]) {
+      amplitude.track("calendar_day_tapped", { hasEntry: true });
       router.push({ pathname: "/day-detail", params: { date: dateStr } });
     } else if (dateStr <= today) {
+      amplitude.track("calendar_day_tapped", { hasEntry: false });
       router.push({ pathname: "/day-fill", params: { date: dateStr } });
     }
   }

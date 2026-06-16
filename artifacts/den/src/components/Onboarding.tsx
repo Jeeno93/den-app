@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
+import * as amplitude from "@amplitude/analytics-react-native";
 
 const ONBOARDING_KEY = "onboarding_done";
 
@@ -171,6 +172,7 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
         } catch {}
       }
       await AsyncStorage.setItem(ONBOARDING_KEY, "true");
+      amplitude.track("onboarding_completed");
       onDone();
     }
   }

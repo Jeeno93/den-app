@@ -19,6 +19,7 @@ import colors from "@/constants/colors";
 import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion, SOFT_QUESTION_LABELS } from "@/src/data/questions";
 import { saveDay, getDay, getTags, getFillMode, saveFillMode, formatDate, getCustomQuestions, hasAnyCustomQuestion } from "@/src/storage/storage";
 import type { CustomQuestions, DayAnswers, DayEntry, FillMode, SleepData, TaskItem, UserTags } from "@/src/storage/storage";
+import * as amplitude from "@amplitude/analytics-react-native";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
@@ -152,8 +153,17 @@ export function DayFillFlow({
 
   useEffect(() => {
     getTags().then(setLoadedTags);
-    getFillMode().then(setMode);
+    getFillMode().then((m) => {
+      setMode(m);
+      amplitude.track("fill_started", { mode: m });
+    });
   }, []);
+
+  const _isFirstPhase = useRef(true);
+  useEffect(() => {
+    if (_isFirstPhase.current) { _isFirstPhase.current = false; return; }
+    amplitude.track("fill_phase_changed", { phase, mode });
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     getCustomQuestions().then(setCustomQuestions);
@@ -216,11 +226,13 @@ export function DayFillFlow({
       setPhase("mood");
       return;
     }
+    amplitude.track("fill_abandoned", { phase, mode });
     onExit?.();
   }
 
   function changeMode(next: FillMode) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    amplitude.track("mode_selected", { mode: next });
     setMode(next);
     saveFillMode(next);
     setSwitcherExpanded(false); // после выбора сворачиваем обратно в строку
@@ -331,6 +343,7 @@ export function DayFillFlow({
       return;
     }
 
+    amplitude.track("fill_completed", { mode, mood: selectedMood });
     onSaved?.(entry);
 
     setPhase("done");

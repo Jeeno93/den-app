@@ -1,3 +1,4 @@
+import * as amplitude from "@amplitude/analytics-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -48,6 +49,10 @@ export default function YearPixelsScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 24 : insets.bottom;
+
+  useEffect(() => {
+    amplitude.track("year_pixels_viewed");
+  }, []);
 
   useEffect(() => {
     getAllDays().then((entries) => {

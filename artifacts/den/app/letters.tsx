@@ -1,3 +1,4 @@
+import * as amplitude from "@amplitude/analytics-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
@@ -106,6 +107,7 @@ export default function LettersScreen() {
       const notifId = await scheduleLetterNotification(letter.id, openDateStr);
       if (notifId) letter.notifId = notifId;
       await upsertLetter(letter);
+      amplitude.track("letter_created");
       await reload();
       setComposeText("");
       setOpenDate(addDays(today, 30));
@@ -122,6 +124,7 @@ export default function LettersScreen() {
     const updated = { ...letter, opened: true };
     if (letter.notifId) await cancelLetterNotification(letter.notifId);
     await upsertLetter(updated);
+    amplitude.track("letter_opened");
     await reload();
     setReadingLetter(updated);
     setView("reading");
