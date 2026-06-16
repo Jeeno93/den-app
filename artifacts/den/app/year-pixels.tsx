@@ -32,7 +32,7 @@ export default function YearPixelsScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -74,8 +74,20 @@ export default function YearPixelsScreen() {
   const DAY_W = 20;
   const DAY_GAP = 3;
   const CELL_GAP = 2;
+
+  // Width: (screenWidth - paddings - day label - 11 gaps) / 12 cols
   const gridWidth = screenWidth - H_PAD * 2 - DAY_W - DAY_GAP;
-  const cellSize = Math.floor((gridWidth - CELL_GAP * 11) / 12);
+  const cellWidth = Math.floor((gridWidth - CELL_GAP * 11) / 12);
+
+  // Height: (available height - header areas) / 31 rows
+  // header ≈ topPad + 8 (paddingTop) + 44 (content) + 8 (paddingBottom) + 1 (border)
+  // yearNav ≈ 44 + 1 (border)
+  // content overhead: paddingTop(10) + monthHeader(16) + paddingBottom(bottomPad+16)
+  const FIXED_CHROME = topPad + 61 + 45 + 10 + 16 + bottomPad + 16;
+  const cellHeight = Math.floor((screenHeight - FIXED_CHROME) / 31);
+
+  // Square cells — take the smaller dimension
+  const cellSize = Math.min(cellWidth, cellHeight);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#06080B" }}>

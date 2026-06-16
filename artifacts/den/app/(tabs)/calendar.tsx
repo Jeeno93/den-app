@@ -301,7 +301,8 @@ export default function CalendarScreen() {
           {weeks.map((week, wi) => (
             <View key={wi} style={styles.weekRow}>
               {week.map((day, di) => {
-                if (day === null) return <View key={di} style={styles.dayCell} />;
+                if (day === null) return <View key={di} style={styles.dayCircle} />;
+
                 const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const entry = entries[dateStr];
                 const isToday = dateStr === today;
@@ -319,40 +320,32 @@ export default function CalendarScreen() {
                 return (
                   <TouchableOpacity
                     key={di}
-                    style={styles.dayCell}
+                    style={[
+                      styles.dayCircle,
+                      entry ? { backgroundColor: getCalendarMoodColor(entry.mood) } : {},
+                      isToday ? {
+                        borderWidth: 2,
+                        borderColor: "#5EE6A8",
+                        shadowColor: "#5EE6A8",
+                        shadowOpacity: 0.45,
+                        shadowRadius: 10,
+                        shadowOffset: { width: 0, height: 0 },
+                        elevation: 10,
+                      } : {},
+                    ]}
                     onPress={() => handleDayPress(day)}
                     disabled={!isTappable}
                     activeOpacity={isTappable ? 0.7 : 1}
                     testID={`day-${day}`}
                   >
-                    <View
+                    <Text
                       style={[
-                        styles.dayCircle,
-                        entry ? { backgroundColor: getCalendarMoodColor(entry.mood) } : {},
-                        isToday ? {
-                          borderWidth: 2,
-                          borderColor: "#5EE6A8",
-                          borderRadius: 22,
-                          shadowColor: "#5EE6A8",
-                          shadowOpacity: 0.45,
-                          shadowRadius: 10,
-                          shadowOffset: { width: 0, height: 0 },
-                          elevation: 10,
-                        } : {},
+                        styles.dayNum,
+                        { color: textColor, fontWeight: isToday || !!entry ? "700" : "400" },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.dayNum,
-                          {
-                            color: textColor,
-                            fontWeight: isToday || !!entry ? "700" : "400",
-                          },
-                        ]}
-                      >
-                        {day}
-                      </Text>
-                    </View>
+                      {day}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -432,12 +425,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     textTransform: "uppercase",
     letterSpacing: 0.5,
-  },
-  dayCell: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
   },
   dayCircle: {
     width: 44,
