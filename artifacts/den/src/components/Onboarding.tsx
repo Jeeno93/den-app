@@ -13,18 +13,24 @@ import {
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
 
 const ONBOARDING_KEY = "onboarding_done";
 
-const BG = "#1a5c42";
+const BG = "#06080B";
 const ACCENT = "#5EE6A8";
 const WHITE = "#ffffff";
-const WHITE_DIM = "rgba(255,255,255,0.75)";
-const CARD_BG = "rgba(255,255,255,0.10)";
-const CARD_BORDER = "rgba(255,255,255,0.18)";
+const SUBTITLE = "#B3BCC8";
+const CARD_BG = "rgba(255,255,255,0.05)";
+const CARD_BORDER = "rgba(255,255,255,0.10)";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const CTA_COLORS = ["#1B6B4A", "#5EE6A8", "#2A7A58"] as const;
+const CTA_START = { x: 0, y: 0 };
+const CTA_END = { x: 1, y: 0 };
 
 const SLIDES = [
   {
@@ -40,7 +46,7 @@ const SLIDES = [
     hasLearnMore: false,
   },
   {
-    emoji: "📅",
+    emoji: "🗓️",
     title: "Через год\nне оторвёшься",
     text: "Читай что писал год назад.\nСледи за своим настроением.",
     hasLearnMore: false,
@@ -122,8 +128,10 @@ function WhyDiaryModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
         <View style={[whyStyles.footer, { paddingBottom: Platform.OS === "web" ? 24 : insets.bottom + 16 }]}>
           <TouchableOpacity style={whyStyles.shareBtn} onPress={handleShare} activeOpacity={0.85}>
-            <Ionicons name="share-social-outline" size={20} color={BG} />
-            <Text style={whyStyles.shareBtnText}>Поделиться</Text>
+            <LinearGradient colors={CTA_COLORS} start={CTA_START} end={CTA_END} style={whyStyles.shareBtnGradient}>
+              <Ionicons name="share-social-outline" size={20} color={WHITE} />
+              <Text style={whyStyles.shareBtnText}>Поделиться</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
@@ -156,6 +164,12 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
     if (slide < SLIDES.length - 1) {
       animateToSlide(slide + 1);
     } else {
+      // Request notification permission on the last slide before finishing
+      if (Platform.OS !== "web") {
+        try {
+          await Notifications.requestPermissionsAsync();
+        } catch {}
+      }
       await AsyncStorage.setItem(ONBOARDING_KEY, "true");
       onDone();
     }
@@ -187,7 +201,7 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
                 style={[
                   styles.dot,
                   {
-                    backgroundColor: i === slide ? WHITE : WHITE + "40",
+                    backgroundColor: i === slide ? ACCENT : WHITE + "30",
                     width: i === slide ? 20 : 7,
                   },
                 ]}
@@ -206,14 +220,10 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: isLast ? WHITE : ACCENT }]}
-            onPress={handleNext}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.buttonText, { color: isLast ? BG : WHITE }]}>
-              {isLast ? "Начать" : "Далее"}
-            </Text>
+          <TouchableOpacity onPress={handleNext} activeOpacity={0.85} style={styles.buttonWrap}>
+            <LinearGradient colors={CTA_COLORS} start={CTA_START} end={CTA_END} style={styles.button}>
+              <Text style={styles.buttonText}>{isLast ? "Начать" : "Далее"}</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
@@ -251,13 +261,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: "700",
-    color: WHITE,
+    color: "#FFFFFF",
     textAlign: "center",
     lineHeight: 38,
   },
   text: {
     fontSize: 17,
-    color: WHITE + "CC",
+    color: SUBTITLE,
     textAlign: "center",
     lineHeight: 26,
     maxWidth: SCREEN_WIDTH - 80,
@@ -281,29 +291,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 20,
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: WHITE + "40",
+    borderColor: "rgba(255,255,255,0.15)",
     width: "100%",
     justifyContent: "center",
+    backgroundColor: "transparent",
   },
   learnMoreText: {
     fontSize: 15,
     fontWeight: "500",
     color: WHITE,
   },
+  buttonWrap: {
+    width: "100%",
+    borderRadius: 28,
+    overflow: "hidden",
+  },
   button: {
     width: "100%",
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 28,
+    paddingVertical: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonText: {
     fontSize: 17,
     fontWeight: "700",
+    color: WHITE,
   },
 });
 
@@ -356,7 +373,7 @@ const whyStyles = StyleSheet.create({
   },
   cardText: {
     fontSize: 15,
-    color: WHITE_DIM,
+    color: SUBTITLE,
     lineHeight: 23,
   },
   footer: {
@@ -371,17 +388,21 @@ const whyStyles = StyleSheet.create({
     borderTopColor: CARD_BORDER,
   },
   shareBtn: {
+    width: "100%",
+    borderRadius: 28,
+    overflow: "hidden",
+  },
+  shareBtnGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: WHITE,
-    borderRadius: 16,
+    borderRadius: 28,
     paddingVertical: 15,
   },
   shareBtnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: BG,
+    color: WHITE,
   },
 });
