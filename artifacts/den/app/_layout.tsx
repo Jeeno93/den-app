@@ -20,7 +20,8 @@ import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
 import { compactPhotoStorage } from "@/src/storage/storage";
 
-amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? "");
+amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
+console.log('Amplitude key:', process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY);
 
 SplashScreen.preventAutoHideAsync();
 
