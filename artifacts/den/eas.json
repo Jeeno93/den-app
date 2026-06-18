@@ -15,7 +15,10 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "7990b6aa6dacd874971ffe2ede4b3598"
+      }
     }
   },
   "submit": {
