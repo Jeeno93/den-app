@@ -9,7 +9,10 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "7990b6aa6dacd874971ffe2ede4b3598"
+      }
     },
     "production": {
       "autoIncrement": true
