@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
@@ -211,11 +212,11 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
         activeOpacity={0.85}
         testID="notes-done-button"
       >
-        <View style={styles.doneButtonGlow} />
+        <LinearGradient colors={["#1B6B4A", "#0D2B1A"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
         <Text style={styles.doneButtonText}>
           {isLast ? "Готово" : "Далее"}
         </Text>
-        <Ionicons name={isLast ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+        <Ionicons name={isLast ? "checkmark" : "arrow-forward"} size={18} color="#5EE6A8" />
       </TouchableOpacity>
     </View>
   );
@@ -316,11 +317,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   doneButton: {
-    height: 64,
     borderRadius: 28,
+    paddingVertical: 16,
     backgroundColor: "#0D2B1A",
     borderWidth: 1,
-    borderColor: "rgba(94,230,168,0.3)",
+    borderColor: "rgba(94,230,168,0.4)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -339,6 +340,6 @@ const styles = StyleSheet.create({
   doneButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: "#5EE6A8",
   },
 });

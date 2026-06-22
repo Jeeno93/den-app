@@ -6,6 +6,7 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
@@ -107,15 +108,15 @@ export function QuestionCard({
           activeOpacity={0.85}
           testID={isLast ? "done-button" : "next-button"}
         >
-          <View style={styles.nextButtonGlow} />
+          <LinearGradient colors={["#1B6B4A", "#0D2B1A"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
           <Text style={styles.nextButtonText}>
             {isLast ? "Готово" : "Далее"}
           </Text>
           {!isLast && (
-            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            <Ionicons name="arrow-forward" size={18} color="#5EE6A8" />
           )}
           {isLast && (
-            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={18} color="#5EE6A8" />
           )}
         </TouchableOpacity>
       </View>
@@ -199,11 +200,11 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 2,
-    height: 64,
     borderRadius: 28,
+    paddingVertical: 16,
     backgroundColor: "#0D2B1A",
     borderWidth: 1,
-    borderColor: "rgba(94,230,168,0.3)",
+    borderColor: "rgba(94,230,168,0.4)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -225,6 +226,6 @@ const styles = StyleSheet.create({
   nextButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: "#5EE6A8",
   },
 });

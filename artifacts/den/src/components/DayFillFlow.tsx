@@ -417,9 +417,9 @@ export function DayFillFlow({
           </View>
           {selectedMood ? (
             <TouchableOpacity onPress={() => advanceFrom("mood")} activeOpacity={0.85}>
-              <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+              <LinearGradient colors={["#1B6B4A", "#0D2B1A"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.continueButton}>
                 <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Продолжить"}</Text>
-                <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+                <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#5EE6A8" />
               </LinearGradient>
             </TouchableOpacity>
           ) : (
@@ -481,9 +481,9 @@ export function DayFillFlow({
             </>
           )}
           <TouchableOpacity style={{ marginTop: 28 }} onPress={() => { setCurrentQuestion(0); advanceFrom("tags"); }} activeOpacity={0.85}>
-            <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+            <LinearGradient colors={["#1B6B4A", "#0D2B1A"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.continueButton}>
               <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Далее"}</Text>
-              <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+              <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#5EE6A8" />
             </LinearGradient>
           </TouchableOpacity>
         </ScrollView>
@@ -600,9 +600,9 @@ export function DayFillFlow({
             </View>
 
             <TouchableOpacity style={{ marginTop: 24 }} onPress={() => advanceFrom("tasks")} activeOpacity={0.85}>
-              <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+              <LinearGradient colors={["#1B6B4A", "#0D2B1A"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.continueButton}>
                 <Text style={styles.continueText}>{isLastInputPhase ? "Готово" : "Далее"}</Text>
-                <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#FFFFFF" />
+                <Ionicons name={isLastInputPhase ? "checkmark" : "arrow-forward"} size={18} color="#5EE6A8" />
               </LinearGradient>
             </TouchableOpacity>
           </ScrollView>
@@ -629,9 +629,9 @@ export function DayFillFlow({
               onSleepChange={setSleep}
             />
             <TouchableOpacity style={{ marginTop: 24 }} onPress={() => advanceFrom("deep")} activeOpacity={0.85}>
-              <LinearGradient colors={["#1B6B4A", "#5EE6A8", "#2A7A58"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueButton}>
+              <LinearGradient colors={["#1B6B4A", "#0D2B1A"]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.continueButton}>
                 <Text style={styles.continueText}>Готово</Text>
-                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                <Ionicons name="checkmark" size={18} color="#5EE6A8" />
               </LinearGradient>
             </TouchableOpacity>
           </ScrollView>
@@ -712,14 +712,16 @@ const styles = StyleSheet.create({
   sub: { fontSize: 15, marginBottom: 16 },
   moodRow: { marginTop: 12, marginBottom: 28 },
   continueButton: {
-    height: 64,
-    borderRadius: 32,
+    borderRadius: 28,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: "rgba(94,230,168,0.4)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
-  continueText: { fontSize: 17, fontWeight: "600", color: "#FFFFFF" },
+  continueText: { fontSize: 16, fontWeight: "600", color: "#5EE6A8" },
   sectionLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
   tagsScrollRow: { flexDirection: "row", gap: 8, paddingBottom: 4 },
   tagChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: "#11161D", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", gap: 5 },
