@@ -4,12 +4,12 @@
     "slug": "den",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "den",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/images/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#06080B"
     },
@@ -19,8 +19,8 @@
     "android": {
       "package": "com.jeeno93.den",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#1a5c42"
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#06080B"
       }
     },
     "web": {
