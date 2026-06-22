@@ -12,11 +12,11 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#1a5c42";
-const CARD_BG = "rgba(255,255,255,0.10)";
-const CARD_BORDER = "rgba(255,255,255,0.18)";
+const BG = "#06080B";
+const CARD_BG = "rgba(255,255,255,0.04)";
+const CARD_BORDER = "rgba(255,255,255,0.06)";
 const WHITE = "#ffffff";
-const WHITE_DIM = "rgba(255,255,255,0.75)";
+const WHITE_DIM = "rgba(255,255,255,0.55)";
 const ACCENT = "#5EE6A8";
 
 const BLOCKS = [
@@ -74,6 +74,8 @@ export default function WhyDiaryScreen() {
       >
         {BLOCKS.map((block, i) => (
           <View key={i} style={styles.card}>
+            <View style={styles.cardAccentLine} />
+            <Text style={styles.cardNumber}>0{i + 1}</Text>
             <Text style={styles.cardEmoji}>{block.emoji}</Text>
             <Text style={styles.cardTitle}>{block.title}</Text>
             <Text style={styles.cardText}>{block.text}</Text>
@@ -128,6 +130,22 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     gap: 10,
+    overflow: "hidden",
+  },
+  cardAccentLine: {
+    position: "absolute",
+    top: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: "rgba(94,230,168,0.25)",
+  },
+  cardNumber: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: ACCENT,
+    letterSpacing: 1,
+    opacity: 0.7,
   },
   cardEmoji: {
     fontSize: 36,
@@ -152,20 +170,22 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     backgroundColor: BG,
     borderTopWidth: 1,
-    borderTopColor: CARD_BORDER,
+    borderTopColor: "rgba(94,230,168,0.1)",
   },
   shareBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: WHITE,
+    backgroundColor: "#0D2B1A",
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(94,230,168,0.4)",
     paddingVertical: 15,
   },
   shareBtnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: BG,
+    color: ACCENT,
   },
 });
