@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -35,28 +36,24 @@ const CTA_END = { x: 1, y: 0 };
 
 const SLIDES = [
   {
-    emoji: "📖",
-    title: "Добро пожаловать\nв Den",
-    text: "Ежедневный дневник для тех,\nкто никогда не вёл дневник.",
-    hasLearnMore: false,
+    image: require('../../assets/images/onboarding1.png'),
+    title: 'Запомни каждый свой день',
+    subtitle: 'Ежедневный дневник для тех,\nкто никогда не вёл дневник.',
   },
   {
-    emoji: "✍️",
-    title: "Пять вопросов\nкаждый вечер",
-    text: "Что узнал, кого встретил,\nчто рассмешило — всё займёт 2 минуты.",
-    hasLearnMore: false,
+    image: require('../../assets/images/onboarding2.png'),
+    title: 'Пять вопросов каждый вечер',
+    subtitle: 'Что узнал, кого встретил,\nчто рассмешило — всё займёт 2 минуты.',
   },
   {
-    emoji: "🗓️",
-    title: "Через год\nне оторвёшься",
-    text: "Читай что писал год назад.\nСледи за своим настроением.",
-    hasLearnMore: false,
+    image: require('../../assets/images/onboarding3.png'),
+    title: 'Через год не оторвёшься',
+    subtitle: 'Читай что писал год назад.\nСледи за своим настроением.',
   },
   {
-    emoji: "🧠",
-    title: "Это работает на уровне\nнейробиологии",
-    text: "Рефлексия снижает тревожность, укрепляет память и помогает замечать закономерности в своей жизни.",
-    hasLearnMore: true,
+    image: null,
+    title: 'Это работает на уровне нейробиологии',
+    subtitle: 'Рефлексия снижает тревожность,\nукрепляет память и помогает замечать закономерности в своей жизни.',
   },
 ];
 
@@ -190,9 +187,13 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
             { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
           ]}
         >
-          <Text style={styles.emoji}>{current.emoji}</Text>
+          {current.image !== null ? (
+            <Image source={current.image} style={{ width: '100%', height: 380, resizeMode: 'contain', borderRadius: 20 }} />
+          ) : (
+            <Text style={styles.emoji}>🧠</Text>
+          )}
           <Text style={styles.title}>{current.title}</Text>
-          <Text style={styles.text}>{current.text}</Text>
+          <Text style={styles.text}>{current.subtitle}</Text>
         </Animated.View>
 
         <View style={styles.bottom}>
@@ -211,7 +212,7 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
             ))}
           </View>
 
-          {current.hasLearnMore && (
+          {current.image === null && (
             <TouchableOpacity
               style={styles.learnMoreBtn}
               onPress={() => setShowWhyDiary(true)}
