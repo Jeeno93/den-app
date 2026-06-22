@@ -71,7 +71,7 @@ interface DiagResult {
 
 
 export default function SettingsScreen() {
-  const { isDark, themeMode, setThemeMode } = useTheme();
+  const { isDark } = useTheme();
   const { notifHour, notifMinute, notificationsEnabled, memoryNotifEnabled, setNotificationTime, setNotificationsEnabled, setMemoryNotifEnabled } = useNotifications();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
@@ -313,33 +313,6 @@ export default function SettingsScreen() {
               thumbColor={memoryNotifEnabled ? "#5EE6A8" : theme.mutedForeground}
             />
           </View>
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Оформление</Text>
-        <View style={styles.card}>
-          {(["system", "light", "dark"] as const).map((mode) => {
-            const labels = { system: "Системная", light: "Светлая", dark: "Тёмная" };
-            const icons: Record<typeof mode, React.ComponentProps<typeof Ionicons>["name"]> = {
-              system: "phone-portrait-outline",
-              light: "sunny-outline",
-              dark: "moon-outline",
-            };
-            return (
-              <TouchableOpacity
-                key={mode}
-                style={styles.row}
-                onPress={() => setThemeMode(mode)}
-                activeOpacity={0.7}
-                testID={`theme-${mode}`}
-              >
-                <View style={styles.rowIcon}>
-                  <Ionicons name={icons[mode]} size={20} color={theme.foreground} />
-                </View>
-                <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>{labels[mode]}</Text>
-                {themeMode === mode && <Ionicons name="checkmark-circle" size={22} color={theme.primary} />}
-              </TouchableOpacity>
-            );
-          })}
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Персонализация</Text>
