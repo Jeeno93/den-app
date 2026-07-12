@@ -6,7 +6,11 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "7990b6aa6dacd874971ffe2ede4b3598",
+        "EXPO_PUBLIC_APPMETRICA_API_KEY": "f60b63a8-a641-4c72-9cde-2ac384740459"
+      }
     },
     "preview": {
       "distribution": "internal",
