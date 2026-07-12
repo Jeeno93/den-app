@@ -19,9 +19,15 @@ import { ThemeProvider } from "@/src/context/ThemeContext";
 import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
 import { compactPhotoStorage } from "@/src/storage/storage";
+import { initAppMetrica } from "@/src/analytics/appMetrica";
 
 amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
 console.log('Amplitude key:', process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY);
+
+// Resolves to appMetrica.android.ts on Android, appMetrica.ts (no-op) on
+// web/iOS — see those files for why this needs to be a platform split
+// rather than a runtime Platform.OS check.
+initAppMetrica();
 
 SplashScreen.preventAutoHideAsync();
 

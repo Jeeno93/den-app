@@ -20,6 +20,9 @@ importers:
       '@amplitude/analytics-react-native':
         specifier: ^1.5.57
         version: 1.6.2(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      '@appmetrica/react-native-analytics':
+        specifier: ^4.1.0
+        version: 4.1.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@react-native-community/datetimepicker':
         specifier: 8.4.4
         version: 8.4.4(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -196,6 +199,12 @@ packages:
 
   '@amplitude/ua-parser-js@0.7.33':
     resolution: {integrity: sha512-wKEtVR4vXuPT9cVEIJkYWnlF++Gx3BdLatPBM+SZ1ztVIvnhdGBZR/mn9x/PzyrMcRlZmyi6L56I2J3doVBnjA==}
+
+  '@appmetrica/react-native-analytics@4.1.0':
+    resolution: {integrity: sha512-vBrZDeA0kXjTNdRdnN1xJq5XZczDij5FUQaAzljXu/mv+wom/yXG7JpTe7OGkYpsxdd+6H+S/QTded7YEHALSQ==}
+    peerDependencies:
+      react: '*'
+      react-native: '>=0.76.0 <1.0.0'
 
   '@babel/code-frame@7.10.4':
     resolution: {integrity: sha512-vG6SvB6oYEhvgisZNFRmRCUkLz11c7rp+tbNTynGqc6mS1d5ATd/sGyV6W0KZZnXRKMTzZDRgQT3Ou9jhpAfUg==}
@@ -3997,6 +4006,11 @@ snapshots:
       tslib: 2.8.1
 
   '@amplitude/ua-parser-js@0.7.33': {}
+
+  '@appmetrica/react-native-analytics@4.1.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
 
   '@babel/code-frame@7.10.4':
     dependencies:

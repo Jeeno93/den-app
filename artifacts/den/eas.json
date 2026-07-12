@@ -11,13 +11,15 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "7990b6aa6dacd874971ffe2ede4b3598"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "7990b6aa6dacd874971ffe2ede4b3598",
+        "EXPO_PUBLIC_APPMETRICA_API_KEY": ""
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "7990b6aa6dacd874971ffe2ede4b3598"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "7990b6aa6dacd874971ffe2ede4b3598",
+        "EXPO_PUBLIC_APPMETRICA_API_KEY": ""
       }
     }
   },
