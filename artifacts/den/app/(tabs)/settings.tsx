@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   Platform,
@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import * as amplitude from "@amplitude/analytics-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
@@ -80,6 +81,12 @@ export default function SettingsScreen() {
   const [diagLoading, setDiagLoading] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  useFocusEffect(
+    useCallback(() => {
+      amplitude.track("settings_viewed");
+    }, [])
+  );
 
   async function handleTimeConfirm(h: number, m: number) {
     await setNotificationTime(h, m);

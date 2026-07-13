@@ -545,3 +545,14 @@ export async function getStreak(): Promise<{ current: number; best: number }> {
 
   return { current, best };
 }
+
+const LAST_KNOWN_STREAK_KEY = "last_known_streak";
+
+export async function getLastKnownStreak(): Promise<number> {
+  const raw = await AsyncStorage.getItem(LAST_KNOWN_STREAK_KEY);
+  return raw ? parseInt(raw, 10) || 0 : 0;
+}
+
+export async function setLastKnownStreak(value: number): Promise<void> {
+  await AsyncStorage.setItem(LAST_KNOWN_STREAK_KEY, String(value));
+}

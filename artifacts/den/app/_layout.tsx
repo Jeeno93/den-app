@@ -1,4 +1,5 @@
 import * as amplitude from "@amplitude/analytics-react-native";
+import { Identify } from "@amplitude/analytics-react-native";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -18,7 +19,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
-import { compactPhotoStorage } from "@/src/storage/storage";
+import { compactPhotoStorage, getAllDays, getLastKnownStreak, getStreak, setLastKnownStreak } from "@/src/storage/storage";
 import { initAppMetrica } from "@/src/analytics/appMetrica";
 
 amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
@@ -59,6 +60,29 @@ export default function RootLayout() {
     // Relocate any legacy inline base64 photos out of AsyncStorage so writes
     // stop failing with SQLITE_FULL. Fire-and-forget; safe to run every launch.
     compactPhotoStorage();
+  }, []);
+
+  useEffect(() => {
+    // Reports streak_broken when a previously-running streak (>=2 days) has
+    // reset since the last launch, and refreshes current_streak/total_entries
+    // as Amplitude user properties so retention can be sliced by engagement
+    // level, not just tracked as an in-app-only stat.
+    (async () => {
+      const [streak, lastKnown, allDays] = await Promise.all([
+        getStreak(),
+        getLastKnownStreak(),
+        getAllDays(),
+      ]);
+      if (lastKnown >= 2 && streak.current < lastKnown) {
+        amplitude.track("streak_broken", { previousStreak: lastKnown });
+      }
+      await setLastKnownStreak(streak.current);
+      amplitude.identify(
+        new Identify()
+          .set("current_streak", streak.current)
+          .set("total_entries", allDays.length)
+      );
+    })();
   }, []);
 
   useEffect(() => {
