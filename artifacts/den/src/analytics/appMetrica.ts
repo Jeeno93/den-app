@@ -6,3 +6,5 @@
  * crashes Metro web bundles at module-load time).
  */
 export function initAppMetrica() {}
+
+export function reportGoalEvent(_name: string) {}

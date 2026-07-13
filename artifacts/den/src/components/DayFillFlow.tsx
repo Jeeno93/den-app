@@ -20,6 +20,7 @@ import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion, S
 import { saveDay, getDay, getTags, getFillMode, saveFillMode, formatDate, getCustomQuestions, hasAnyCustomQuestion } from "@/src/storage/storage";
 import type { CustomQuestions, DayAnswers, DayEntry, FillMode, SleepData, TaskItem, UserTags } from "@/src/storage/storage";
 import * as amplitude from "@amplitude/analytics-react-native";
+import { reportGoalEvent } from "@/src/analytics/appMetrica";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
@@ -153,11 +154,21 @@ export function DayFillFlow({
 
   useEffect(() => {
     getTags().then(setLoadedTags);
-    getFillMode().then((m) => {
-      setMode(m);
-      amplitude.track("fill_started", { mode: m });
-    });
+    getFillMode().then(setMode);
   }, []);
+
+  // fill_started marks the user's first real interaction with the flow, not
+  // just this screen mounting (it used to fire from a mount effect, which
+  // meant it went off before onboarding even finished for new users, since
+  // the "Сегодня" tab mounts underneath the onboarding modal immediately).
+  const _hasTrackedFillStarted = useRef(false);
+  function handleSelectMood(m: number) {
+    if (!_hasTrackedFillStarted.current) {
+      _hasTrackedFillStarted.current = true;
+      amplitude.track("fill_started", { mode });
+    }
+    setSelectedMood(m);
+  }
 
   const _isFirstPhase = useRef(true);
   useEffect(() => {
@@ -344,6 +355,7 @@ export function DayFillFlow({
     }
 
     amplitude.track("fill_completed", { mode, mood: selectedMood });
+    reportGoalEvent("fill_completed");
     onSaved?.(entry);
 
     setPhase("done");
@@ -412,7 +424,7 @@ export function DayFillFlow({
           <View style={styles.moodRow}>
             <MoodPicker
               selected={selectedMood}
-              onSelect={(m) => setSelectedMood(m)}
+              onSelect={handleSelectMood}
             />
           </View>
           {selectedMood ? (

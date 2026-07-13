@@ -47,3 +47,14 @@ export function initAppMetrica() {
   AppMetrica.activate({ apiKey });
   bridgeAcquisitionAttributionToAmplitude();
 }
+
+/**
+ * Reports a deeper-than-install goal event to AppMetrica so Yandex.Direct
+ * campaigns can eventually optimize on real engagement (e.g. "finished a
+ * day entry") instead of just install count. Separate from the Amplitude
+ * event of the same name — this one exists specifically to give the ad
+ * platform something to target.
+ */
+export function reportGoalEvent(name: string) {
+  AppMetrica.reportEvent(name);
+}
