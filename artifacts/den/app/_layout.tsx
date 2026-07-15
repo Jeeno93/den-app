@@ -10,7 +10,9 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import React, { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -60,6 +62,28 @@ export default function RootLayout() {
     // Relocate any legacy inline base64 photos out of AsyncStorage so writes
     // stop failing with SQLITE_FULL. Fire-and-forget; safe to run every launch.
     compactPhotoStorage();
+  }, []);
+
+  useEffect(() => {
+    // Fires unconditionally on every launch, before any feature-specific event
+    // (fill_started etc.), so opens that never reach a tracked action are
+    // still visible instead of looking identical to "never opened at all".
+    // source distinguishes a cold start via notification tap from a direct open.
+    (async () => {
+      let source: "notification" | "direct" = "direct";
+      let notificationType: string | undefined;
+      if (Platform.OS !== "web") {
+        try {
+          const response = await Notifications.getLastNotificationResponseAsync();
+          if (response) {
+            source = "notification";
+            const data = response.notification.request.content.data as Record<string, unknown>;
+            notificationType = typeof data?.type === "string" ? data.type : "daily_reminder";
+          }
+        } catch {}
+      }
+      amplitude.track("app_opened", { source, notificationType });
+    })();
   }, []);
 
   useEffect(() => {

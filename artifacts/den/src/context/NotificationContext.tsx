@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as amplitude from "@amplitude/analytics-react-native";
 import * as Notifications from "expo-notifications";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
@@ -143,6 +144,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (Platform.OS === "web") return;
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown>;
+      // Cold-start taps are covered separately by app_opened's source detection
+      // in _layout.tsx (getLastNotificationResponseAsync) — this listener only
+      // fires for taps while the app is already running/backgrounded.
+      const notificationType = typeof data?.type === "string" ? data.type : "daily_reminder";
+      amplitude.track("notification_tapped", { type: notificationType });
       if (data?.type === "memory" && typeof data?.date === "string") {
         setTimeout(() => {
           router.push({ pathname: "/day-detail", params: { date: data.date as string } } as any);
