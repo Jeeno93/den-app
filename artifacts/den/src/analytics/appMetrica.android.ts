@@ -10,17 +10,22 @@ import { Identify } from "@amplitude/analytics-react-native";
 function bridgeAcquisitionAttributionToAmplitude() {
   AppMetrica.requestDeferredDeeplinkParameters({
     onSuccess: (parameters) => {
-      const identify = new Identify();
-      let hasAny = false;
-      for (const [key, value] of Object.entries(parameters)) {
-        identify.setOnce(`acq_${key}`, value);
-        hasAny = true;
-      }
-      if (hasAny) {
+      const keys = Object.keys(parameters);
+      // Diagnostic: acq_ properties never showed up in Amplitude in ~5 days of
+      // real installs, with zero visibility into why (onFailure only logged
+      // locally). Reporting the raw outcome lets us tell apart "API never
+      // returns usable data" from "bridge code itself isn't running".
+      amplitude.track("deeplink_params_received", { paramCount: keys.length, keys });
+      if (keys.length > 0) {
+        const identify = new Identify();
+        for (const [key, value] of Object.entries(parameters)) {
+          identify.setOnce(`acq_${key}`, value);
+        }
         amplitude.identify(identify);
       }
     },
     onFailure: (error) => {
+      amplitude.track("deeplink_params_failed", { error });
       // NOT_A_FIRST_LAUNCH is expected on every launch after the first.
       // NO_REFERRER/PARSE_ERROR/UNKNOWN mean no attribution data was found —
       // not an error worth surfacing to the user.
