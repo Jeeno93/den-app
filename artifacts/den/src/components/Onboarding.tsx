@@ -19,6 +19,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 import * as amplitude from "@amplitude/analytics-react-native";
+import { useNotifications } from "@/src/context/NotificationContext";
+import { TimeSelector } from "@/src/components/TimeSelector";
 
 const ONBOARDING_KEY = "onboarding_done";
 
@@ -48,7 +50,7 @@ const SLIDES = [
   {
     image: require('../../assets/images/onboarding3.png'),
     title: 'Через год не оторвёшься',
-    subtitle: 'Читай что писал год назад.\nСледи за своим настроением.',
+    subtitle: 'Читай что писал год назад,\nпиши письма себе в будущее.',
   },
   {
     image: null,
@@ -139,8 +141,11 @@ function WhyDiaryModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
 export function Onboarding({ visible, onDone }: OnboardingProps) {
   const insets = useSafeAreaInsets();
+  const { setNotificationTime, setNotificationsEnabled } = useNotifications();
   const [slide, setSlide] = useState(0);
   const [showWhyDiary, setShowWhyDiary] = useState(false);
+  const [showNotifAsk, setShowNotifAsk] = useState(false);
+  const [notifBusy, setNotifBusy] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -158,24 +163,75 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
     });
   }
 
-  async function handleNext() {
+  async function finishOnboarding() {
+    await AsyncStorage.setItem(ONBOARDING_KEY, "true");
+    amplitude.track("onboarding_completed");
+    onDone();
+  }
+
+  function handleNext() {
     if (slide < SLIDES.length - 1) {
       animateToSlide(slide + 1);
+    } else if (Platform.OS === "web") {
+      // Scheduled local notifications aren't available on web — nothing to ask for.
+      finishOnboarding();
     } else {
-      // Request notification permission on the last slide before finishing
-      if (Platform.OS !== "web") {
-        try {
-          await Notifications.requestPermissionsAsync();
-        } catch {}
-      }
-      await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-      amplitude.track("onboarding_completed");
-      onDone();
+      setShowNotifAsk(true);
     }
+  }
+
+  async function handleEnableNotifications(hour: number, minute: number) {
+    setNotifBusy(true);
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      const granted = status === "granted";
+      amplitude.track("notification_permission_requested", { granted, skipped: false });
+      if (granted) {
+        await setNotificationTime(hour, minute);
+      }
+      await setNotificationsEnabled(granted);
+    } catch {
+      amplitude.track("notification_permission_requested", { granted: false, skipped: false });
+    } finally {
+      setNotifBusy(false);
+      finishOnboarding();
+    }
+  }
+
+  function handleSkipNotifications() {
+    amplitude.track("notification_permission_requested", { granted: null, skipped: true });
+    setNotificationsEnabled(false);
+    finishOnboarding();
   }
 
   const current = SLIDES[slide];
   const isLast = slide === SLIDES.length - 1;
+
+  if (showNotifAsk) {
+    return (
+      <Modal visible={visible} animationType="fade" statusBarTranslucent transparent={false}>
+        {Platform.OS === "android" && <StatusBar backgroundColor={BG} barStyle="light-content" />}
+        <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.content}>
+            <Text style={styles.emoji}>🔔</Text>
+            <Text style={styles.title}>Не забывай про вечер</Text>
+            <Text style={styles.text}>
+              Короткое напоминание в удобное время —{"\n"}чтобы дневник не потерялся среди дел.
+            </Text>
+            <View style={{ marginTop: 8 }}>
+              <TimeSelector hour={21} minute={0} onConfirm={handleEnableNotifications} confirmLabel="Включить напоминания" />
+            </View>
+          </View>
+
+          <View style={styles.bottom}>
+            <TouchableOpacity onPress={handleSkipNotifications} activeOpacity={0.7} disabled={notifBusy}>
+              <Text style={styles.skipText}>Не сейчас</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} animationType="fade" statusBarTranslucent transparent={false}>
@@ -307,6 +363,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     color: WHITE,
+  },
+  skipText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: SUBTITLE,
+    textAlign: "center",
+    paddingVertical: 8,
   },
   buttonWrap: {
     width: "100%",

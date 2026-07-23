@@ -14,10 +14,23 @@ import {
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { getDayQuestion, getRandomPositiveQuestion, getRandomNegativeQuestion, SOFT_QUESTION_LABELS } from "@/src/data/questions";
-import { saveDay, getDay, getTags, getFillMode, saveFillMode, formatDate, getCustomQuestions, hasAnyCustomQuestion } from "@/src/storage/storage";
+import {
+  saveDay,
+  getDay,
+  getTags,
+  getFillMode,
+  saveFillMode,
+  formatDate,
+  getCustomQuestions,
+  hasAnyCustomQuestion,
+  getStreak,
+  getLastCelebratedMilestone,
+  setLastCelebratedMilestone,
+} from "@/src/storage/storage";
 import type { CustomQuestions, DayAnswers, DayEntry, FillMode, SleepData, TaskItem, UserTags } from "@/src/storage/storage";
 import * as amplitude from "@amplitude/analytics-react-native";
 import { reportGoalEvent } from "@/src/analytics/appMetrica";
@@ -29,6 +42,7 @@ import { QuestionCard } from "@/src/components/QuestionCard";
 import { NotesCard } from "@/src/components/NotesCard";
 import { FillModeSwitcher } from "@/src/components/FillModeSwitcher";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
+import { STREAK_MILESTONES, getBadgeForMilestone, type StreakBadge } from "@/src/data/streakBadges";
 
 function makeEmptyTomorrowTasks(): TaskItem[] {
   return [
@@ -148,6 +162,9 @@ export function DayFillFlow({
 
   // Пользовательские вопросы (null = ещё не загружены)
   const [customQuestions, setCustomQuestions] = useState<CustomQuestions | null>(null);
+
+  // Стрик-майлстоун, отмеченный именно этим сохранением (для done-экрана)
+  const [celebratedMilestone, setCelebratedMilestone] = useState<{ days: number; badge: StreakBadge } | null>(null);
 
   const doneOpacity = useRef(new Animated.Value(0)).current;
   const doneScale = useRef(new Animated.Value(0.9)).current;
@@ -358,6 +375,26 @@ export function DayFillFlow({
     reportGoalEvent("fill_completed");
     onSaved?.(entry);
 
+    // Celebrate a streak milestone at most once — only the first save that
+    // reaches a new threshold (STREAK_MILESTONES) counts, so re-editing an
+    // already-saved day doesn't re-fire the event or re-show the reward.
+    try {
+      const [streak, lastCelebrated] = await Promise.all([getStreak(), getLastCelebratedMilestone()]);
+      const hit = STREAK_MILESTONES.find((m) => m === streak.current && m > lastCelebrated);
+      if (hit !== undefined) {
+        const badge = getBadgeForMilestone(hit);
+        if (badge) {
+          amplitude.track("streak_milestone", { days: hit });
+          await setLastCelebratedMilestone(hit);
+          setCelebratedMilestone({ days: hit, badge });
+        }
+      } else {
+        setCelebratedMilestone(null);
+      }
+    } catch (err) {
+      console.warn("[DayFillFlow] streak milestone check failed (non-fatal):", err);
+    }
+
     setPhase("done");
     doneOpacity.setValue(0);
     doneScale.setValue(0.5);
@@ -392,6 +429,29 @@ export function DayFillFlow({
             </View>
             <Text style={[styles.doneTitle, { color: theme.foreground }]}>День записан.</Text>
             <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>Увидимся завтра.</Text>
+
+            {celebratedMilestone && (
+              <View style={[styles.milestonePlaque, { backgroundColor: theme.primary, shadowColor: theme.primary }]}>
+                <Text style={styles.milestoneEmoji}>{celebratedMilestone.badge.emoji}</Text>
+                <Text style={[styles.milestoneLabel, { color: theme.primaryForeground }]}>{celebratedMilestone.badge.label}</Text>
+              </View>
+            )}
+
+            {celebratedMilestone?.days === 3 && (
+              <TouchableOpacity
+                style={[styles.lettersCta, { backgroundColor: theme.card, borderColor: theme.border }]}
+                onPress={() => router.push("/letters" as any)}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: 22 }}>💌</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.lettersCtaTitle, { color: theme.foreground }]}>Напиши письмо себе</Text>
+                  <Text style={[styles.lettersCtaSub, { color: theme.mutedForeground }]}>Открой его через месяц</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.doneButton, { backgroundColor: theme.secondary }]}
               onPress={() => (doneVariant === "view" ? onView?.() : onClose?.())}
@@ -758,6 +818,33 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   doneButtonText: { fontSize: 16, fontWeight: "500" },
+  milestonePlaque: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  milestoneEmoji: { fontSize: 18 },
+  milestoneLabel: { fontSize: 14, fontWeight: "700", letterSpacing: 0.2 },
+  lettersCta: {
+    width: "100%",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 4,
+  },
+  lettersCtaTitle: { fontSize: 15, fontWeight: "600" },
+  lettersCtaSub: { fontSize: 13, marginTop: 1 },
 });
 
 const taskStyles = StyleSheet.create({
