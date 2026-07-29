@@ -24,13 +24,17 @@ function bridgeAcquisitionAttributionToAmplitude() {
         amplitude.identify(identify);
       }
     },
-    onFailure: (error) => {
-      amplitude.track("deeplink_params_failed", { error });
+    onFailure: (error, referrer) => {
+      // The native SDK passes the raw Play Install Referrer string alongside
+      // PARSE_ERROR — capturing it is the only way to see, without device
+      // access, what format actually broke the parser (macro casing/encoding
+      // in the Yandex.Direct tracker link vs. AppMetrica's expected format).
+      amplitude.track("deeplink_params_failed", { error, referrer: referrer?.slice(0, 500) });
       // NOT_A_FIRST_LAUNCH is expected on every launch after the first.
       // NO_REFERRER/PARSE_ERROR/UNKNOWN mean no attribution data was found —
       // not an error worth surfacing to the user.
       if (error !== "NOT_A_FIRST_LAUNCH") {
-        console.log("AppMetrica deferred deeplink parameters unavailable:", error);
+        console.log("AppMetrica deferred deeplink parameters unavailable:", error, referrer);
       }
     },
   });
