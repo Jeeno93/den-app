@@ -15,22 +15,12 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { formatDate, getAllDays, getDay, getStreak } from "@/src/storage/storage";
-import type { DayEntry } from "@/src/storage/storage";
+import { formatDate, getAllDays, getDay, getStreak, getLetters } from "@/src/storage/storage";
+import type { DayEntry, TimeCapsuleLetter } from "@/src/storage/storage";
+import { getStreakBadge } from "@/src/data/streakBadges";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
 import { EmptyState } from "@/src/components/EmptyState";
 import { getDayQuote } from "@/src/data/quotes";
-
-const STREAK_BADGES = [
-  { min: 365, emoji: "👑", label: "Целый год" },
-  { min: 100, emoji: "💎", label: "100 дней" },
-  { min: 30, emoji: "⚡", label: "Месяц подряд" },
-  { min: 7, emoji: "🔥", label: "Неделя подряд" },
-];
-
-function getStreakBadge(current: number): { emoji: string; label: string } | null {
-  return STREAK_BADGES.find((b) => current >= b.min) ?? null;
-}
 
 const MONTHS_GEN = [
   "января", "февраля", "марта", "апреля", "мая", "июня",
@@ -40,6 +30,26 @@ const MONTHS_GEN = [
 function formatDateRu(dateStr: string): string {
   const d = new Date(dateStr);
   return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function lettersWord(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return "писем";
+  if (mod10 === 1) return "письмо";
+  if (mod10 >= 2 && mod10 <= 4) return "письма";
+  return "писем";
+}
+
+function nextLetterHint(letters: TimeCapsuleLetter[]): string {
+  const unopened = letters.filter((l) => !l.opened).sort((a, b) => a.openDate.localeCompare(b.openDate));
+  if (unopened.length === 0) return "все прочитаны";
+  const next = unopened[0];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(next.openDate + "T00:00:00");
+  const days = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return days <= 0 ? "готово к прочтению" : `следующее через ${days} дн.`;
 }
 
 interface MiniCardProps {
@@ -85,6 +95,7 @@ export default function MemoriesScreen() {
   const [randomEntry, setRandomEntry] = useState<DayEntry | null>(null);
   const [allEntries, setAllEntries] = useState<DayEntry[]>([]);
   const [streak, setStreak] = useState({ current: 0, best: 0 });
+  const [letters, setLetters] = useState<TimeCapsuleLetter[]>([]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -110,12 +121,13 @@ export default function MemoriesScreen() {
     monthAgo.setDate(monthAgo.getDate() - 30);
     const monthAgoStr = formatDate(monthAgo);
 
-    const [ya, wa, ma, all, streakData] = await Promise.all([
+    const [ya, wa, ma, all, streakData, lettersData] = await Promise.all([
       getDay(yearAgoStr),
       getDay(weekAgoStr),
       getDay(monthAgoStr),
       getAllDays(),
       getStreak(),
+      getLetters(),
     ]);
 
     setYearAgoEntry(ya);
@@ -123,11 +135,10 @@ export default function MemoriesScreen() {
     setMonthAgoEntry(ma);
     setAllEntries(all);
     setStreak(streakData);
-
-    const MILESTONES = [7, 30, 100, 365] as const;
-    if ((MILESTONES as readonly number[]).includes(streakData.current)) {
-      amplitude.track("streak_milestone", { days: streakData.current as 7 | 30 | 100 | 365 });
-    }
+    setLetters(lettersData);
+    // streak_milestone is tracked once, at the moment the streak is earned,
+    // from DayFillFlow.handleDone — not here, to avoid re-firing on every
+    // visit to this tab while the streak sits on a milestone value.
   }
 
   function handleSurprise() {
@@ -205,6 +216,25 @@ export default function MemoriesScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Год в пикселях</Text>
             <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>Настроение за последний год</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.yearPixelsBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => router.push("/letters" as any)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.yearPixelsIcon, { backgroundColor: "#5EE6A818" }]}>
+            <Text style={{ fontSize: 20 }}>💌</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Письма себе</Text>
+            <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>
+              {letters.length === 0
+                ? "Напиши письмо себе в будущее"
+                : `${letters.length} ${lettersWord(letters.length)} · ${nextLetterHint(letters)}`}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
         </TouchableOpacity>

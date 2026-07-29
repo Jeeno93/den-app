@@ -556,3 +556,15 @@ export async function getLastKnownStreak(): Promise<number> {
 export async function setLastKnownStreak(value: number): Promise<void> {
   await AsyncStorage.setItem(LAST_KNOWN_STREAK_KEY, String(value));
 }
+
+const LAST_CELEBRATED_MILESTONE_KEY = "last_celebrated_milestone";
+
+/** Highest streak_milestone threshold already celebrated, so DayFillFlow doesn't re-fire it on every resave. */
+export async function getLastCelebratedMilestone(): Promise<number> {
+  const raw = await AsyncStorage.getItem(LAST_CELEBRATED_MILESTONE_KEY);
+  return raw ? parseInt(raw, 10) || 0 : 0;
+}
+
+export async function setLastCelebratedMilestone(value: number): Promise<void> {
+  await AsyncStorage.setItem(LAST_CELEBRATED_MILESTONE_KEY, String(value));
+}
