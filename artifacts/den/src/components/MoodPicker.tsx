@@ -1,7 +1,8 @@
 import React from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { MoodIcon } from "@/src/components/MoodIcon";
 
 const MOODS = [
   { value: 1, emoji: "😞", label: "Плохо",      color: "#7B8FA1" },
@@ -53,7 +54,7 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
                 isSelected && styles.circleActive,
               ]}
             >
-              <Text style={styles.emoji}>{mood.emoji}</Text>
+              <MoodIcon mood={mood.value} color={mood.color} size={30} />
             </LinearGradient>
           </TouchableOpacity>
         );
@@ -103,8 +104,5 @@ const styles = StyleSheet.create({
   },
   circleActive: {
     borderColor: "#5EE6A8",
-  },
-  emoji: {
-    fontSize: 28,
   },
 });

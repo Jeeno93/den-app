@@ -23,6 +23,8 @@ import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
 import { compactPhotoStorage, getAllDays, getLastKnownStreak, getStreak, setLastKnownStreak } from "@/src/storage/storage";
 import { initAppMetrica } from "@/src/analytics/appMetrica";
+import { registerWidgetTaskHandler } from "react-native-android-widget";
+import { moodWidgetTaskHandler } from "@/src/widgets/widgetTaskHandler";
 
 amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
 console.log('Amplitude key:', process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY);
@@ -31,6 +33,13 @@ console.log('Amplitude key:', process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY);
 // web/iOS — see those files for why this needs to be a platform split
 // rather than a runtime Platform.OS check.
 initAppMetrica();
+
+// Главный-экран-виджет с быстрым выбором настроения — Android-only, сама
+// react-native-android-widget безопасна для импорта на других платформах
+// (внутри уже есть Platform.OS-проверка с no-op модулем).
+if (Platform.OS === "android") {
+  registerWidgetTaskHandler(moodWidgetTaskHandler);
+}
 
 SplashScreen.preventAutoHideAsync();
 

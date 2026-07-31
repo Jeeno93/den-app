@@ -164,7 +164,7 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
               borderColor: theme.border,
             },
           ]}
-          placeholder="Опишите свой день своими словами..."
+          placeholder="Пример: в целом хороший день, много интересных событий, но не без трудностей, выспался"
           placeholderTextColor={theme.mutedForeground}
           multiline
           value={value}

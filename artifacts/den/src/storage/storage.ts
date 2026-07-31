@@ -256,6 +256,43 @@ export async function getDay(date: string): Promise<DayEntry | null> {
   }
 }
 
+function makeEmptyDayEntry(date: string, mood: number): DayEntry {
+  return {
+    date,
+    mood,
+    answers: {
+      learned: "",
+      met: "",
+      positive: { question: "", answer: "", category: "positive" },
+      negative: { question: "", answer: "", category: "negative" },
+      dayQuestion: "",
+    },
+    question: "",
+    notes: "",
+    photos: [],
+    proud: "",
+    learned_intensity: null,
+    met_intensity: null,
+    positive_intensity: null,
+    negative_intensity: null,
+    proud_intensity: null,
+    places: [],
+    activities: [],
+  };
+}
+
+/**
+ * Записывает mood для сегодняшнего дня, не трогая остальные поля записи
+ * (или создавая пустую запись, если её ещё нет) — используется виджетом на
+ * главном экране, у которого нет доступа к полному DayFillFlow.
+ */
+export async function setTodayMood(mood: number): Promise<void> {
+  const date = formatDate(new Date());
+  const existing = await getDay(date);
+  const entry: DayEntry = existing ? { ...existing, mood } : makeEmptyDayEntry(date, mood);
+  await saveDay(date, entry);
+}
+
 export async function getAllDays(): Promise<DayEntry[]> {
   try {
     const allKeys = await AsyncStorage.getAllKeys();

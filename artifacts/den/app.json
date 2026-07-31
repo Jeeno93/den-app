@@ -42,6 +42,23 @@
           "icon": "./assets/images/icon.png",
           "color": "#3D9970"
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Mood",
+              "label": "Den — настроение",
+              "description": "Быстро отметь настроение прямо с главного экрана",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical"
+            }
+          ]
+        }
       ]
     ],
     "experiments": {
