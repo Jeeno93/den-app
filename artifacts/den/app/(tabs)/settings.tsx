@@ -307,16 +307,6 @@ export default function SettingsScreen() {
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Мои вопросы</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.row} onPress={() => router.push("/letters" as any)} activeOpacity={0.7}>
-            <View style={styles.rowIcon}>
-              <Text style={{ fontSize: 18 }}>💌</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Письма себе</Text>
-              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Капсула времени</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
-          </TouchableOpacity>
         </View>
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>О приложении</Text>
