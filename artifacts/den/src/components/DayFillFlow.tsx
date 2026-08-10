@@ -70,6 +70,9 @@ const PHASE_ORDER: Record<FillMode, Phase[]> = {
 };
 
 const QUESTION_INTENSITY_KEYS = ["learned", "met", "positive", "negative"] as const;
+// Порядок совпадает с questionConfigs ниже — стабильный ключ вопроса для
+// аналитики, не зависит от текста (который меняют кастомизация/soft-режим).
+const QUESTION_KEYS = ["learned", "met", "positive", "negative", "dayQuestion"] as const;
 
 function makeInitialAnswers(): DayAnswers {
   return {
@@ -193,6 +196,14 @@ export function DayFillFlow({
     amplitude.track("fill_phase_changed", { phase, mode });
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Момент, когда текущий вопрос стал виден — сбрасывается в trackQuestionLeft
+  // и при входе в фазу вопросов. Нужен, чтобы понять, на каких вопросах
+  // пользователи зависают дольше всего.
+  const questionShownAt = useRef(Date.now());
+  useEffect(() => {
+    if (phase === "questions") questionShownAt.current = Date.now();
+  }, [phase]);
+
   useEffect(() => {
     getCustomQuestions().then(setCustomQuestions);
   }, []);
@@ -312,8 +323,23 @@ export function DayFillFlow({
     }
   }
 
+  function trackQuestionLeft(direction: "next" | "back") {
+    const key = QUESTION_KEYS[currentQuestion];
+    const answered = questionConfigs[currentQuestion].getValue(answers).trim().length > 0;
+    amplitude.track("question_advanced", {
+      question: key,
+      questionIndex: currentQuestion,
+      answered,
+      direction,
+      mode,
+      timeSpentMs: Date.now() - questionShownAt.current,
+    });
+    questionShownAt.current = Date.now();
+  }
+
   function handleNextQuestion() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    trackQuestionLeft("next");
     if (currentQuestion < questionConfigs.length - 1) {
       setCurrentQuestion((q) => q + 1);
     } else {
@@ -727,7 +753,7 @@ export function DayFillFlow({
           value={qConfig.getValue(answers)}
           onChange={(text) => setAnswers((prev) => qConfig.setValue(prev, text))}
           onNext={handleNextQuestion}
-          onBack={currentQuestion > 0 ? () => setCurrentQuestion((q) => q - 1) : undefined}
+          onBack={currentQuestion > 0 ? () => { trackQuestionLeft("back"); setCurrentQuestion((q) => q - 1); } : undefined}
           isLast={false}
         />
         {currentQuestion < QUESTION_INTENSITY_KEYS.length && qConfig.getValue(answers).trim().length > 0 && (

@@ -6,11 +6,11 @@ import { moodSvgString } from "./moodWidgetIcons";
 // MoodPicker сюда небезопасно (это полноценный RN-компонент с Haptics и
 // LinearGradient, не предназначенный для рендера в виджет-дерево).
 const MOODS = [
-  { value: 1, color: "#7B8FA1" },
-  { value: 2, color: "#A8B5C1" },
-  { value: 3, color: "#90C8A8" },
-  { value: 4, color: "#5BAD8F" },
-  { value: 5, color: "#5EE6A8" },
+  { value: 1, color: "#E68A78" },
+  { value: 2, color: "#74787D" },
+  { value: 3, color: "#5C8C76" },
+  { value: 4, color: "#31A876" },
+  { value: 5, color: "#31A876" },
 ] as const;
 
 interface MoodWidgetProps {

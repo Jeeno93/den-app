@@ -20,7 +20,8 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import type { DayAnswers, DayEntry as DayEntryType, QuestionAnswer, UserTags } from "@/src/storage/storage";
 import { saveDay, getTags } from "@/src/storage/storage";
-import { getMoodColor, getMoodEmoji, getMoodLabel, MoodPicker } from "./MoodPicker";
+import { getMoodColor, getMoodLabel, MoodPicker } from "./MoodPicker";
+import { MoodIcon } from "./MoodIcon";
 import { getDayQuote } from "@/src/data/quotes";
 import { ShareCard } from "./ShareCard";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
@@ -102,6 +103,18 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   useEffect(() => {
     getTags().then(setEntryTags);
   }, []);
+
+  // Подстраховка на случай, если key={entry.date} у вызывающей стороны не
+  // успевает вызвать полный ремонт (например при быстром пролистывании дней
+  // подряд) — тогда локальное состояние ниже осталось бы от предыдущего дня,
+  // а поля, читающие entry.* напрямую (например «Гордость дня»), уже
+  // показывали бы новый день. Синхронизируем явно при смене entry.date.
+  useEffect(() => {
+    setMood(entry.mood);
+    setAnswers({ ...entry.answers });
+    setNotes(entry.notes ?? "");
+    setPhotos(entry.photos ?? []);
+  }, [entry.date]);
 
   // ── Answer editing ─────────────────────────────────────────────────────────
   function startEdit(key: keyof DayAnswers) {
@@ -276,7 +289,7 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
       >
         {/* Mood */}
         <View style={[styles.moodCard, { backgroundColor: "#0D1117", borderColor: "rgba(255,255,255,0.08)", shadowColor: "#000" }]}>
-          <Text style={styles.moodEmoji}>{getMoodEmoji(mood)}</Text>
+          <MoodIcon mood={mood} color={moodColor} size={40} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.moodLabel, { color: moodColor }]}>{getMoodLabel(mood)}</Text>
             <Text style={[styles.moodSub, { color: theme.mutedForeground }]}>Настроение за день</Text>
@@ -674,7 +687,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
-  moodEmoji: { fontSize: 40 },
   moodLabel: { fontSize: 18, fontWeight: "700" },
   moodSub: { fontSize: 13, marginTop: 2 },
   answerCard: {

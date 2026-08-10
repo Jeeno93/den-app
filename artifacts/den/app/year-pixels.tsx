@@ -16,14 +16,9 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { formatDate, getAllDays } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
+import { getMoodColor } from "@/src/components/MoodPicker";
 
 const MONTH_SHORT = ["Я", "Ф", "М", "А", "М", "И", "И", "А", "С", "О", "Н", "Д"];
-
-function getCalendarMoodColor(mood: number): string {
-  if (mood <= 2) return "#FF6767";
-  if (mood === 3) return "#C7CDD4";
-  return "#5EE6A8";
-}
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -182,8 +177,15 @@ export default function YearPixelsScreen() {
                     const entry = entryMap.get(dateStr);
                     const isToday = dateStr === todayString;
                     const bgColor = entry
-                      ? getCalendarMoodColor(entry.mood)
+                      ? getMoodColor(entry.mood)
                       : "rgba(255,255,255,0.06)";
+                    // "Супер" делит цвет с "отлично" в этом виде — здесь нет
+                    // ни формы, ни подписи. Раньше отличали только свечием
+                    // (shadow*), но на Android shadowColor на таких мелких
+                    // ячейках почти не виден — добавляем кайму: она уже
+                    // проверенно рендерится (тот же приём для isToday).
+                    const isSuper = entry?.mood === 5;
+                    const borderWidth = isToday && isSuper ? 2.5 : isToday ? 1.5 : isSuper ? 2 : 0;
 
                     return (
                       <TouchableOpacity
@@ -194,8 +196,17 @@ export default function YearPixelsScreen() {
                           backgroundColor: bgColor,
                           borderRadius: 3,
                           marginLeft: monthIdx > 0 ? CELL_GAP : 0,
-                          borderWidth: isToday ? 1.5 : 0,
-                          borderColor: isToday ? "#5EE6A8" : "transparent",
+                          borderWidth,
+                          borderColor: isToday || isSuper ? "#5EE6A8" : "transparent",
+                          ...(isSuper
+                            ? {
+                                shadowColor: "#5EE6A8",
+                                shadowOpacity: 0.95,
+                                shadowRadius: 4,
+                                shadowOffset: { width: 0, height: 0 },
+                                elevation: 6,
+                              }
+                            : {}),
                         }}
                         onPress={() => {
                           if (entry) {

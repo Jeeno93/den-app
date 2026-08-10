@@ -20,6 +20,9 @@ importers:
       '@amplitude/analytics-react-native':
         specifier: ^1.5.57
         version: 1.6.2(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      '@amplitude/plugin-session-replay-react-native':
+        specifier: 0.5.1
+        version: 0.5.1(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@appmetrica/react-native-analytics':
         specifier: ^4.1.0
         version: 4.1.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -199,6 +202,15 @@ packages:
 
   '@amplitude/analytics-react-native@1.6.2':
     resolution: {integrity: sha512-WYaOByZb+Qxbccl3VFvse7ygQMgyc71CnmrWYAOUpZYZ/sFm3UHWnIAAEJK7UM8O6+9IQGItqzBlNFRhS6t7Aw==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+
+  '@amplitude/analytics-types@1.4.0':
+    resolution: {integrity: sha512-RiMPHBqdrJ8ktTqG+Wzj2htnN/PCG9jGZG0SXtTFnWwVvcAJYbYm55/nrP1TTyrx1OlLhvF2VG3lVUP/xGAU8w==}
+
+  '@amplitude/plugin-session-replay-react-native@0.5.1':
+    resolution: {integrity: sha512-0J/vzIn7U+yMopEJPARMBLPw3pK2p2U8x5u14KbGhBmUI+bZ9nHdIggJrlP2CrmN2Qsj2bE0HIB6dBmbtJZ3kA==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -4062,6 +4074,14 @@ snapshots:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
       tslib: 2.8.1
+
+  '@amplitude/analytics-types@1.4.0': {}
+
+  '@amplitude/plugin-session-replay-react-native@0.5.1(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      '@amplitude/analytics-types': 1.4.0
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
 
   '@amplitude/ua-parser-js@0.7.33': {}
 

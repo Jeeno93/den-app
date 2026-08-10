@@ -44,13 +44,17 @@ export default function DayDetailScreen() {
 
   useEffect(() => {
     if (!currentDate) return;
+    let cancelled = false;
     // Reset content immediately so old entry never bleeds into new date
     setEntry(null);
     // Reload the full sorted list on every navigation — picks up newly filled days
     getAllDays().then((all) => {
-      setSortedDates(all.map((e) => e.date).sort());
+      if (!cancelled) setSortedDates(all.map((e) => e.date).sort());
     });
-    getDay(currentDate).then(setEntry);
+    getDay(currentDate).then((e) => {
+      if (!cancelled) setEntry(e);
+    });
+    return () => { cancelled = true; };
   }, [currentDate]);
 
   const currentIdx = sortedDates.indexOf(currentDate);

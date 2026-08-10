@@ -1,5 +1,6 @@
 import * as amplitude from "@amplitude/analytics-react-native";
 import { Identify } from "@amplitude/analytics-react-native";
+import { initSessionReplay } from "@/src/analytics/sessionReplay";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -25,6 +26,9 @@ import { compactPhotoStorage, getAllDays, getLastKnownStreak, getStreak, setLast
 import { initAppMetrica } from "@/src/analytics/appMetrica";
 
 amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
+// Резолвится в sessionReplay.android.ts на Android, sessionReplay.ts (no-op)
+// на web/iOS — см. те файлы, почему это платформенный сплит, а не guard.
+initSessionReplay();
 console.log('Amplitude key:', process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY);
 
 // Resolves to appMetrica.android.ts on Android, appMetrica.ts (no-op) on

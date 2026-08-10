@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -17,6 +17,11 @@ export function TimeSelector({ hour, minute, onConfirm, confirmLabel = "Сохр
 
   const [h, setH] = useState(hour);
   const [m, setM] = useState(minute);
+
+  // hour/minute may arrive later than mount (e.g. notification context still
+  // loading) — resync local state if the real saved value shows up after.
+  useEffect(() => { setH(hour); }, [hour]);
+  useEffect(() => { setM(minute); }, [minute]);
 
   const incH = () => setH((x) => (x + 1) % 24);
   const decH = () => setH((x) => (x - 1 + 24) % 24);

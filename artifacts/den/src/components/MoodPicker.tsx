@@ -5,11 +5,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MoodIcon } from "@/src/components/MoodIcon";
 
 const MOODS = [
-  { value: 1, emoji: "😞", label: "Плохо",      color: "#7B8FA1" },
-  { value: 2, emoji: "😐", label: "Нейтрально", color: "#A8B5C1" },
-  { value: 3, emoji: "🙂", label: "Хорошо",     color: "#90C8A8" },
-  { value: 4, emoji: "😄", label: "Отлично",    color: "#5BAD8F" },
-  { value: 5, emoji: "🤩", label: "Супер",      color: "#5EE6A8" },
+  { value: 1, emoji: "😞", label: "Плохо",      color: "#E68A78" },
+  { value: 2, emoji: "😐", label: "Нейтрально", color: "#74787D" },
+  { value: 3, emoji: "🙂", label: "Хорошо",     color: "#5C8C76" },
+  { value: 4, emoji: "😄", label: "Отлично",    color: "#31A876" },
+  // 4 и 5 намеренно делят один цвет — их различает не цвет кольца, а свечение
+  // (сильнее и с белым акцентом у 5), проверено дата-вижн валидатором:
+  // раздельные цвета для этой пары physически не проходят порог CVD-различимости
+  // при фиксированном фирменном мятном на верхней ступени.
+  { value: 5, emoji: "🤩", label: "Супер",      color: "#31A876" },
 ];
 
 interface MoodPickerProps {
@@ -64,7 +68,7 @@ export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
 }
 
 export function getMoodColor(mood: number): string {
-  return MOODS.find((m) => m.value === mood)?.color ?? "#A8B5C1";
+  return MOODS.find((m) => m.value === mood)?.color ?? "#74787D";
 }
 
 export function getMoodLabel(mood: number): string {

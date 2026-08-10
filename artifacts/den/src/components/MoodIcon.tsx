@@ -35,11 +35,9 @@ const FACES: Record<number, (color: string) => React.ReactNode> = {
   ),
   5: (c) => (
     <>
-      <Path d="M8 15 Q11 11 14 15" stroke={c} strokeWidth={1.8} fill="none" strokeLinecap="round" />
-      <Path d="M20 15 Q23 11 26 15" stroke={c} strokeWidth={1.8} fill="none" strokeLinecap="round" />
-      <Path d="M9 20 Q17 30 25 20" stroke={c} strokeWidth={2.3} fill="none" strokeLinecap="round" />
-      <Path d="M5 8 L6.5 5 L8 8" stroke={c} strokeWidth={1.2} fill="none" strokeLinecap="round" />
-      <Path d="M26 8 L27.5 5 L29 8" stroke={c} strokeWidth={1.2} fill="none" strokeLinecap="round" />
+      <Path d="M9.5 13.5 Q12.5 10.5 15.5 13.5" stroke={c} strokeWidth={2} fill="none" strokeLinecap="round" />
+      <Path d="M18.5 13.5 Q21.5 10.5 24.5 13.5" stroke={c} strokeWidth={2} fill="none" strokeLinecap="round" />
+      <Path d="M9.5 19.5 Q17 27.5 24.5 19.5" stroke={c} strokeWidth={2.3} fill="none" strokeLinecap="round" />
     </>
   ),
 };

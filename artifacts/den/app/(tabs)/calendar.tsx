@@ -16,7 +16,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { formatDate, getAllDays } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
-import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
+import { getMoodColor, getMoodEmoji, getMoodLabel } from "@/src/components/MoodPicker";
 import { EmptyState } from "@/src/components/EmptyState";
 
 const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -125,11 +125,10 @@ function HighlightedText({ segments, style }: { segments: MatchSegment[]; style?
   );
 }
 
-function getCalendarMoodColor(mood: number): string {
-  if (mood <= 2) return "#FF6767";
-  if (mood === 3) return "#C7CDD4";
-  return "#5EE6A8";
-}
+// Центр дня-«пончика» всегда одного тёмного цвета, независимо от настроения
+// и темы — число внутри всегда белое, контраст текста не зависит от цвета
+// настроения (см. project_den память: решение с женой-дизайнером от 2026-08-03).
+const DAY_CENTER = "#0D0F12";
 
 export default function CalendarScreen() {
   const { isDark } = useTheme();
@@ -312,6 +311,10 @@ export default function CalendarScreen() {
                 const isToday = dateStr === today;
                 const isPast = dateStr <= today;
                 const isTappable = !!entry || isPast;
+                const moodColor = entry ? getMoodColor(entry.mood) : null;
+                // "Супер" делит цвет кольца с "отлично" — разница только в
+                // толщине и силе свечения (см. MOODS в MoodPicker.tsx).
+                const isSuper = entry?.mood === 5;
 
                 const textColor = entry
                   ? "#ffffff"
@@ -321,22 +324,33 @@ export default function CalendarScreen() {
                   ? theme.foreground
                   : theme.mutedForeground;
 
+                const ringStyle = entry
+                  ? {
+                      borderWidth: isSuper ? 6 : isToday ? 4 : 3,
+                      borderColor: moodColor!,
+                      backgroundColor: DAY_CENTER,
+                      shadowColor: isToday ? "#ffffff" : isSuper ? "#5EE6A8" : moodColor!,
+                      shadowOpacity: isSuper ? 0.85 : isToday ? 0.55 : 0.5,
+                      shadowRadius: isSuper ? 14 : isToday ? 12 : 8,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: isSuper ? 14 : isToday ? 10 : 6,
+                    }
+                  : isToday
+                  ? {
+                      borderWidth: 2,
+                      borderColor: "#5EE6A8",
+                      shadowColor: "#5EE6A8",
+                      shadowOpacity: 0.4,
+                      shadowRadius: 10,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: 8,
+                    }
+                  : {};
+
                 return (
                   <TouchableOpacity
                     key={di}
-                    style={[
-                      styles.dayCircle,
-                      entry ? { backgroundColor: getCalendarMoodColor(entry.mood) } : {},
-                      isToday ? {
-                        borderWidth: 2,
-                        borderColor: "#5EE6A8",
-                        shadowColor: "#5EE6A8",
-                        shadowOpacity: 0.45,
-                        shadowRadius: 10,
-                        shadowOffset: { width: 0, height: 0 },
-                        elevation: 10,
-                      } : {},
-                    ]}
+                    style={[styles.dayCircle, ringStyle]}
                     onPress={() => handleDayPress(day)}
                     disabled={!isTappable}
                     activeOpacity={isTappable ? 0.7 : 1}
@@ -359,16 +373,23 @@ export default function CalendarScreen() {
           <View style={[styles.legend, { borderTopColor: theme.border }]}>
             <Text style={[styles.legendTitle, { color: theme.mutedForeground }]}>Цвета настроения</Text>
             <View style={styles.legendRow}>
-              {[
-                { color: "#7B8FA1", label: "Плохо" },
-                { color: "#A8B5C1", label: "Нейтр." },
-                { color: "#90C8A8", label: "Хорошо" },
-                { color: "#5BAD8F", label: "Отлично" },
-                { color: "#5EE6A8", label: "Супер" },
-              ].map((item) => (
-                <View key={item.color} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                  <Text style={[styles.legendLabel, { color: theme.mutedForeground }]}>{item.label}</Text>
+              {[1, 2, 3, 4, 5].map((m) => (
+                <View key={m} style={styles.legendItem}>
+                  <View
+                    style={[
+                      styles.legendDot,
+                      {
+                        borderColor: getMoodColor(m),
+                        borderWidth: m === 5 ? 3.5 : 2,
+                        shadowColor: m === 5 ? "#5EE6A8" : "transparent",
+                        shadowOpacity: m === 5 ? 0.9 : 0,
+                        shadowRadius: m === 5 ? 5 : 0,
+                        shadowOffset: { width: 0, height: 0 },
+                        elevation: m === 5 ? 5 : 0,
+                      },
+                    ]}
+                  />
+                  <Text style={[styles.legendLabel, { color: theme.mutedForeground }]}>{getMoodLabel(m)}</Text>
                 </View>
               ))}
             </View>
@@ -468,6 +489,8 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
+    borderWidth: 2,
+    backgroundColor: "#0D0F12",
   },
   legendLabel: {
     fontSize: 12,

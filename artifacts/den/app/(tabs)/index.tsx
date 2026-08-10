@@ -107,6 +107,12 @@ export default function HomeScreen() {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
+  // Мягкое затемнение экрана «вида дня» на время перезагрузки записи при
+  // пролистывании — вместо жёсткой подмены контента одним кадром (было
+  // резко для вечерней рефлексии). До первого показа не участвует, чтобы
+  // не мигать при самом первом открытии экрана.
+  const viewFade = useRef(new Animated.Value(1)).current;
+  const isFirstLoad = useRef(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -128,6 +134,16 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    // Старая запись остаётся на экране (не обнуляем сразу) — на время
+    // подгрузки новой её просто притушиваем через viewFade, вместо жёсткой
+    // подмены/пустого экрана одним кадром. Актуальность самих полей внутри
+    // DayEntryView гарантирует его собственный эффект синхронизации по
+    // entry.date (см. DayEntry.tsx), а не порядок обновления здесь.
+    const skipFade = isFirstLoad.current;
+    isFirstLoad.current = false;
+    if (!skipFade) {
+      Animated.timing(viewFade, { toValue: 0.3, duration: 120, useNativeDriver: true }).start();
+    }
     async function loadDate() {
       const entry = await getDay(viewDate);
       if (cancelled) return;
@@ -138,6 +154,9 @@ export default function HomeScreen() {
         setExistingEntry(null);
         setScreen("fill");
         animateIn();
+      }
+      if (!skipFade) {
+        Animated.timing(viewFade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
       }
     }
     loadDate();
@@ -209,7 +228,7 @@ export default function HomeScreen() {
         ]}
       >
         <TouchableOpacity style={styles.navArrow} onPress={goBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color={theme.foreground} />
+          <Ionicons name="arrow-back" size={22} color={theme.primary} />
         </TouchableOpacity>
 
         <View style={styles.navCenter}>
@@ -229,7 +248,7 @@ export default function HomeScreen() {
           activeOpacity={isForwardDisabled ? 1 : 0.7}
           disabled={isForwardDisabled}
         >
-          <Ionicons name="chevron-forward" size={24} color={isForwardDisabled ? theme.border : theme.foreground} />
+          <Ionicons name="arrow-forward" size={22} color={isForwardDisabled ? theme.border : theme.primary} />
         </TouchableOpacity>
       </View>
     );
@@ -243,7 +262,7 @@ export default function HomeScreen() {
 
   if (screen === "view" && existingEntry) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <Animated.View style={{ flex: 1, backgroundColor: theme.background, opacity: viewFade }}>
         <NavHeader bordered />
         <View style={[styles.viewDateRow, { borderBottomColor: theme.border }]}>
           <View>
@@ -256,9 +275,9 @@ export default function HomeScreen() {
           </View>
         </View>
         {moodStrip}
-        <DayEntryView entry={existingEntry} dayQuestion={existingEntry.question || dayQuestion} />
+        <DayEntryView key={existingEntry.date} entry={existingEntry} dayQuestion={existingEntry.question || dayQuestion} />
         {nudge}
-      </View>
+      </Animated.View>
     );
   }
 

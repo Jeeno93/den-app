@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@amplitude/analytics-react-native": "^1.5.57",
+    "@amplitude/plugin-session-replay-react-native": "0.5.1",
     "@appmetrica/react-native-analytics": "^4.1.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "expo": "~54.0.33",

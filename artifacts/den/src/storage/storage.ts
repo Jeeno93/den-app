@@ -92,6 +92,14 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
   try {
     const parsed = JSON.parse(raw) as any;
 
+    // Ключ хранилища ("day_2026-06-15") — источник истины для даты записи,
+    // а не поле date внутри самого JSON: старая бага с залипанием пропсов
+    // (см. историю index.tsx) могла записать это поле неверным, из-за чего
+    // getAllDays()/entryMap на его основе (год-в-пикселях, сетка календаря)
+    // показывали чужое настроение под чужим днём, хотя чтение по ключу
+    // (day-detail) всегда было верным.
+    parsed.date = key.slice(4);
+
     // backward compat: photos
     if (!parsed.photos) {
       parsed.photos = parsed.photo ? [parsed.photo] : [];
@@ -110,6 +118,7 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
     if (parsed.negative_intensity === undefined) parsed.negative_intensity = null;
     if (parsed.proud_intensity === undefined) parsed.proud_intensity = null;
     // backward compat: режимы заполнения (Глубоко)
+    if (parsed.fillMode === undefined) parsed.fillMode = "standard";
     if (parsed.energy === undefined) parsed.energy = null;
     if (parsed.sleep === undefined) parsed.sleep = null;
     if (!Array.isArray(parsed.habits)) parsed.habits = [];
