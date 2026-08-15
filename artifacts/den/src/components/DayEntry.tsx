@@ -27,6 +27,7 @@ import { ShareCard } from "./ShareCard";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityKey } from "@/src/data/intensity";
 import { savePhoto, deletePhoto } from "@/src/utils/photoStorage";
+import { MaskView } from "./MaskView";
 
 const MAX_PHOTOS = 3;
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -400,7 +401,9 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
                 <Text style={[styles.answerLabel, { color: theme.mutedForeground, flex: 1 }]}>{label}</Text>
                 <Ionicons name="pencil-outline" size={15} color={theme.mutedForeground} />
               </View>
-              <Text style={[styles.answerText, { color: theme.foreground }]}>{answer}</Text>
+              <MaskView>
+                <Text style={[styles.answerText, { color: theme.foreground }]}>{answer}</Text>
+              </MaskView>
               {intensityTag && (
                 <Text style={[styles.intensityBadge, { color: theme.mutedForeground }]}>
                   {intensityTag.emoji} {intensityTag.label}
@@ -414,7 +417,9 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
         {!!entry.proud && (
           <View style={[styles.answerCard, { backgroundColor: theme.primary + "12", borderColor: theme.primary + "30", shadowColor: isDark ? "#000" : "#333" }]}>
             <Text style={[styles.answerLabel, { color: theme.primary }]}>Гордость дня</Text>
-            <Text style={[styles.answerText, { color: theme.foreground }]}>{entry.proud}</Text>
+            <MaskView>
+              <Text style={[styles.answerText, { color: theme.foreground }]}>{entry.proud}</Text>
+            </MaskView>
             {(() => {
               const v = entry.proud_intensity;
               if (!v) return null;
@@ -459,7 +464,9 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
               <Text style={[styles.answerLabel, { color: theme.mutedForeground, flex: 1 }]}>Итоги дня</Text>
               <Ionicons name="pencil-outline" size={15} color={theme.mutedForeground} />
             </View>
-            <Text style={[styles.answerText, { color: theme.foreground }]}>{notes}</Text>
+            <MaskView>
+              <Text style={[styles.answerText, { color: theme.foreground }]}>{notes}</Text>
+            </MaskView>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={[styles.addNoteBtn, { borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]} onPress={startEditNotes} activeOpacity={0.75}>
@@ -476,7 +483,9 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
               {photos.map((uri, idx) => (
                 <View key={idx} style={styles.photoThumbWrapper}>
                   <TouchableOpacity onPress={() => setViewerPhotoIdx(idx)} activeOpacity={0.85}>
-                    <Image source={{ uri }} style={styles.photoThumb} resizeMode="cover" />
+                    <MaskView>
+                      <Image source={{ uri }} style={styles.photoThumb} resizeMode="cover" />
+                    </MaskView>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.photoDeleteBtn} onPress={() => handleDeletePhoto(idx)} activeOpacity={0.8}>
                     <Ionicons name="trash-outline" size={14} color="#fff" />
@@ -631,11 +640,13 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
       >
         <View style={styles.viewerOverlay}>
           {viewerPhotoIdx !== null && (
-            <Image
-              source={{ uri: photos[viewerPhotoIdx] }}
-              style={styles.viewerImage}
-              resizeMode="contain"
-            />
+            <MaskView style={styles.viewerImage}>
+              <Image
+                source={{ uri: photos[viewerPhotoIdx] }}
+                style={styles.viewerImage}
+                resizeMode="contain"
+              />
+            </MaskView>
           )}
 
           {/* Close */}
