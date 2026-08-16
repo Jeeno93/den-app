@@ -222,6 +222,23 @@ export default function MemoriesScreen() {
 
         <TouchableOpacity
           style={[styles.yearPixelsBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => router.push("/patterns" as any)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.yearPixelsIcon, { backgroundColor: "#5EE6A818" }]}>
+            <Text style={{ fontSize: 20 }}>📊</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Паттерны</Text>
+            <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>
+              Что связано с твоим настроением
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.yearPixelsBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => router.push("/letters" as any)}
           activeOpacity={0.8}
         >
