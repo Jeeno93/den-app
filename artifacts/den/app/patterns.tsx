@@ -7,19 +7,76 @@ import { router, useFocusEffect } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { getAllDays, getTags } from "@/src/storage/storage";
-import type { UserTags } from "@/src/storage/storage";
-import { computeMoodPatterns } from "@/src/utils/moodPatterns";
-import type { MoodPattern } from "@/src/utils/moodPatterns";
+import { computeMoodPatterns, computeWeekdayPatterns, computeKeywordPatterns } from "@/src/utils/moodPatterns";
+import type { MoodPattern, Confidence } from "@/src/utils/moodPatterns";
 
 // Минимум записей, при котором корреляции вообще имеют смысл показывать —
 // как у Daylio: первые содержательные паттерны проявляются примерно к
 // двум неделям ведения дневника, не раньше.
 const MIN_ENTRIES = 10;
-const MAX_SHOWN = 8;
+const MAX_SHOWN = 6;
 
-interface ResolvedPattern extends MoodPattern {
-  label: string;
+interface Row {
+  key: string;
   emoji: string;
+  insight: string;
+  delta: number;
+  count: number;
+  confidence: Confidence;
+}
+
+const WEEKDAY_DATIVE_PLURAL: Record<string, string> = {
+  "Воскресенье": "воскресеньям",
+  "Понедельник": "понедельникам",
+  "Вторник": "вторникам",
+  "Среда": "средам",
+  "Четверг": "четвергам",
+  "Пятница": "пятницам",
+  "Суббота": "субботам",
+};
+
+function confidenceLabel(c: Confidence, count: number): string {
+  const word = count === 1 ? "день" : count < 5 ? "дня" : "дней";
+  if (c === "low") return `по ${count} ${word} — пока мало данных`;
+  if (c === "medium") return `по ${count} ${word}`;
+  return `по ${count} ${word} — стабильно`;
+}
+
+function tagRow(p: MoodPattern, emoji: string, label: string): Row {
+  const dir = p.delta >= 0 ? "выше" : "ниже";
+  return {
+    key: `tag:${p.key}`,
+    emoji,
+    insight: `В дни с тегом «${label}» настроение в среднем ${dir} на ${Math.abs(p.delta).toFixed(1)}`,
+    delta: p.delta,
+    count: p.count,
+    confidence: p.confidence,
+  };
+}
+
+function weekdayRow(p: MoodPattern): Row {
+  const dir = p.delta >= 0 ? "выше" : "ниже";
+  const form = WEEKDAY_DATIVE_PLURAL[p.key] ?? p.key.toLowerCase();
+  return {
+    key: `weekday:${p.key}`,
+    emoji: "📅",
+    insight: `По ${form} у тебя обычно ${dir} настроение`,
+    delta: p.delta,
+    count: p.count,
+    confidence: p.confidence,
+  };
+}
+
+function keywordRow(p: MoodPattern): Row {
+  const dir = p.delta >= 0 ? "выше" : "ниже";
+  return {
+    key: `word:${p.key}`,
+    emoji: "💬",
+    insight: `Слово «${p.key}» чаще встречается в дни с настроением ${dir}`,
+    delta: p.delta,
+    count: p.count,
+    confidence: p.confidence,
+  };
 }
 
 export default function PatternsScreen() {
@@ -30,7 +87,9 @@ export default function PatternsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [totalEntries, setTotalEntries] = useState(0);
-  const [patterns, setPatterns] = useState<ResolvedPattern[]>([]);
+  const [tagRows, setTagRows] = useState<Row[]>([]);
+  const [weekdayRows, setWeekdayRows] = useState<Row[]>([]);
+  const [keywordRows, setKeywordRows] = useState<Row[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -40,22 +99,51 @@ export default function PatternsScreen() {
         const [entries, tags] = await Promise.all([getAllDays(), getTags()]);
         if (cancelled) return;
         const allTags = [...tags.places, ...tags.activities];
-        const resolved = computeMoodPatterns(entries)
+
+        const tagPatterns = computeMoodPatterns(entries)
           .map((p) => {
-            const tag = allTags.find((t) => t.id === p.tag);
-            return tag ? { ...p, label: tag.label, emoji: tag.emoji } : null;
+            const tag = allTags.find((t) => t.id === p.key);
+            return tag ? tagRow(p, tag.emoji, tag.label) : null;
           })
-          .filter((p): p is ResolvedPattern => p !== null)
+          .filter((r): r is Row => r !== null)
           .slice(0, MAX_SHOWN);
+
+        const weekdayPatterns = computeWeekdayPatterns(entries).map(weekdayRow).slice(0, MAX_SHOWN);
+        const keywordPatterns = computeKeywordPatterns(entries).map(keywordRow).slice(0, MAX_SHOWN);
+
         setTotalEntries(entries.length);
-        setPatterns(resolved);
+        setTagRows(tagPatterns);
+        setWeekdayRows(weekdayPatterns);
+        setKeywordRows(keywordPatterns);
         setLoading(false);
       })();
       return () => { cancelled = true; };
     }, [])
   );
 
-  const maxAbsDelta = Math.max(0.01, ...patterns.map((p) => Math.abs(p.delta)));
+  const allRows = [...tagRows, ...weekdayRows, ...keywordRows];
+  const maxAbsDelta = Math.max(0.01, ...allRows.map((r) => Math.abs(r.delta)));
+  const hasAnything = allRows.length > 0;
+
+  function renderRow(r: Row) {
+    const isPositive = r.delta >= 0;
+    const barColor = isPositive ? "#31A876" : "#E68A78";
+    const barWidthPct = (Math.abs(r.delta) / maxAbsDelta) * 100;
+    return (
+      <View key={r.key} style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={styles.rowHeader}>
+          <Text style={styles.rowEmoji}>{r.emoji}</Text>
+          <Text style={[styles.rowInsight, { color: theme.foreground }]}>{r.insight}</Text>
+        </View>
+        <View style={styles.barTrack}>
+          <View style={[styles.barFill, { width: `${Math.max(barWidthPct, 4)}%`, backgroundColor: barColor }]} />
+        </View>
+        <Text style={[styles.rowMeta, { color: theme.mutedForeground }]}>
+          {confidenceLabel(r.confidence, r.count)}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#06080B" }}>
@@ -81,53 +169,36 @@ export default function PatternsScreen() {
             между тем, чем ты занимаешься, и твоим настроением.
           </Text>
         </View>
-      ) : patterns.length === 0 ? (
+      ) : !hasAnything ? (
         <View style={styles.centerWrap}>
           <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
-          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Пока нет тегов</Text>
+          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Пока нет паттернов</Text>
           <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-            Добавляй места и активности к записям —{"\n"}
-            когда один и тот же тег встретится хотя бы 3 раза,{"\n"}
-            здесь появится, как он связан с твоим настроением.
+            Добавляй теги и пиши ответы своими словами —{"\n"}
+            как только что-то повторится хотя бы 3 раза,{"\n"}
+            здесь появится, как это связано с твоим настроением.
           </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.intro, { color: theme.mutedForeground }]}>
-            Как разные теги связаны с твоим настроением — среднее в дни с тегом
-            по сравнению с обычным днём.
-          </Text>
-
-          {patterns.map((p) => {
-            const isPositive = p.delta >= 0;
-            const barColor = isPositive ? "#31A876" : "#E68A78";
-            const barWidthPct = (Math.abs(p.delta) / maxAbsDelta) * 100;
-            return (
-              <View key={p.tag} style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.rowEmoji}>{p.emoji}</Text>
-                  <Text style={[styles.rowLabel, { color: theme.foreground }]}>{p.label}</Text>
-                  <Text style={[styles.rowDelta, { color: barColor }]}>
-                    {isPositive ? "+" : ""}{p.delta.toFixed(1)}
-                  </Text>
-                </View>
-                <View style={styles.barTrack}>
-                  <View
-                    style={[
-                      styles.barFill,
-                      {
-                        width: `${Math.max(barWidthPct, 4)}%`,
-                        backgroundColor: barColor,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={[styles.rowCount, { color: theme.mutedForeground }]}>
-                  {p.count} {p.count === 1 ? "день" : "дней"}
-                </Text>
-              </View>
-            );
-          })}
+          {tagRows.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Места и активности</Text>
+              {tagRows.map(renderRow)}
+            </>
+          )}
+          {weekdayRows.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Дни недели</Text>
+              {weekdayRows.map(renderRow)}
+            </>
+          )}
+          {keywordRows.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Слова в ответах</Text>
+              {keywordRows.map(renderRow)}
+            </>
+          )}
         </ScrollView>
       )}
     </View>
@@ -155,10 +226,14 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
   },
-  intro: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    opacity: 0.7,
+    marginTop: 8,
+    marginBottom: 2,
   },
   row: {
     borderRadius: 20,
@@ -168,12 +243,11 @@ const styles = StyleSheet.create({
   },
   rowHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
   },
   rowEmoji: { fontSize: 18 },
-  rowLabel: { fontSize: 15, fontWeight: "600", flex: 1 },
-  rowDelta: { fontSize: 15, fontWeight: "700" },
+  rowInsight: { fontSize: 15, fontWeight: "600", flex: 1, lineHeight: 21 },
   barTrack: {
     height: 8,
     borderRadius: 4,
@@ -184,7 +258,7 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 4,
   },
-  rowCount: { fontSize: 12 },
+  rowMeta: { fontSize: 12 },
   centerWrap: {
     flex: 1,
     alignItems: "center",
