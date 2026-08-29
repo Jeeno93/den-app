@@ -23,7 +23,7 @@ import { ThemeProvider } from "@/src/context/ThemeContext";
 import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
 import { compactPhotoStorage, getAllDays, getLastKnownStreak, getStreak, setLastKnownStreak } from "@/src/storage/storage";
-import { initAppMetrica } from "@/src/analytics/appMetrica";
+import { initAppMetrica, reportDiagnosticEvent } from "@/src/analytics/appMetrica";
 
 amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
 // Резолвится в sessionReplay.android.ts на Android, sessionReplay.ts (no-op)
@@ -35,6 +35,17 @@ console.log('Amplitude key:', process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY);
 // web/iOS — see those files for why this needs to be a platform split
 // rather than a runtime Platform.OS check.
 initAppMetrica();
+
+// Диагностика расхождения DAU за 19 августа (Play Console 58 / AppMetrica 48
+// / Amplitude 25): одно и то же событие с одним и тем же launch_id летит из
+// одной и той же точки кода в обе системы. Если через несколько дней
+// AppMetrica покажет по этому событию число, близкое к своим 48, а
+// Amplitude — заметно меньше, значит Amplitude теряет события при доставке,
+// а не просто строже считает "активность". См. reportDiagnosticEvent в
+// appMetrica.android.ts.
+const diagLaunchId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+amplitude.track("diag_launch", { launch_id: diagLaunchId });
+reportDiagnosticEvent("diag_launch", { launch_id: diagLaunchId });
 
 // Виджет-хендлер регистрируется в ../index.ts, не здесь — headless-запуск
 // виджета (обновление/клик, когда основной UI не открыт) не гарантированно

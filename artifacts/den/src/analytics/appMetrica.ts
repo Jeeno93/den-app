@@ -8,3 +8,5 @@
 export function initAppMetrica() {}
 
 export function reportGoalEvent(_name: string) {}
+
+export function reportDiagnosticEvent(_name: string, _attributes?: Record<string, any>) {}

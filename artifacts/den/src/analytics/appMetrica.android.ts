@@ -67,3 +67,17 @@ export function initAppMetrica() {
 export function reportGoalEvent(name: string) {
   AppMetrica.reportEvent(name);
 }
+
+/**
+ * One-off diagnostic: fires the same event with the same correlation id into
+ * AppMetrica from the identical call site where the Amplitude twin fires
+ * (see _layout.tsx). Purpose: separate "Amplitude loses/never delivers a
+ * real chunk of sessions" from "AppMetrica and Play Console just count
+ * 'active' more loosely" — the Aug 19 DAU split was Play 58 / AppMetrica 48 /
+ * Amplitude 25. If AppMetrica's count of this exact event stays close to 48
+ * while Amplitude's count of it stays close to 25, the gap is delivery, not
+ * definition.
+ */
+export function reportDiagnosticEvent(name: string, attributes?: Record<string, any>) {
+  AppMetrica.reportEvent(name, attributes);
+}
