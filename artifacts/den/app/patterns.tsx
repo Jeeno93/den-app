@@ -7,19 +7,36 @@ import { router, useFocusEffect } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { getAllDays, getTags } from "@/src/storage/storage";
-import { computeMoodPatterns, computeWeekdayPatterns, computeKeywordPatterns } from "@/src/utils/moodPatterns";
+import type { DayEntry } from "@/src/storage/storage";
+import {
+  computeMoodPatterns,
+  computeWeekdayPatterns,
+  computeKeywordPatterns,
+  computeEngagementPatterns,
+  computeMoodDistribution,
+  computeTagFrequency,
+} from "@/src/utils/moodPatterns";
 import type { MoodPattern, Confidence } from "@/src/utils/moodPatterns";
+import { MoodTrendChart, MoodDistributionDonut, TagFrequencyBars } from "@/src/components/PatternCharts";
 
 // Минимум записей, при котором корреляции вообще имеют смысл показывать —
 // как у Daylio: первые содержательные паттерны проявляются примерно к
 // двум неделям ведения дневника, не раньше.
 const MIN_ENTRIES = 10;
 const MAX_SHOWN = 6;
+const MAX_TAG_FREQ_SHOWN = 8;
+
+// Дельта такого размера (или больше) рисуется "полным" баром. Шкала
+// настроения 1-5, так что это не теоретический максимум (он был бы 4), а
+// ориентир на реально заметный сдвиг — иначе почти все бары были бы у
+// самого левого края и разница между ними была бы не видна.
+const SCALE_REF_DELTA = 1.5;
 
 interface Row {
   key: string;
   emoji: string;
   insight: string;
+  share: string;
   delta: number;
   count: number;
   confidence: Confidence;
@@ -35,11 +52,26 @@ const WEEKDAY_DATIVE_PLURAL: Record<string, string> = {
   "Суббота": "субботам",
 };
 
+const ENGAGEMENT_INFO: Record<string, { emoji: string; phrase: string }> = {
+  met: { emoji: "🤝", phrase: "со встречами или добрыми воспоминаниями о близких" },
+  learned: { emoji: "💡", phrase: "с открытиями" },
+};
+
 function confidenceLabel(c: Confidence, count: number): string {
   const word = count === 1 ? "день" : count < 5 ? "дня" : "дней";
   if (c === "low") return `по ${count} ${word} — пока мало данных`;
   if (c === "medium") return `по ${count} ${word}`;
   return `по ${count} ${word} — стабильно`;
+}
+
+// Доля дней с оценкой 4-5 внутри группы против общей доли — устойчивее к
+// дискретной шкале настроения, чем средняя дельта: если кто-то почти всегда
+// ставит одну и ту же отметку, дельта еле шевелится, а доля "хороших" дней
+// всё ещё осмысленно читается.
+function shareLine(p: MoodPattern): string {
+  const pct = Math.round(p.highShare * 100);
+  const overallPct = Math.round((p.highShare - p.highShareDelta) * 100);
+  return `${pct}% дней с оценкой 4-5 (в среднем ${overallPct}%)`;
 }
 
 function tagRow(p: MoodPattern, emoji: string, label: string): Row {
@@ -48,6 +80,7 @@ function tagRow(p: MoodPattern, emoji: string, label: string): Row {
     key: `tag:${p.key}`,
     emoji,
     insight: `В дни с тегом «${label}» настроение в среднем ${dir} на ${Math.abs(p.delta).toFixed(1)}`,
+    share: shareLine(p),
     delta: p.delta,
     count: p.count,
     confidence: p.confidence,
@@ -61,6 +94,7 @@ function weekdayRow(p: MoodPattern): Row {
     key: `weekday:${p.key}`,
     emoji: "📅",
     insight: `По ${form} у тебя обычно ${dir} настроение`,
+    share: shareLine(p),
     delta: p.delta,
     count: p.count,
     confidence: p.confidence,
@@ -73,6 +107,22 @@ function keywordRow(p: MoodPattern): Row {
     key: `word:${p.key}`,
     emoji: "💬",
     insight: `Слово «${p.key}» чаще встречается в дни с настроением ${dir}`,
+    share: shareLine(p),
+    delta: p.delta,
+    count: p.count,
+    confidence: p.confidence,
+  };
+}
+
+function engagementRow(p: MoodPattern): Row | null {
+  const info = ENGAGEMENT_INFO[p.key];
+  if (!info) return null;
+  const dir = p.delta >= 0 ? "выше" : "ниже";
+  return {
+    key: `eng:${p.key}`,
+    emoji: info.emoji,
+    insight: `В дни ${info.phrase} настроение в среднем ${dir} на ${Math.abs(p.delta).toFixed(1)}`,
+    share: shareLine(p),
     delta: p.delta,
     count: p.count,
     confidence: p.confidence,
@@ -87,48 +137,67 @@ export default function PatternsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [totalEntries, setTotalEntries] = useState(0);
+  const [entries, setEntries] = useState<DayEntry[]>([]);
   const [tagRows, setTagRows] = useState<Row[]>([]);
   const [weekdayRows, setWeekdayRows] = useState<Row[]>([]);
   const [keywordRows, setKeywordRows] = useState<Row[]>([]);
+  const [engagementRows, setEngagementRows] = useState<Row[]>([]);
+  const [moodDistribution, setMoodDistribution] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [tagFreqRows, setTagFreqRows] = useState<{ id: string; emoji: string; label: string; count: number }[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       amplitude.track("patterns_viewed");
       let cancelled = false;
       (async () => {
-        const [entries, tags] = await Promise.all([getAllDays(), getTags()]);
+        const [allDays, tags] = await Promise.all([getAllDays(), getTags()]);
         if (cancelled) return;
         const allTags = [...tags.places, ...tags.activities];
+        const tagLookup = new Map(allTags.map((t) => [t.id, t]));
 
-        const tagPatterns = computeMoodPatterns(entries)
+        const tagPatterns = computeMoodPatterns(allDays)
           .map((p) => {
-            const tag = allTags.find((t) => t.id === p.key);
+            const tag = tagLookup.get(p.key);
             return tag ? tagRow(p, tag.emoji, tag.label) : null;
           })
           .filter((r): r is Row => r !== null)
           .slice(0, MAX_SHOWN);
 
-        const weekdayPatterns = computeWeekdayPatterns(entries).map(weekdayRow).slice(0, MAX_SHOWN);
-        const keywordPatterns = computeKeywordPatterns(entries).map(keywordRow).slice(0, MAX_SHOWN);
+        const weekdayPatterns = computeWeekdayPatterns(allDays).map(weekdayRow).slice(0, MAX_SHOWN);
+        const keywordPatterns = computeKeywordPatterns(allDays).map(keywordRow).slice(0, MAX_SHOWN);
+        const engagementPatterns = computeEngagementPatterns(allDays)
+          .map(engagementRow)
+          .filter((r): r is Row => r !== null);
 
-        setTotalEntries(entries.length);
+        const tagFreq = computeTagFrequency(allDays)
+          .map((f) => {
+            const tag = tagLookup.get(f.id);
+            return tag ? { id: f.id, emoji: tag.emoji, label: tag.label, count: f.count } : null;
+          })
+          .filter((r): r is { id: string; emoji: string; label: string; count: number } => r !== null)
+          .slice(0, MAX_TAG_FREQ_SHOWN);
+
+        setTotalEntries(allDays.length);
+        setEntries(allDays);
         setTagRows(tagPatterns);
         setWeekdayRows(weekdayPatterns);
         setKeywordRows(keywordPatterns);
+        setEngagementRows(engagementPatterns);
+        setMoodDistribution(computeMoodDistribution(allDays));
+        setTagFreqRows(tagFreq);
         setLoading(false);
       })();
       return () => { cancelled = true; };
     }, [])
   );
 
-  const allRows = [...tagRows, ...weekdayRows, ...keywordRows];
-  const maxAbsDelta = Math.max(0.01, ...allRows.map((r) => Math.abs(r.delta)));
+  const allRows = [...tagRows, ...weekdayRows, ...engagementRows, ...keywordRows];
   const hasAnything = allRows.length > 0;
 
   function renderRow(r: Row) {
     const isPositive = r.delta >= 0;
     const barColor = isPositive ? "#31A876" : "#E68A78";
-    const barWidthPct = (Math.abs(r.delta) / maxAbsDelta) * 100;
+    const barWidthPct = Math.min(100, (Math.abs(r.delta) / SCALE_REF_DELTA) * 100);
     return (
       <View key={r.key} style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.rowHeader}>
@@ -138,6 +207,7 @@ export default function PatternsScreen() {
         <View style={styles.barTrack}>
           <View style={[styles.barFill, { width: `${Math.max(barWidthPct, 4)}%`, backgroundColor: barColor }]} />
         </View>
+        <Text style={[styles.rowShare, { color: theme.mutedForeground }]}>{r.share}</Text>
         <Text style={[styles.rowMeta, { color: theme.mutedForeground }]}>
           {confidenceLabel(r.confidence, r.count)}
         </Text>
@@ -169,34 +239,56 @@ export default function PatternsScreen() {
             между тем, чем ты занимаешься, и твоим настроением.
           </Text>
         </View>
-      ) : !hasAnything ? (
-        <View style={styles.centerWrap}>
-          <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
-          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Пока нет паттернов</Text>
-          <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-            Добавляй теги и пиши ответы своими словами —{"\n"}
-            как только что-то повторится хотя бы 3 раза,{"\n"}
-            здесь появится, как это связано с твоим настроением.
-          </Text>
-        </View>
       ) : (
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-          {tagRows.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Места и активности</Text>
-              {tagRows.map(renderRow)}
-            </>
+          <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <MoodTrendChart entries={entries} theme={theme} />
+          </View>
+          <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <MoodDistributionDonut distribution={moodDistribution} theme={theme} />
+          </View>
+          {tagFreqRows.length > 0 && (
+            <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <TagFrequencyBars rows={tagFreqRows} theme={theme} />
+            </View>
           )}
-          {weekdayRows.length > 0 && (
+
+          {!hasAnything ? (
+            <View style={styles.centerWrap}>
+              <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
+              <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Пока нет паттернов</Text>
+              <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
+                Добавляй теги и пиши ответы своими словами —{"\n"}
+                как только что-то повторится хотя бы 3 раза,{"\n"}
+                здесь появится, как это связано с твоим настроением.
+              </Text>
+            </View>
+          ) : (
             <>
-              <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Дни недели</Text>
-              {weekdayRows.map(renderRow)}
-            </>
-          )}
-          {keywordRows.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Слова в ответах</Text>
-              {keywordRows.map(renderRow)}
+              {tagRows.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Места и активности</Text>
+                  {tagRows.map(renderRow)}
+                </>
+              )}
+              {weekdayRows.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Дни недели</Text>
+                  {weekdayRows.map(renderRow)}
+                </>
+              )}
+              {engagementRows.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Встречи и открытия</Text>
+                  {engagementRows.map(renderRow)}
+                </>
+              )}
+              {keywordRows.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Слова в ответах</Text>
+                  {keywordRows.map(renderRow)}
+                </>
+              )}
             </>
           )}
         </ScrollView>
@@ -225,6 +317,11 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     gap: 12,
+  },
+  chartCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 13,
@@ -258,12 +355,14 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 4,
   },
+  rowShare: { fontSize: 12.5, fontWeight: "500" },
   rowMeta: { fontSize: 12 },
   centerWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
+    paddingVertical: 40,
   },
   emptyTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
   emptyText: { fontSize: 14, lineHeight: 22, textAlign: "center" },
