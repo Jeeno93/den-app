@@ -1,5 +1,5 @@
 import * as amplitude from "@amplitude/analytics-react-native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -51,6 +51,17 @@ const WEEKDAY_DATIVE_PLURAL: Record<string, string> = {
   "Пятница": "пятницам",
   "Суббота": "субботам",
 };
+
+// Пресеты периода — как в аналитических дашбордах: без произвольного выбора
+// дат, но с самыми ходовыми окнами. "Всё время" по умолчанию: паттернам
+// нужен объём данных, и сужать окно по умолчанию значит показывать меньше
+// того, ради чего экран существует.
+const RANGE_PRESETS: { label: string; days: number | null }[] = [
+  { label: "Неделя", days: 7 },
+  { label: "Месяц", days: 30 },
+  { label: "3 месяца", days: 90 },
+  { label: "Всё время", days: null },
+];
 
 const ENGAGEMENT_INFO: Record<string, { emoji: string; phrase: string }> = {
   met: { emoji: "🤝", phrase: "со встречами или добрыми воспоминаниями о близких" },
@@ -138,61 +149,73 @@ export default function PatternsScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const [loading, setLoading] = useState(true);
-  const [totalEntries, setTotalEntries] = useState(0);
-  const [entries, setEntries] = useState<DayEntry[]>([]);
-  const [tagRows, setTagRows] = useState<Row[]>([]);
-  const [weekdayRows, setWeekdayRows] = useState<Row[]>([]);
-  const [keywordRows, setKeywordRows] = useState<Row[]>([]);
-  const [engagementRows, setEngagementRows] = useState<Row[]>([]);
-  const [moodDistribution, setMoodDistribution] = useState<number[]>([0, 0, 0, 0, 0]);
-  const [tagFreqRows, setTagFreqRows] = useState<{ id: string; emoji: string; label: string; count: number }[]>([]);
+  const [allDays, setAllDays] = useState<DayEntry[]>([]);
+  const [tagList, setTagList] = useState<{ id: string; label: string; emoji: string }[]>([]);
+  const [rangeDays, setRangeDays] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       amplitude.track("patterns_viewed");
       let cancelled = false;
       (async () => {
-        const [allDays, tags] = await Promise.all([getAllDays(), getTags()]);
+        const [days, tags] = await Promise.all([getAllDays(), getTags()]);
         if (cancelled) return;
-        const allTags = [...tags.places, ...tags.activities];
-        const tagLookup = new Map(allTags.map((t) => [t.id, t]));
-
-        const tagPatterns = computeMoodPatterns(allDays)
-          .map((p) => {
-            const tag = tagLookup.get(p.key);
-            return tag ? tagRow(p, tag.emoji, tag.label) : null;
-          })
-          .filter((r): r is Row => r !== null)
-          .slice(0, MAX_SHOWN);
-
-        const weekdayPatterns = computeWeekdayPatterns(allDays).map(weekdayRow).slice(0, MAX_SHOWN);
-        const keywordPatterns = computeKeywordPatterns(allDays).map(keywordRow).slice(0, MAX_SHOWN);
-        const engagementPatterns = computeEngagementPatterns(allDays)
-          .map(engagementRow)
-          .filter((r): r is Row => r !== null);
-
-        const tagFreq = computeTagFrequency(allDays)
-          .map((f) => {
-            const tag = tagLookup.get(f.id);
-            return tag ? { id: f.id, emoji: tag.emoji, label: tag.label, count: f.count } : null;
-          })
-          .filter((r): r is { id: string; emoji: string; label: string; count: number } => r !== null)
-          .slice(0, MAX_TAG_FREQ_SHOWN);
-
-        setTotalEntries(allDays.length);
-        setEntries(allDays);
-        setTagRows(tagPatterns);
-        setWeekdayRows(weekdayPatterns);
-        setKeywordRows(keywordPatterns);
-        setEngagementRows(engagementPatterns);
-        setMoodDistribution(computeMoodDistribution(allDays));
-        setTagFreqRows(tagFreq);
+        setAllDays(days);
+        setTagList([...tags.places, ...tags.activities]);
         setLoading(false);
       })();
       return () => { cancelled = true; };
     }, [])
   );
 
+  // Расчёты держим в useMemo от (записи + период), а не в состоянии: смена
+  // пресета не должна ходить в хранилище заново, данные уже в памяти.
+  const view = useMemo(() => {
+    const tagLookup = new Map(tagList.map((t) => [t.id, t]));
+
+    let entries = allDays;
+    if (rangeDays !== null) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - rangeDays);
+      const cutoffIso = cutoff.toISOString().slice(0, 10);
+      entries = allDays.filter((e) => e.date >= cutoffIso);
+    }
+
+    const tagRows = computeMoodPatterns(entries)
+      .map((p) => {
+        const tag = tagLookup.get(p.key);
+        return tag ? tagRow(p, tag.emoji, tag.label) : null;
+      })
+      .filter((r): r is Row => r !== null)
+      .slice(0, MAX_SHOWN);
+
+    const weekdayRows = computeWeekdayPatterns(entries).map(weekdayRow).slice(0, MAX_SHOWN);
+    const keywordRows = computeKeywordPatterns(entries).map(keywordRow).slice(0, MAX_SHOWN);
+    const engagementRows = computeEngagementPatterns(entries)
+      .map(engagementRow)
+      .filter((r): r is Row => r !== null);
+
+    const tagFreqRows = computeTagFrequency(entries)
+      .map((f) => {
+        const tag = tagLookup.get(f.id);
+        return tag ? { id: f.id, emoji: tag.emoji, label: tag.label, count: f.count } : null;
+      })
+      .filter((r): r is { id: string; emoji: string; label: string; count: number } => r !== null)
+      .slice(0, MAX_TAG_FREQ_SHOWN);
+
+    return {
+      entries,
+      totalEntries: entries.length,
+      tagRows,
+      weekdayRows,
+      keywordRows,
+      engagementRows,
+      tagFreqRows,
+      moodDistribution: computeMoodDistribution(entries),
+    };
+  }, [allDays, tagList, rangeDays]);
+
+  const { entries, totalEntries, tagRows, weekdayRows, keywordRows, engagementRows, tagFreqRows, moodDistribution } = view;
   const allRows = [...tagRows, ...weekdayRows, ...engagementRows, ...keywordRows];
   const hasAnything = allRows.length > 0;
 
@@ -227,18 +250,49 @@ export default function PatternsScreen() {
         <View style={styles.iconBtn} />
       </View>
 
+      {/* Пресеты держим вне ScrollView и вне условий: если в выбранном окне
+          данных не хватило, переключиться обратно должно быть можно прямо
+          с экрана "пока рано", не уходя назад. */}
+      <View style={styles.rangeRow}>
+        {RANGE_PRESETS.map((preset) => {
+          const isActive = rangeDays === preset.days;
+          return (
+            <TouchableOpacity
+              key={preset.label}
+              onPress={() => setRangeDays(preset.days)}
+              activeOpacity={0.7}
+              style={[
+                styles.rangePill,
+                { borderColor: theme.border },
+                isActive && { backgroundColor: "#31A876", borderColor: "#31A876" },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.rangePillText,
+                  { color: isActive ? "#06080B" : theme.mutedForeground },
+                  isActive && { fontWeight: "700" },
+                ]}
+              >
+                {preset.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       {loading ? (
         <View style={styles.centerWrap}>
           <Text style={{ color: theme.mutedForeground }}>Загрузка…</Text>
         </View>
-      ) : totalEntries < MIN_ENTRIES ? (
+      ) : totalEntries < 2 ? (
         <View style={styles.centerWrap}>
           <Text style={{ fontSize: 40, marginBottom: 12 }}>📊</Text>
           <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Пока рано</Text>
           <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-            Паттерны становятся заметны примерно через {MIN_ENTRIES} записей.{"\n"}
-            Сейчас их {totalEntries} — продолжай, и здесь появится связь{"\n"}
-            между тем, чем ты занимаешься, и твоим настроением.
+            За этот период почти нет записей.{"\n"}
+            Попробуй выбрать период подлиннее — или{"\n"}
+            просто продолжай вести дневник.
           </Text>
         </View>
       ) : (
@@ -255,7 +309,20 @@ export default function PatternsScreen() {
             </View>
           )}
 
-          {!hasAnything ? (
+          {/* Графики выше осмысленны и на недельном окне, а корреляциям нужен
+              объём — поэтому порог закрывает только карточки, иначе пресет
+              "Неделя" всегда упирался бы в заглушку. */}
+          {totalEntries < MIN_ENTRIES ? (
+            <View style={styles.centerWrap}>
+              <Text style={{ fontSize: 40, marginBottom: 12 }}>📊</Text>
+              <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Мало данных для паттернов</Text>
+              <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
+                В этом периоде {totalEntries} из {MIN_ENTRIES} записей.{"\n"}
+                Выбери период подлиннее — или продолжай вести{"\n"}
+                дневник, и связи проявятся сами.
+              </Text>
+            </View>
+          ) : !hasAnything ? (
             <View style={styles.centerWrap}>
               <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
               <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Пока нет паттернов</Text>
@@ -361,6 +428,23 @@ const styles = StyleSheet.create({
   barFill: {
     height: "100%",
     borderRadius: 4,
+  },
+  rangeRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 2,
+  },
+  rangePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  rangePillText: {
+    fontSize: 13,
+    fontWeight: "500",
   },
   explainer: {
     fontSize: 12.5,

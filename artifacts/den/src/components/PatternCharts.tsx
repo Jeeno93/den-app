@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline, Text as SvgText } from "react-native-svg";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "@/src/components/MoodPicker";
@@ -55,6 +55,9 @@ function moodToY(mood: number): number {
  * этот график даёт общий контекст, на фоне которого читаются остальные секции.
  */
 export function MoodTrendChart({ entries, theme }: { entries: DayEntry[]; theme: ThemeColors }) {
+  const [layoutW, setLayoutW] = useState(0);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   const shown = sorted.slice(-TREND_MAX_POINTS);
   if (shown.length < 2) return null;
@@ -70,18 +73,45 @@ export function MoodTrendChart({ entries, theme }: { entries: DayEntry[]; theme:
   // хвостовое, не центрированное: так последняя точка графика всегда
   // отражает "как дела в среднем в последнее время", без заглядывания вперёд.
   const rollingWindow = Math.min(7, n);
-  const avgPoints = shown
-    .map((_, i) => {
-      const from = Math.max(0, i - rollingWindow + 1);
-      const slice = shown.slice(from, i + 1);
-      const avg = slice.reduce((s, e) => s + e.mood, 0) / slice.length;
-      return `${xAt(i)},${moodToY(avg)}`;
-    })
-    .join(" ");
+  const avgValues = shown.map((_, i) => {
+    const from = Math.max(0, i - rollingWindow + 1);
+    const slice = shown.slice(from, i + 1);
+    return slice.reduce((s, e) => s + e.mood, 0) / slice.length;
+  });
+  const avgPoints = avgValues.map((avg, i) => `${xAt(i)},${moodToY(avg)}`).join(" ");
+
+  // Палец приходит в реальных пикселях контейнера, а вся геометрия графика
+  // живёт в логических координатах viewBox — поэтому пересчитываем через
+  // измеренную ширину. Значение не сбрасываем при отпускании: на телефоне
+  // палец закрывает как раз то место, которое хочется прочитать.
+  function handleTouch(locationX: number) {
+    if (!layoutW || n < 2) return;
+    const logicalX = locationX * (CHART_W / layoutW);
+    const idx = Math.round((logicalX - plotLeft) / stepX);
+    setActiveIdx(Math.max(0, Math.min(n - 1, idx)));
+  }
+
+  // Индекс живёт в состоянии и переживает смену периода, а массив точек при
+  // этом становится короче — без клампа выделенная точка либо указывала бы
+  // на другой день, либо роняла бы SVG обращением к undefined.
+  const safeIdx = activeIdx !== null && activeIdx < n ? activeIdx : null;
+  const active = safeIdx !== null ? shown[safeIdx] : null;
 
   return (
     <View>
       <Text style={[chartStyles.title, { color: theme.foreground }]}>Настроение по времени</Text>
+      <Text style={[chartStyles.readout, { color: active ? theme.foreground : theme.mutedForeground }]}>
+        {active && safeIdx !== null
+          ? `${formatShortDate(active.date)} — ${getMoodEmoji(active.mood)} ${active.mood} (среднее ${avgValues[safeIdx].toFixed(1)})`
+          : "коснись графика, чтобы увидеть день"}
+      </Text>
+      <View
+        onLayout={(e) => setLayoutW(e.nativeEvent.layout.width)}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={(e) => handleTouch(e.nativeEvent.locationX)}
+        onResponderMove={(e) => handleTouch(e.nativeEvent.locationX)}
+      >
       <Svg width="100%" height={TREND_H} viewBox={`0 0 ${CHART_W} ${TREND_H}`}>
         {[1, 3, 5].map((m) => (
           <React.Fragment key={m}>
@@ -114,7 +144,23 @@ export function MoodTrendChart({ entries, theme }: { entries: DayEntry[]; theme:
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+        {safeIdx !== null && active && (
+          <>
+            <Line
+              x1={xAt(safeIdx)}
+              x2={xAt(safeIdx)}
+              y1={TREND_PAD / 2}
+              y2={TREND_H - TREND_PAD / 2}
+              stroke={theme.mutedForeground}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              opacity={0.7}
+            />
+            <Circle cx={xAt(safeIdx)} cy={moodToY(active.mood)} r={4} fill="#5EE6A8" />
+          </>
+        )}
       </Svg>
+      </View>
       <View style={chartStyles.axisRow}>
         <Text style={[chartStyles.axisLabel, { color: theme.mutedForeground }]}>
           {formatShortDate(shown[0].date)}
@@ -274,6 +320,13 @@ const chartStyles = StyleSheet.create({
     fontSize: 12,
     marginTop: -6,
     marginBottom: 10,
+  },
+  readout: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: -4,
+    marginBottom: 8,
+    minHeight: 18,
   },
   axisRow: {
     flexDirection: "row",
