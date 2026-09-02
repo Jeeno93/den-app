@@ -71,7 +71,7 @@ function confidenceLabel(c: Confidence, count: number): string {
 function shareLine(p: MoodPattern): string {
   const pct = Math.round(p.highShare * 100);
   const overallPct = Math.round((p.highShare - p.highShareDelta) * 100);
-  return `${pct}% дней с оценкой 4-5 (в среднем ${overallPct}%)`;
+  return `${pct}% дней с оценкой 4-5 — против ${overallPct}% по всем твоим дням`;
 }
 
 function tagRow(p: MoodPattern, emoji: string, label: string): Row {
@@ -93,7 +93,9 @@ function weekdayRow(p: MoodPattern): Row {
   return {
     key: `weekday:${p.key}`,
     emoji: "📅",
-    insight: `По ${form} у тебя обычно ${dir} настроение`,
+    // Число здесь такое же обязательное, как в карточках тегов: без него
+    // непонятно, "ниже" — это чуть-чуть или заметно.
+    insight: `По ${form} настроение в среднем ${dir} на ${Math.abs(p.delta).toFixed(1)}`,
     share: shareLine(p),
     delta: p.delta,
     count: p.count,
@@ -265,6 +267,11 @@ export default function PatternsScreen() {
             </View>
           ) : (
             <>
+              <Text style={[styles.explainer, { color: theme.mutedForeground }]}>
+                Настроение оценивается от 1 до 5. Число в карточке — насколько средняя оценка
+                таких дней отличается от твоей обычной, а полоска показывает силу этого
+                отличия: чем длиннее, тем сильнее.
+              </Text>
               {tagRows.length > 0 && (
                 <>
                   <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Места и активности</Text>
@@ -354,6 +361,12 @@ const styles = StyleSheet.create({
   barFill: {
     height: "100%",
     borderRadius: 4,
+  },
+  explainer: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 4,
+    marginBottom: 2,
   },
   rowShare: { fontSize: 12.5, fontWeight: "500" },
   rowMeta: { fontSize: 12 },

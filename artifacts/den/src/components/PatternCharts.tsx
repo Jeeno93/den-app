@@ -1,8 +1,25 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
+import Svg, { Circle, Line, Path, Polyline, Text as SvgText } from "react-native-svg";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "@/src/components/MoodPicker";
 import type { DayEntry } from "@/src/storage/storage";
+
+const MONTHS_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+function formatShortDate(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${d} ${MONTHS_SHORT[m - 1] ?? ""}`;
+}
+
+// В MoodPicker оценки 4 и 5 намеренно делят один цвет — там их различает
+// свечение у выбранной кнопки. В статичном доунате свечения нет, и "Супер"
+// сливался с "Отлично" в одну сплошную зелёную дугу, хотя в легенде шёл
+// отдельной строкой. Поэтому в графиках пятёрке даём отдельный, более
+// светлый оттенок — тот же мятный акцент, которым в приложении
+// подсвечивается активное состояние.
+function moodChartColor(mood: number): string {
+  return mood === 5 ? "#5EE6A8" : getMoodColor(mood);
+}
 
 interface ThemeColors {
   foreground: string;
@@ -20,6 +37,9 @@ const CHART_W = 320;
 
 const TREND_H = 120;
 const TREND_PAD = 12;
+// Место слева под подписи шкалы настроения — без них было непонятно, что
+// вообще отложено по вертикали.
+const TREND_LEFT_GUTTER = 16;
 const TREND_MAX_POINTS = 60; // иначе на маленьком экране точки сливаются в кашу
 
 function moodToY(mood: number): number {
@@ -40,8 +60,9 @@ export function MoodTrendChart({ entries, theme }: { entries: DayEntry[]; theme:
   if (shown.length < 2) return null;
 
   const n = shown.length;
-  const stepX = (CHART_W - TREND_PAD * 2) / (n - 1);
-  const xAt = (i: number) => TREND_PAD + i * stepX;
+  const plotLeft = TREND_LEFT_GUTTER + TREND_PAD;
+  const stepX = (CHART_W - plotLeft - TREND_PAD) / (n - 1);
+  const xAt = (i: number) => plotLeft + i * stepX;
 
   const rawPoints = shown.map((e, i) => `${xAt(i)},${moodToY(e.mood)}`).join(" ");
 
@@ -63,16 +84,26 @@ export function MoodTrendChart({ entries, theme }: { entries: DayEntry[]; theme:
       <Text style={[chartStyles.title, { color: theme.foreground }]}>Настроение по времени</Text>
       <Svg width="100%" height={TREND_H} viewBox={`0 0 ${CHART_W} ${TREND_H}`}>
         {[1, 3, 5].map((m) => (
-          <Line
-            key={m}
-            x1={0}
-            x2={CHART_W}
-            y1={moodToY(m)}
-            y2={moodToY(m)}
-            stroke={theme.border}
-            strokeWidth={1}
-            opacity={0.5}
-          />
+          <React.Fragment key={m}>
+            <Line
+              x1={TREND_LEFT_GUTTER}
+              x2={CHART_W}
+              y1={moodToY(m)}
+              y2={moodToY(m)}
+              stroke={theme.border}
+              strokeWidth={1}
+              opacity={0.5}
+            />
+            <SvgText
+              x={0}
+              y={moodToY(m) + 3.5}
+              fontSize={9}
+              fill={theme.mutedForeground}
+              opacity={0.8}
+            >
+              {String(m)}
+            </SvgText>
+          </React.Fragment>
         ))}
         <Polyline points={rawPoints} fill="none" stroke={theme.mutedForeground} strokeWidth={1} opacity={0.35} />
         <Polyline
@@ -84,6 +115,14 @@ export function MoodTrendChart({ entries, theme }: { entries: DayEntry[]; theme:
           strokeLinejoin="round"
         />
       </Svg>
+      <View style={chartStyles.axisRow}>
+        <Text style={[chartStyles.axisLabel, { color: theme.mutedForeground }]}>
+          {formatShortDate(shown[0].date)}
+        </Text>
+        <Text style={[chartStyles.axisLabel, { color: theme.mutedForeground }]}>
+          {formatShortDate(shown[n - 1].date)}
+        </Text>
+      </View>
       <View style={chartStyles.trendLegendRow}>
         <View style={chartStyles.legendItem}>
           <View style={[chartStyles.legendDot, { backgroundColor: theme.mutedForeground, opacity: 0.5 }]} />
@@ -150,7 +189,7 @@ export function MoodDistributionDonut({ distribution, theme }: { distribution: n
                 <Path
                   key={mood}
                   d={arc}
-                  stroke={getMoodColor(mood)}
+                  stroke={moodChartColor(mood)}
                   strokeWidth={DONUT_STROKE}
                   fill="none"
                   strokeLinecap="butt"
@@ -165,7 +204,7 @@ export function MoodDistributionDonut({ distribution, theme }: { distribution: n
             .reverse()
             .map(({ mood, count }) => (
               <View key={mood} style={chartStyles.legendItem}>
-                <View style={[chartStyles.legendDot, { backgroundColor: getMoodColor(mood) }]} />
+                <View style={[chartStyles.legendDot, { backgroundColor: moodChartColor(mood) }]} />
                 <Text style={[chartStyles.legendText, { color: theme.foreground }]}>
                   {getMoodEmoji(mood)} {getMoodLabel(mood)} — {Math.round((count / total) * 100)}%
                 </Text>
@@ -194,6 +233,10 @@ export function TagFrequencyBars({ rows, theme }: { rows: TagFreqRow[]; theme: T
   return (
     <View>
       <Text style={[chartStyles.title, { color: theme.foreground }]}>Что чаще всего отмечаешь</Text>
+      {/* Тут полоска — про количество записей, а не про настроение: на одном
+          экране с карточками-корреляциями это легко перепутать, поэтому
+          подписываем явно. */}
+      <Text style={[chartStyles.subtitle, { color: theme.mutedForeground }]}>сколько раз отмечено</Text>
       <View style={{ gap: 10 }}>
         {rows.map((r) => (
           <View key={r.id}>
@@ -227,10 +270,24 @@ const chartStyles = StyleSheet.create({
     opacity: 0.7,
     marginBottom: 10,
   },
+  subtitle: {
+    fontSize: 12,
+    marginTop: -6,
+    marginBottom: 10,
+  },
+  axisRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 2,
+    paddingLeft: 16,
+  },
+  axisLabel: {
+    fontSize: 11,
+  },
   trendLegendRow: {
     flexDirection: "row",
     gap: 16,
-    marginTop: 6,
+    marginTop: 8,
   },
   legendItem: {
     flexDirection: "row",
