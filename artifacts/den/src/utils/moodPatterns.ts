@@ -92,7 +92,7 @@ export function computeMoodPatterns(entries: DayEntry[]): MoodPattern[] {
   return correlate(entries, (entry) => [...(entry.places ?? []), ...(entry.activities ?? [])]);
 }
 
-const WEEKDAY_NAMES = [
+export const WEEKDAY_NAMES = [
   "Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота",
 ];
 
@@ -185,6 +185,223 @@ function extractWords(entry: DayEntry): string[] {
 
 export function computeKeywordPatterns(entries: DayEntry[]): MoodPattern[] {
   return correlate(entries, extractWords, MIN_SAMPLE_WORDS);
+}
+
+// ---------- Сочетания факторов ----------
+
+/**
+ * Все факторы одного дня в едином пространстве имён: теги, день недели и
+ * факт ответа на "глубокие" вопросы. Нужно, чтобы сочетания могли
+ * пересекать разные типы ("Офис + среда"), а не только теги между собой.
+ */
+export function factorsOf(entry: DayEntry): string[] {
+  const out: string[] = [];
+  for (const id of [...(entry.places ?? []), ...(entry.activities ?? [])]) out.push(`tag:${id}`);
+  const d = new Date(entry.date + "T12:00:00");
+  out.push(`wd:${WEEKDAY_NAMES[d.getDay()]}`);
+  if (entry.answers?.met?.trim()) out.push("eng:met");
+  if (entry.answers?.learned?.trim()) out.push("eng:learned");
+  return out;
+}
+
+export interface ComboPattern {
+  keys: string[];
+  count: number;
+  avgMood: number;
+  /** Настроение, предсказанное сложением отдельных эффектов факторов. */
+  expected: number;
+  /** avgMood - expected: насколько вместе получается не так, как порознь. */
+  interaction: number;
+  confidence: Confidence;
+}
+
+// Чем больше факторов в сочетании, тем больше таких сочетаний вообще
+// существует — и тем выше шанс, что какое-то из них "выстрелит" случайно.
+// Поэтому порог по количеству дней растёт вместе с размером сочетания.
+const COMBO_MIN_SAMPLE: Record<number, number> = { 2: 4, 3: 6, 4: 8 };
+// Если фактическое почти совпало с предсказанным сложением — сочетание
+// ничего нового не сообщает, это просто "оба фактора сработали как обычно".
+const MIN_INTERACTION = 0.3;
+
+function kCombinations<T>(items: T[], k: number): T[][] {
+  if (k > items.length) return [];
+  if (k === 1) return items.map((it) => [it]);
+  const out: T[][] = [];
+  for (let i = 0; i <= items.length - k; i++) {
+    for (const rest of kCombinations(items.slice(i + 1), k - 1)) {
+      out.push([items[i], ...rest]);
+    }
+  }
+  return out;
+}
+
+/**
+ * Сочетания факторов, которые ведут себя не так, как сумма их частей.
+ *
+ * Считаем не среднее по комбинации (оно в основном пересказывало бы
+ * отдельные эффекты: "офис в минусе и среда в минусе, значит и вместе
+ * в минусе"), а взаимодействие — разницу между фактическим настроением
+ * таких дней и предсказанным простым сложением отдельных эффектов.
+ * Показываем только заметные расхождения: именно они и есть то, чего
+ * не видно в одномерных карточках.
+ */
+export function computeComboPatterns(entries: DayEntry[], maxK = 4): ComboPattern[] {
+  if (entries.length === 0) return [];
+
+  const overallAvg = entries.reduce((sum, e) => sum + e.mood, 0) / entries.length;
+
+  const single = new Map<string, number[]>();
+  for (const entry of entries) {
+    for (const f of new Set(factorsOf(entry))) {
+      if (!single.has(f)) single.set(f, []);
+      single.get(f)!.push(entry.mood);
+    }
+  }
+
+  // В сочетания пускаем только факторы, которые сами по себе набрали
+  // достаточно дней — иначе редкий тег протащил бы шум внутрь комбинации.
+  const deltaOf = new Map<string, number>();
+  for (const [key, moods] of single) {
+    if (moods.length < MIN_SAMPLE) continue;
+    deltaOf.set(key, moods.reduce((s, m) => s + m, 0) / moods.length - overallAvg);
+  }
+
+  const comboMoods = new Map<string, number[]>();
+  for (const entry of entries) {
+    const factors = [...new Set(factorsOf(entry))].filter((f) => deltaOf.has(f)).sort();
+    for (let k = 2; k <= Math.min(maxK, factors.length); k++) {
+      for (const combo of kCombinations(factors, k)) {
+        const key = combo.join("|");
+        if (!comboMoods.has(key)) comboMoods.set(key, []);
+        comboMoods.get(key)!.push(entry.mood);
+      }
+    }
+  }
+
+  const patterns: ComboPattern[] = [];
+  for (const [key, moods] of comboMoods) {
+    const keys = key.split("|");
+    if (moods.length < (COMBO_MIN_SAMPLE[keys.length] ?? 8)) continue;
+    const avgMood = moods.reduce((s, m) => s + m, 0) / moods.length;
+    const expected = overallAvg + keys.reduce((s, k) => s + (deltaOf.get(k) ?? 0), 0);
+    const interaction = avgMood - expected;
+    if (Math.abs(interaction) < MIN_INTERACTION) continue;
+    patterns.push({
+      keys,
+      count: moods.length,
+      avgMood,
+      expected,
+      interaction,
+      confidence: confidenceFor(moods.length),
+    });
+  }
+
+  return patterns.sort((a, b) => {
+    const rankDiff = CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence];
+    if (rankDiff !== 0) return rankDiff;
+    return Math.abs(b.interaction) - Math.abs(a.interaction);
+  });
+}
+
+// ---------- Динамика во времени ----------
+
+export interface FactorShift {
+  key: string;
+  recentAvg: number;
+  earlierAvg: number;
+  shift: number; // recentAvg - earlierAvg
+  recentCount: number;
+  earlierCount: number;
+  confidence: Confidence;
+}
+
+const MIN_SHIFT = 0.4;
+const MIN_HALF_SAMPLE = 3;
+
+function isoDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Как изменился эффект фактора со временем: последние N дней против всего,
+ * что было раньше. Часто интереснее самого паттерна — "парк всегда был
+ * нейтральным, а последний месяц стабильно вытягивает день" это уже
+ * новость, а не подтверждение известного.
+ */
+export function computeFactorShifts(entries: DayEntry[], recentDays = 30): FactorShift[] {
+  const cutoff = isoDaysAgo(recentDays);
+  const recent = entries.filter((e) => e.date >= cutoff);
+  const earlier = entries.filter((e) => e.date < cutoff);
+  if (recent.length < 5 || earlier.length < 5) return [];
+
+  function byFactor(list: DayEntry[]): Map<string, number[]> {
+    const map = new Map<string, number[]>();
+    for (const entry of list) {
+      for (const f of new Set(factorsOf(entry))) {
+        if (!map.has(f)) map.set(f, []);
+        map.get(f)!.push(entry.mood);
+      }
+    }
+    return map;
+  }
+
+  const recentMap = byFactor(recent);
+  const earlierMap = byFactor(earlier);
+
+  const shifts: FactorShift[] = [];
+  for (const [key, recentMoods] of recentMap) {
+    const earlierMoods = earlierMap.get(key);
+    if (!earlierMoods) continue;
+    if (recentMoods.length < MIN_HALF_SAMPLE || earlierMoods.length < MIN_HALF_SAMPLE) continue;
+    const recentAvg = recentMoods.reduce((s, m) => s + m, 0) / recentMoods.length;
+    const earlierAvg = earlierMoods.reduce((s, m) => s + m, 0) / earlierMoods.length;
+    const shift = recentAvg - earlierAvg;
+    if (Math.abs(shift) < MIN_SHIFT) continue;
+    shifts.push({
+      key,
+      recentAvg,
+      earlierAvg,
+      shift,
+      recentCount: recentMoods.length,
+      earlierCount: earlierMoods.length,
+      // Уверенность по меньшей из двух половин: сравнение не крепче
+      // своей слабой стороны.
+      confidence: confidenceFor(Math.min(recentMoods.length, earlierMoods.length)),
+    });
+  }
+
+  return shifts.sort((a, b) => {
+    const rankDiff = CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence];
+    if (rankDiff !== 0) return rankDiff;
+    return Math.abs(b.shift) - Math.abs(a.shift);
+  });
+}
+
+export interface OverallShift {
+  recentAvg: number;
+  earlierAvg: number;
+  shift: number;
+  recentCount: number;
+  earlierCount: number;
+}
+
+/** Общий сдвиг настроения: последние N дней против всего, что было раньше. */
+export function computeOverallShift(entries: DayEntry[], recentDays = 30): OverallShift | null {
+  const cutoff = isoDaysAgo(recentDays);
+  const recent = entries.filter((e) => e.date >= cutoff);
+  const earlier = entries.filter((e) => e.date < cutoff);
+  if (recent.length < 5 || earlier.length < 5) return null;
+  const recentAvg = recent.reduce((s, e) => s + e.mood, 0) / recent.length;
+  const earlierAvg = earlier.reduce((s, e) => s + e.mood, 0) / earlier.length;
+  return {
+    recentAvg,
+    earlierAvg,
+    shift: recentAvg - earlierAvg,
+    recentCount: recent.length,
+    earlierCount: earlier.length,
+  };
 }
 
 /** Распределение оценок настроения 1..5 — сколько записей на каждую отметку. */

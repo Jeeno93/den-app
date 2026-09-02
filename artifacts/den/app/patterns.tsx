@@ -15,8 +15,11 @@ import {
   computeEngagementPatterns,
   computeMoodDistribution,
   computeTagFrequency,
+  computeComboPatterns,
+  computeFactorShifts,
+  computeOverallShift,
 } from "@/src/utils/moodPatterns";
-import type { MoodPattern, Confidence } from "@/src/utils/moodPatterns";
+import type { MoodPattern, Confidence, ComboPattern, FactorShift } from "@/src/utils/moodPatterns";
 import { MoodTrendChart, MoodDistributionDonut, TagFrequencyBars } from "@/src/components/PatternCharts";
 
 // Минимум записей, при котором корреляции вообще имеют смысл показывать —
@@ -68,8 +71,19 @@ const ENGAGEMENT_INFO: Record<string, { emoji: string; phrase: string }> = {
   learned: { emoji: "💡", phrase: "с открытиями" },
 };
 
+// 1 день, 2-4 дня, 5-20 дней, 21 день, 22 дня... Наивное "меньше пяти —
+// дня, иначе дней" ломалось на 21/22/32 и подобных.
+function pluralDays(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return "дней";
+  const mod10 = n % 10;
+  if (mod10 === 1) return "день";
+  if (mod10 >= 2 && mod10 <= 4) return "дня";
+  return "дней";
+}
+
 function confidenceLabel(c: Confidence, count: number): string {
-  const word = count === 1 ? "день" : count < 5 ? "дня" : "дней";
+  const word = pluralDays(count);
   if (c === "low") return `по ${count} ${word} — пока мало данных`;
   if (c === "medium") return `по ${count} ${word}`;
   return `по ${count} ${word} — стабильно`;
@@ -124,6 +138,54 @@ function keywordRow(p: MoodPattern): Row {
     delta: p.delta,
     count: p.count,
     confidence: p.confidence,
+  };
+}
+
+type TagInfo = { emoji: string; label: string };
+
+// Факторы приходят из moodPatterns в едином пространстве имён
+// ("tag:<id>", "wd:<День>", "eng:met") — здесь превращаем их в то, что
+// можно показать человеку. Удалённый тег не резолвится: такие сочетания
+// лучше не показывать вовсе, чем печатать сырой id.
+function factorInfo(key: string, tagLookup: Map<string, TagInfo>): TagInfo | null {
+  if (key.startsWith("tag:")) return tagLookup.get(key.slice(4)) ?? null;
+  if (key.startsWith("wd:")) return { emoji: "📅", label: key.slice(3).toLowerCase() };
+  if (key === "eng:met") return { emoji: "🤝", label: "встречи" };
+  if (key === "eng:learned") return { emoji: "💡", label: "открытия" };
+  return null;
+}
+
+function comboRow(p: ComboPattern, tagLookup: Map<string, TagInfo>): Row | null {
+  const parts = p.keys.map((k) => factorInfo(k, tagLookup));
+  if (parts.some((x) => x === null)) return null;
+  const known = parts as TagInfo[];
+  const names = known.map((x) => `«${x.label}»`).join(" + ");
+  const dir = p.interaction >= 0 ? "лучше" : "хуже";
+  return {
+    key: `combo:${p.keys.join("|")}`,
+    emoji: known.map((x) => x.emoji).join(""),
+    insight: `${names} — вместе ${dir}, чем по отдельности`,
+    share: `фактически ${p.avgMood.toFixed(1)}, ожидалось ${p.expected.toFixed(1)}`,
+    delta: p.interaction,
+    count: p.count,
+    confidence: p.confidence,
+  };
+}
+
+function shiftRow(s: FactorShift, tagLookup: Map<string, TagInfo>): Row | null {
+  const info = factorInfo(s.key, tagLookup);
+  if (!info) return null;
+  const dir = s.shift >= 0 ? "лучше" : "хуже";
+  return {
+    key: `shift:${s.key}`,
+    emoji: info.emoji,
+    // Безличная формулировка намеренно: род у метки тега произвольный
+    // ("Парк вырос" / "Уборка вырос"), а так фраза корректна для любой.
+    insight: `«${info.label}»: за последний месяц стало ${dir} — ${s.recentAvg.toFixed(1)} против ${s.earlierAvg.toFixed(1)} раньше`,
+    share: `${s.recentCount} ${pluralDays(s.recentCount)} за месяц и ${s.earlierCount} раньше`,
+    delta: s.shift,
+    count: Math.min(s.recentCount, s.earlierCount),
+    confidence: s.confidence,
   };
 }
 
@@ -195,6 +257,32 @@ export default function PatternsScreen() {
       .map(engagementRow)
       .filter((r): r is Row => r !== null);
 
+    const comboRows = computeComboPatterns(entries)
+      .map((p) => comboRow(p, tagLookup))
+      .filter((r): r is Row => r !== null)
+      .slice(0, MAX_SHOWN);
+
+    const overall = computeOverallShift(entries);
+    const overallRow: Row | null = overall
+      ? {
+          key: "shift:overall",
+          emoji: overall.shift >= 0 ? "📈" : "📉",
+          insight: `В целом за последний месяц настроение ${overall.shift >= 0 ? "выше" : "ниже"} — ${overall.recentAvg.toFixed(1)} против ${overall.earlierAvg.toFixed(1)} раньше`,
+          share: `${overall.recentCount} ${pluralDays(overall.recentCount)} за месяц и ${overall.earlierCount} раньше`,
+          delta: overall.shift,
+          count: Math.min(overall.recentCount, overall.earlierCount),
+          confidence: "high",
+        }
+      : null;
+
+    const shiftRows = [
+      ...(overallRow ? [overallRow] : []),
+      ...computeFactorShifts(entries)
+        .map((s) => shiftRow(s, tagLookup))
+        .filter((r): r is Row => r !== null)
+        .slice(0, MAX_SHOWN),
+    ];
+
     const tagFreqRows = computeTagFrequency(entries)
       .map((f) => {
         const tag = tagLookup.get(f.id);
@@ -210,13 +298,18 @@ export default function PatternsScreen() {
       weekdayRows,
       keywordRows,
       engagementRows,
+      comboRows,
+      shiftRows,
       tagFreqRows,
       moodDistribution: computeMoodDistribution(entries),
     };
   }, [allDays, tagList, rangeDays]);
 
-  const { entries, totalEntries, tagRows, weekdayRows, keywordRows, engagementRows, tagFreqRows, moodDistribution } = view;
-  const allRows = [...tagRows, ...weekdayRows, ...engagementRows, ...keywordRows];
+  const {
+    entries, totalEntries, tagRows, weekdayRows, keywordRows,
+    engagementRows, comboRows, shiftRows, tagFreqRows, moodDistribution,
+  } = view;
+  const allRows = [...comboRows, ...shiftRows, ...tagRows, ...weekdayRows, ...engagementRows, ...keywordRows];
   const hasAnything = allRows.length > 0;
 
   function renderRow(r: Row) {
@@ -339,6 +432,21 @@ export default function PatternsScreen() {
                 таких дней отличается от твоей обычной, а полоска показывает силу этого
                 отличия: чем длиннее, тем сильнее.
               </Text>
+              {/* Сочетания и динамика идут первыми: одномерные секции ниже
+                  чаще подтверждают очевидное, а неожиданное живёт как раз
+                  в пересечениях факторов и в изменениях со временем. */}
+              {comboRows.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Сочетания</Text>
+                  {comboRows.map(renderRow)}
+                </>
+              )}
+              {shiftRows.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Что изменилось</Text>
+                  {shiftRows.map(renderRow)}
+                </>
+              )}
               {tagRows.length > 0 && (
                 <>
                   <Text style={[styles.sectionTitle, { color: theme.foreground }]}>Места и активности</Text>
