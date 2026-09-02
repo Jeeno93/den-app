@@ -24,6 +24,7 @@ import {
 import type { DayEntry } from "@/src/storage/storage";
 import { DayEntryView } from "@/src/components/DayEntry";
 import { DayFillFlow } from "@/src/components/DayFillFlow";
+import { LastEntryCard } from "@/src/components/LastEntryCard";
 import { DeepNudgeBanner } from "@/src/components/DeepNudgeBanner";
 import { getMoodColor } from "@/src/components/MoodPicker";
 
@@ -214,6 +215,13 @@ export default function HomeScreen() {
       <MoodWeekStrip data={weekData} theme={theme} isDark={isDark} />
     ) : null;
 
+  // Последняя запись до сегодняшнего дня — из уже загруженной недели, без
+  // похода в хранилище. Показываем только на сегодняшнем незаполненном дне:
+  // при листании истории напоминание о другом дне только путало бы.
+  const lastEntry = isToday
+    ? [...weekData].reverse().find((d) => d.date < todayStr && d.entry !== null)?.entry ?? null
+    : null;
+
   function NavHeader({ bordered = false }: { bordered?: boolean }) {
     return (
       <View
@@ -288,7 +296,20 @@ export default function HomeScreen() {
         key={viewDate}
         date={viewDate}
         topInset={topPad}
-        header={<><NavHeader />{moodStrip}</>}
+        header={
+          <>
+            <NavHeader />
+            {moodStrip}
+            {lastEntry && (
+              <LastEntryCard
+                entry={lastEntry}
+                todayStr={todayStr}
+                theme={theme}
+                onPress={() => navigateTo(lastEntry.date)}
+              />
+            )}
+          </>
+        }
         showDateLabel
         doneVariant="view"
         applyDeepSignal={deepSignal}
