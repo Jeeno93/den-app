@@ -205,102 +205,113 @@ export function factorsOf(entry: DayEntry): string[] {
 }
 
 export interface ComboPattern {
-  keys: string[];
-  count: number;
-  avgMood: number;
-  /** Настроение, предсказанное сложением отдельных эффектов факторов. */
-  expected: number;
-  /** avgMood - expected: насколько вместе получается не так, как порознь. */
-  interaction: number;
+  /** Базовый фактор: дни с ним и берём за точку отсчёта. */
+  baseKey: string;
+  /** Добавленный фактор: смотрим, что меняется, когда он тоже есть. */
+  addedKey: string;
+  /** Среднее настроение в дни, где есть оба фактора. */
+  comboAvg: number;
+  /** Среднее настроение в дни с базовым фактором, но БЕЗ добавленного. */
+  baseAvg: number;
+  /** comboAvg - baseAvg. */
+  effect: number;
+  count: number; // дней с обоими
+  baseCount: number; // дней с базовым, но без добавленного
   confidence: Confidence;
 }
 
-// Чем больше факторов в сочетании, тем больше таких сочетаний вообще
-// существует — и тем выше шанс, что какое-то из них "выстрелит" случайно.
-// Поэтому порог по количеству дней растёт вместе с размером сочетания.
-const COMBO_MIN_SAMPLE: Record<number, number> = { 2: 4, 3: 6, 4: 8 };
-// Если фактическое почти совпало с предсказанным сложением — сочетание
-// ничего нового не сообщает, это просто "оба фактора сработали как обычно".
-const MIN_INTERACTION = 0.3;
-
-function kCombinations<T>(items: T[], k: number): T[][] {
-  if (k > items.length) return [];
-  if (k === 1) return items.map((it) => [it]);
-  const out: T[][] = [];
-  for (let i = 0; i <= items.length - k; i++) {
-    for (const rest of kCombinations(items.slice(i + 1), k - 1)) {
-      out.push([items[i], ...rest]);
-    }
-  }
-  return out;
-}
+const COMBO_MIN_SAMPLE = 4; // дней должно быть и в сочетании, и в базе
+const MIN_COMBO_EFFECT = 0.4;
+// Один и тот же фактор легко даёт десяток пар и забивает секцию собой —
+// показываем его не больше двух раз.
+const MAX_PER_FACTOR = 2;
 
 /**
- * Сочетания факторов, которые ведут себя не так, как сумма их частей.
+ * Что меняется, когда к одному фактору добавляется второй.
  *
- * Считаем не среднее по комбинации (оно в основном пересказывало бы
- * отдельные эффекты: "офис в минусе и среда в минусе, значит и вместе
- * в минусе"), а взаимодействие — разницу между фактическим настроением
- * таких дней и предсказанным простым сложением отдельных эффектов.
- * Показываем только заметные расхождения: именно они и есть то, чего
- * не видно в одномерных карточках.
+ * Раньше здесь считалось "взаимодействие" — отклонение от суммы отдельных
+ * эффектов. На практике это оказалось непригодно: шкала настроения
+ * ограничена сверху, и у человека с сильным перекосом к хорошим оценкам
+ * (61% "Отлично") сумма нескольких плюсовых факторов предсказывает
+ * недостижимое значение. В итоге любое сочетание хороших факторов
+ * механически выглядело "хуже ожидаемого", а любое сочетание плохих —
+ * "лучше", независимо от содержания.
+ *
+ * Поэтому сравниваем не с моделью, а с самим собой: дни с фактором A и
+ * добавленным B против дней с A, но без B. Обе стороны лежат в одной
+ * области шкалы, потолок обе задевает одинаково, и формулировка получается
+ * прямая: "в дни с Парком обычно 4.2, а вместе с Велопрогулкой — 3.9".
+ *
+ * Только пары: тройки и четвёрки на объёме личного дневника набирают
+ * 6-10 дней, дают почти одинаковые пересекающиеся наборы и не заслуживают
+ * доверия — проверено на реальных данных.
  */
-export function computeComboPatterns(entries: DayEntry[], maxK = 4): ComboPattern[] {
+export function computeComboPatterns(entries: DayEntry[]): ComboPattern[] {
   if (entries.length === 0) return [];
 
-  const overallAvg = entries.reduce((sum, e) => sum + e.mood, 0) / entries.length;
+  const dayFactors = entries.map((e) => ({ mood: e.mood, factors: new Set(factorsOf(e)) }));
 
-  const single = new Map<string, number[]>();
-  for (const entry of entries) {
-    for (const f of new Set(factorsOf(entry))) {
-      if (!single.has(f)) single.set(f, []);
-      single.get(f)!.push(entry.mood);
-    }
+  const singleCount = new Map<string, number>();
+  for (const d of dayFactors) {
+    for (const f of d.factors) singleCount.set(f, (singleCount.get(f) ?? 0) + 1);
   }
-
-  // В сочетания пускаем только факторы, которые сами по себе набрали
-  // достаточно дней — иначе редкий тег протащил бы шум внутрь комбинации.
-  const deltaOf = new Map<string, number>();
-  for (const [key, moods] of single) {
-    if (moods.length < MIN_SAMPLE) continue;
-    deltaOf.set(key, moods.reduce((s, m) => s + m, 0) / moods.length - overallAvg);
-  }
-
-  const comboMoods = new Map<string, number[]>();
-  for (const entry of entries) {
-    const factors = [...new Set(factorsOf(entry))].filter((f) => deltaOf.has(f)).sort();
-    for (let k = 2; k <= Math.min(maxK, factors.length); k++) {
-      for (const combo of kCombinations(factors, k)) {
-        const key = combo.join("|");
-        if (!comboMoods.has(key)) comboMoods.set(key, []);
-        comboMoods.get(key)!.push(entry.mood);
-      }
-    }
-  }
+  const eligible = [...singleCount.entries()]
+    .filter(([, c]) => c >= MIN_SAMPLE * 2) // база и сочетание должны делиться
+    .map(([f]) => f);
 
   const patterns: ComboPattern[] = [];
-  for (const [key, moods] of comboMoods) {
-    const keys = key.split("|");
-    if (moods.length < (COMBO_MIN_SAMPLE[keys.length] ?? 8)) continue;
-    const avgMood = moods.reduce((s, m) => s + m, 0) / moods.length;
-    const expected = overallAvg + keys.reduce((s, k) => s + (deltaOf.get(k) ?? 0), 0);
-    const interaction = avgMood - expected;
-    if (Math.abs(interaction) < MIN_INTERACTION) continue;
-    patterns.push({
-      keys,
-      count: moods.length,
-      avgMood,
-      expected,
-      interaction,
-      confidence: confidenceFor(moods.length),
-    });
+  for (const base of eligible) {
+    for (const added of eligible) {
+      if (base === added) continue;
+      const withBoth: number[] = [];
+      const baseOnly: number[] = [];
+      for (const d of dayFactors) {
+        if (!d.factors.has(base)) continue;
+        (d.factors.has(added) ? withBoth : baseOnly).push(d.mood);
+      }
+      if (withBoth.length < COMBO_MIN_SAMPLE || baseOnly.length < COMBO_MIN_SAMPLE) continue;
+
+      const comboAvg = withBoth.reduce((s, m) => s + m, 0) / withBoth.length;
+      const baseAvg = baseOnly.reduce((s, m) => s + m, 0) / baseOnly.length;
+      const effect = comboAvg - baseAvg;
+      if (Math.abs(effect) < MIN_COMBO_EFFECT) continue;
+
+      patterns.push({
+        baseKey: base,
+        addedKey: added,
+        comboAvg,
+        baseAvg,
+        effect,
+        count: withBoth.length,
+        baseCount: baseOnly.length,
+        confidence: confidenceFor(Math.min(withBoth.length, baseOnly.length)),
+      });
+    }
   }
 
-  return patterns.sort((a, b) => {
+  patterns.sort((a, b) => {
     const rankDiff = CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence];
     if (rankDiff !== 0) return rankDiff;
-    return Math.abs(b.interaction) - Math.abs(a.interaction);
+    return Math.abs(b.effect) - Math.abs(a.effect);
   });
+
+  // Пара (A,B) и пара (B,A) — это один и тот же факт, рассказанный с двух
+  // сторон; оставляем ту версию, что попалась первой (то есть сильнейшую).
+  const seenPair = new Set<string>();
+  const perFactor = new Map<string, number>();
+  const result: ComboPattern[] = [];
+  for (const p of patterns) {
+    const pairKey = [p.baseKey, p.addedKey].sort().join("|");
+    if (seenPair.has(pairKey)) continue;
+    const usedBase = perFactor.get(p.baseKey) ?? 0;
+    const usedAdded = perFactor.get(p.addedKey) ?? 0;
+    if (usedBase >= MAX_PER_FACTOR || usedAdded >= MAX_PER_FACTOR) continue;
+    seenPair.add(pairKey);
+    perFactor.set(p.baseKey, usedBase + 1);
+    perFactor.set(p.addedKey, usedAdded + 1);
+    result.push(p);
+  }
+  return result;
 }
 
 // ---------- Динамика во времени ----------
@@ -387,7 +398,11 @@ export interface OverallShift {
   earlierCount: number;
 }
 
-/** Общий сдвиг настроения: последние N дней против всего, что было раньше. */
+/**
+ * Общий сдвиг настроения: последние N дней против всего, что было раньше.
+ * Возвращаем только заметный сдвиг — разница в 0.1 подавалась как находка
+ * ("3.6 против 3.7") и выглядела пустой, хотя это просто шум.
+ */
 export function computeOverallShift(entries: DayEntry[], recentDays = 30): OverallShift | null {
   const cutoff = isoDaysAgo(recentDays);
   const recent = entries.filter((e) => e.date >= cutoff);
@@ -395,6 +410,7 @@ export function computeOverallShift(entries: DayEntry[], recentDays = 30): Overa
   if (recent.length < 5 || earlier.length < 5) return null;
   const recentAvg = recent.reduce((s, e) => s + e.mood, 0) / recent.length;
   const earlierAvg = earlier.reduce((s, e) => s + e.mood, 0) / earlier.length;
+  if (Math.abs(recentAvg - earlierAvg) < MIN_SHIFT) return null;
   return {
     recentAvg,
     earlierAvg,

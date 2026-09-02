@@ -156,18 +156,16 @@ function factorInfo(key: string, tagLookup: Map<string, TagInfo>): TagInfo | nul
 }
 
 function comboRow(p: ComboPattern, tagLookup: Map<string, TagInfo>): Row | null {
-  const parts = p.keys.map((k) => factorInfo(k, tagLookup));
-  if (parts.some((x) => x === null)) return null;
-  const known = parts as TagInfo[];
-  const names = known.map((x) => `«${x.label}»`).join(" + ");
-  const dir = p.interaction >= 0 ? "лучше" : "хуже";
+  const base = factorInfo(p.baseKey, tagLookup);
+  const added = factorInfo(p.addedKey, tagLookup);
+  if (!base || !added) return null;
   return {
-    key: `combo:${p.keys.join("|")}`,
-    emoji: known.map((x) => x.emoji).join(""),
-    insight: `${names} — вместе ${dir}, чем по отдельности`,
-    share: `фактически ${p.avgMood.toFixed(1)}, ожидалось ${p.expected.toFixed(1)}`,
-    delta: p.interaction,
-    count: p.count,
+    key: `combo:${p.baseKey}|${p.addedKey}`,
+    emoji: `${base.emoji}${added.emoji}`,
+    insight: `В дни с «${base.label}» настроение обычно ${p.baseAvg.toFixed(1)}, а вместе с «${added.label}» — ${p.comboAvg.toFixed(1)}`,
+    share: `${p.count} ${pluralDays(p.count)} вместе против ${p.baseCount} без «${added.label}»`,
+    delta: p.effect,
+    count: Math.min(p.count, p.baseCount),
     confidence: p.confidence,
   };
 }
