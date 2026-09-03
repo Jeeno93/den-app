@@ -105,8 +105,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (Platform.OS !== "web") {
       // Reads the last known permission status without prompting — the OS
-      // dialog itself is only ever triggered from the onboarding notif-ask
-      // step, so a returning user isn't re-prompted on every launch.
+      // dialog itself is only ever triggered from NotificationAskCard, shown
+      // once after the first saved entry, so a returning user isn't
+      // re-prompted on every launch. This is also what makes that card
+      // appear for a fresh install: no permission yet → enabled = false.
       Notifications.getPermissionsAsync().then(({ status }) => {
         if (status !== "granted") {
           setNotificationsEnabledState(false);

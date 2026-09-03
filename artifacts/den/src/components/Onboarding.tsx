@@ -141,11 +141,8 @@ function WhyDiaryModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
 export function Onboarding({ visible, onDone }: OnboardingProps) {
   const insets = useSafeAreaInsets();
-  const { setNotificationTime, setNotificationsEnabled } = useNotifications();
   const [slide, setSlide] = useState(0);
   const [showWhyDiary, setShowWhyDiary] = useState(false);
-  const [showNotifAsk, setShowNotifAsk] = useState(false);
-  const [notifBusy, setNotifBusy] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -172,66 +169,21 @@ export function Onboarding({ visible, onDone }: OnboardingProps) {
   function handleNext() {
     if (slide < SLIDES.length - 1) {
       animateToSlide(slide + 1);
-    } else if (Platform.OS === "web") {
-      // Scheduled local notifications aren't available on web — nothing to ask for.
-      finishOnboarding();
     } else {
-      setShowNotifAsk(true);
-    }
-  }
-
-  async function handleEnableNotifications(hour: number, minute: number) {
-    setNotifBusy(true);
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      const granted = status === "granted";
-      amplitude.track("notification_permission_requested", { granted, skipped: false });
-      if (granted) {
-        await setNotificationTime(hour, minute);
-      }
-      await setNotificationsEnabled(granted);
-    } catch {
-      amplitude.track("notification_permission_requested", { granted: false, skipped: false });
-    } finally {
-      setNotifBusy(false);
+      // Разрешение на уведомления в онбординге больше не спрашиваем.
+      // За август до этого шага дошли 367 человек, и 202 из них (55%) нажали
+      // «пропустить», даже не увидев системного диалога, — а из 165 дошедших
+      // до диалога разрешили 85%. Отваливались не на системном запросе, а на
+      // нашем собственном экране: человек ещё ничего не записал, и ему
+      // предлагают напоминать о деле, ценности которого он не понимает.
+      // Теперь спрашиваем после первой сохранённой записи, см.
+      // NotificationAskCard в DayFillFlow.
       finishOnboarding();
     }
-  }
-
-  function handleSkipNotifications() {
-    amplitude.track("notification_permission_requested", { granted: null, skipped: true });
-    setNotificationsEnabled(false);
-    finishOnboarding();
   }
 
   const current = SLIDES[slide];
   const isLast = slide === SLIDES.length - 1;
-
-  if (showNotifAsk) {
-    return (
-      <Modal visible={visible} animationType="fade" statusBarTranslucent transparent={false}>
-        {Platform.OS === "android" && <StatusBar backgroundColor={BG} barStyle="light-content" />}
-        <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
-          <View style={styles.content}>
-            <Text style={styles.emoji}>🔔</Text>
-            <Text style={styles.title}>Не забывай про вечер</Text>
-            <Text style={styles.text}>
-              Короткое напоминание в удобное время —{"\n"}чтобы дневник не потерялся среди дел.
-            </Text>
-            <View style={{ marginTop: 8 }}>
-              <TimeSelector hour={21} minute={0} onConfirm={handleEnableNotifications} confirmLabel="Включить напоминания" />
-            </View>
-          </View>
-
-          <View style={styles.bottom}>
-            <TouchableOpacity onPress={handleSkipNotifications} activeOpacity={0.7} disabled={notifBusy}>
-              <Text style={styles.skipText}>Не сейчас</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
 
   return (
     <Modal visible={visible} animationType="fade" statusBarTranslucent transparent={false}>

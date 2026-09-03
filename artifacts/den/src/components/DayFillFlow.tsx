@@ -41,6 +41,7 @@ import { MoodPicker } from "@/src/components/MoodPicker";
 import { QuestionCard } from "@/src/components/QuestionCard";
 import { NotesCard } from "@/src/components/NotesCard";
 import { FillModeSwitcher } from "@/src/components/FillModeSwitcher";
+import { NotificationAskCard } from "@/src/components/NotificationAskCard";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
 import { STREAK_MILESTONES, getBadgeForMilestone, type StreakBadge } from "@/src/data/streakBadges";
 
@@ -397,7 +398,17 @@ export function DayFillFlow({
       return;
     }
 
-    amplitude.track("fill_completed", { mode, mood: selectedMood });
+    // Свойства по задачам — чтобы проверить гипотезу, что «задачи на завтра»
+    // работают как причина вернуться: петля замыкается ровно через сутки, а
+    // медиана возврата у вернувшихся — 25.7 часа. Без этих полей сравнить
+    // возвращаемость тех, кто планирует, и тех, кто нет, попросту нечем.
+    amplitude.track("fill_completed", {
+      mode,
+      mood: selectedMood,
+      tasks_planned: entry.tasksForTomorrow?.length ?? 0,
+      tasks_reviewed_total: reviewedTasks.length,
+      tasks_reviewed_done: reviewedTasks.filter((t) => t.done).length,
+    });
     reportGoalEvent("fill_completed");
     onSaved?.(entry);
 
@@ -455,6 +466,11 @@ export function DayFillFlow({
             </View>
             <Text style={[styles.doneTitle, { color: theme.foreground }]}>День записан.</Text>
             <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>Увидимся завтра.</Text>
+
+            {/* Сюда переехал запрос разрешения на уведомления из онбординга:
+                человек только что закрыл свой день, и «напомнить завтра»
+                читается как продолжение сделанного, а не просьба приложения. */}
+            <NotificationAskCard theme={theme} />
 
             {celebratedMilestone && (
               <View style={[styles.milestonePlaque, { backgroundColor: theme.primary, shadowColor: theme.primary }]}>
