@@ -420,6 +420,128 @@ export function computeOverallShift(entries: DayEntry[], recentDays = 30): Overa
   };
 }
 
+// ---------- Недельный ритм ----------
+
+export interface WeekdayRhythm {
+  tagId: string;
+  weekday: string;
+  hits: number;
+  total: number;
+  rate: number;
+  overallRate: number;
+}
+
+const RHYTHM_MIN_TAG = 10; // реже — не о чем говорить
+const RHYTHM_MIN_WD_ENTRIES = 8; // день недели с горсткой записей не судим
+const RHYTHM_PERMUTATIONS = 1000;
+const RHYTHM_FDR = 0.1;
+
+/**
+ * Дни недели, в которые тег встречается заметно чаще обычного.
+ *
+ * Считаем частоту, а не настроение — принципиально. Проверка на реальных
+ * данных показала, что корреляции настроения с чем угодно на дневнике в сотню
+ * записей неотличимы от случайности (из 21 проверенной карточки порог прошли
+ * две при ожидаемых по случайности ~одной), а вот частота тегов по дням
+ * недели даёт устойчивый сигнал: у человека действительно есть недельный
+ * ритм, и он переживает перемешивание.
+ *
+ * Значимость меряем перестановочным тестом: раскладываем те же самые дни по
+ * дням недели случайно много раз и смотрим, часто ли случайность даёт такой
+ * же перекос. Статистика — максимум отклонения по всем дням недели, поэтому
+ * перебор семи дней учтён внутри теста. Перебор нескольких тегов внутрь не
+ * входит, поэтому сверху накладываем поправку Бенджамини-Хохберга.
+ */
+export function computeWeekdayRhythms(entries: DayEntry[]): WeekdayRhythm[] {
+  if (entries.length < 20) return [];
+
+  const wdOf = (e: DayEntry) => new Date(e.date + "T12:00:00").getDay();
+  const wdIdx = entries.map(wdOf);
+  const perWeekday = [0, 0, 0, 0, 0, 0, 0];
+  for (const i of wdIdx) perWeekday[i]++;
+
+  const tagCounts = new Map<string, number>();
+  for (const e of entries) {
+    for (const id of new Set([...(e.places ?? []), ...(e.activities ?? [])])) {
+      tagCounts.set(id, (tagCounts.get(id) ?? 0) + 1);
+    }
+  }
+  const tags = [...tagCounts.entries()].filter(([, c]) => c >= RHYTHM_MIN_TAG).map(([id]) => id);
+  if (tags.length === 0) return [];
+
+  let seed = 20260903;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+
+  const candidates: { r: WeekdayRhythm; p: number }[] = [];
+
+  for (const tagId of tags) {
+    const flags = entries.map((e) =>
+      [...(e.places ?? []), ...(e.activities ?? [])].includes(tagId)
+    );
+    const overallRate = flags.filter(Boolean).length / flags.length;
+
+    const ratesOf = (f: boolean[]) => {
+      const hits = [0, 0, 0, 0, 0, 0, 0];
+      f.forEach((v, i) => { if (v) hits[wdIdx[i]]++; });
+      return hits;
+    };
+    const statOf = (hits: number[]) =>
+      hits.reduce((max, h, i) => {
+        if (perWeekday[i] < RHYTHM_MIN_WD_ENTRIES) return max;
+        return Math.max(max, Math.abs(h / perWeekday[i] - overallRate));
+      }, 0);
+
+    const hits = ratesOf(flags);
+    const observed = statOf(hits);
+    if (observed === 0) continue;
+
+    const pool = [...flags];
+    let ge = 0;
+    for (let iter = 0; iter < RHYTHM_PERMUTATIONS; iter++) {
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      if (statOf(ratesOf(pool)) >= observed) ge++;
+    }
+    const p = ge / RHYTHM_PERMUTATIONS;
+
+    let best = -1;
+    for (let d = 0; d < 7; d++) {
+      if (perWeekday[d] < RHYTHM_MIN_WD_ENTRIES) continue;
+      if (best === -1 || hits[d] / perWeekday[d] > hits[best] / perWeekday[best]) best = d;
+    }
+    if (best === -1) continue;
+    const rate = hits[best] / perWeekday[best];
+    if (rate <= overallRate) continue; // говорим только про «чаще», не про «реже»
+
+    candidates.push({
+      p,
+      r: {
+        tagId,
+        weekday: WEEKDAY_NAMES[best],
+        hits: hits[best],
+        total: perWeekday[best],
+        rate,
+        overallRate,
+      },
+    });
+  }
+
+  // Бенджамини-Хохберг: без поправки на число проверенных тегов часть
+  // "находок" была бы обычными ложными срабатываниями от самого перебора.
+  candidates.sort((a, b) => a.p - b.p);
+  const m = candidates.length;
+  let cutoff = -1;
+  candidates.forEach((c, i) => {
+    if (c.p <= ((i + 1) / m) * RHYTHM_FDR) cutoff = i;
+  });
+  return candidates.slice(0, cutoff + 1).map((c) => c.r);
+}
+
 /** Распределение оценок настроения 1..5 — сколько записей на каждую отметку. */
 export function computeMoodDistribution(entries: DayEntry[]): number[] {
   const counts = [0, 0, 0, 0, 0];
