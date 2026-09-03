@@ -107,7 +107,10 @@ export default function PatternsScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={theme.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Паттерны</Text>
+        {/* Маршрут и событие patterns_viewed намеренно оставлены прежними:
+            видимое имя поменялось, а переименование события разорвало бы
+            историю в Amplitude, по которой мы меряем эффект. */}
+        <Text style={[styles.title, { color: theme.foreground }]}>Как проходят дни</Text>
         <View style={styles.iconBtn} />
       </View>
 

@@ -229,9 +229,9 @@ export default function MemoriesScreen() {
             <Text style={{ fontSize: 20 }}>📊</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Паттерны</Text>
+            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Как проходят дни</Text>
             <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>
-              Что связано с твоим настроением
+              Настроение, привычки, недельный ритм
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
