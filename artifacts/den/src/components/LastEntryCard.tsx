@@ -1,4 +1,5 @@
-import React from "react";
+import * as amplitude from "@amplitude/analytics-react-native";
+import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getMoodEmoji } from "@/src/components/MoodPicker";
@@ -81,9 +82,23 @@ export function LastEntryCard({
   onPress: () => void;
 }) {
   const text = preview(entry);
+  const daysSince = daysBetween(entry.date, todayStr);
+  const hasText = text !== null;
+
+  // Показ трекаем в самом компоненте, а не на экране: он монтируется ровно
+  // тогда, когда карточка видна, и экран не нужно обвешивать условиями.
+  // Без показа тапы не с чем сравнивать: «карточку не увидели» и «увидели и
+  // прошли мимо» — разные диагнозы, а от них зависит, что чинить.
+  useEffect(() => {
+    amplitude.track("last_entry_card_shown", { days_since: daysSince, has_text: hasText });
+  }, [entry.date, daysSince, hasText]);
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={() => {
+        amplitude.track("last_entry_card_tapped", { days_since: daysSince, has_text: hasText });
+        onPress();
+      }}
       activeOpacity={0.75}
       style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
     >
