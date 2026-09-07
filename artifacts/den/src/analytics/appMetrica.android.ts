@@ -3,6 +3,22 @@ import * as amplitude from "@amplitude/analytics-react-native";
 import { Identify } from "@amplitude/analytics-react-native";
 
 /**
+ * Метка источника для тех, у кого атрибуция не разобралась. Без неё все они
+ * сваливаются в разрезах в (none) вместе с теми, у кого свойство просто ещё не
+ * успело записаться, и органика становится неотличима от сбоя парсера.
+ * Play Store отдаёт органическую установку строкой с utm_medium=organic —
+ * по данным за 4-7 сентября именно она составляет большинство PARSE_ERROR.
+ */
+function fallbackRefFor(error: string, referrer?: string): string | null {
+  // Каждый запуск после первого — не отсутствие атрибуции, а её отсутствие
+  // здесь и сейчас; настоящее значение либо уже записано, либо не придёт.
+  if (error === "NOT_A_FIRST_LAUNCH") return null;
+  if (referrer?.includes("utm_medium=organic")) return "organic";
+  if (error === "NO_REFERRER") return "no_referrer";
+  return "unresolved";
+}
+
+/**
  * AppMetrica resolves the Google Play Install Referrer only on the very first
  * app launch after install — every later call fails with NOT_A_FIRST_LAUNCH,
  * so no local "already ran" guard is needed here.
@@ -30,6 +46,12 @@ function bridgeAcquisitionAttributionToAmplitude() {
       // access, what format actually broke the parser (macro casing/encoding
       // in the Yandex.Direct tracker link vs. AppMetrica's expected format).
       amplitude.track("deeplink_params_failed", { error, referrer: referrer?.slice(0, 500) });
+      const fallbackRef = fallbackRefFor(String(error), referrer);
+      if (fallbackRef) {
+        const identify = new Identify();
+        identify.setOnce("acq_ref", fallbackRef);
+        amplitude.identify(identify);
+      }
       // NOT_A_FIRST_LAUNCH is expected on every launch after the first.
       // NO_REFERRER/PARSE_ERROR/UNKNOWN mean no attribution data was found —
       // not an error worth surfacing to the user.
