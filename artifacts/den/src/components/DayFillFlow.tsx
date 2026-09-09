@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -191,6 +192,39 @@ export function DayFillFlow({
     setSelectedMood(m);
   }
 
+  // Момент входа в текущую фазу и общие свойства отвала. Нужны, чтобы
+  // отличить «открыл и сразу вышел» от «повозился и не смог»: по данным за
+  // сентябрь 12 отвалов из 14 приходятся на фазу mood, но неизвестно, трогал
+  // ли человек шкалу настроения вообще и сколько времени там провёл. От этого
+  // зависит, чинить трафик или экран.
+  const phaseEnteredAt = useRef(Date.now());
+  useEffect(() => { phaseEnteredAt.current = Date.now(); }, [phase]);
+
+  function abandonProps() {
+    return {
+      phase,
+      mode,
+      mood_selected: selectedMood !== null,
+      ms_on_phase: Date.now() - phaseEnteredAt.current,
+    };
+  }
+
+  // Уход в фон — единственный способ увидеть тех, кто не жмёт «назад», а
+  // просто закрывает приложение. Отдельное событие, а не fill_abandoned:
+  // подмешать их в существующую метрику значило бы порвать её историю.
+  // Шлём один раз за монтирование потока, иначе человек, отвлёкшийся на
+  // звонок и вернувшийся дописывать, насчитает себе несколько «уходов».
+  const _backgroundTracked = useRef(false);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next !== "background") return;
+      if (phase === "done" || _backgroundTracked.current) return;
+      _backgroundTracked.current = true;
+      amplitude.track("fill_backgrounded", abandonProps());
+    });
+    return () => sub.remove();
+  }, [phase, mode, selectedMood]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const _isFirstPhase = useRef(true);
   useEffect(() => {
     if (_isFirstPhase.current) { _isFirstPhase.current = false; return; }
@@ -266,7 +300,7 @@ export function DayFillFlow({
       setPhase("mood");
       return;
     }
-    amplitude.track("fill_abandoned", { phase, mode });
+    amplitude.track("fill_abandoned", abandonProps());
     onExit?.();
   }
 
