@@ -7,6 +7,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNotifications } from "@/src/context/NotificationContext";
 
 const ASK_DONE_KEY = "notif_ask_after_entry_done";
+const ASK_SHOWS_KEY = "notif_ask_after_entry_shows";
+// Карточка, которую человек трижды оставил без ответа, это тоже ответ.
+const MAX_IGNORED_SHOWS = 3;
 // Вечер, когда человек с наибольшей вероятностью сядет писать. Совпадает с
 // умолчанием, которое раньше предлагалось в онбординге.
 const DEFAULT_HOUR = 21;
@@ -30,7 +33,8 @@ interface ThemeColors {
  * что закрыл свой первый день — и «напомнить завтра вечером» читается как
  * продолжение того, что он сам сделал, а не как просьба приложения.
  *
- * Показывается один раз: дальше решение живёт в настройках.
+ * Показывается, пока человек не ответит, но не больше трёх раз: дальше
+ * решение живёт в настройках.
  */
 export function NotificationAskCard({ theme }: { theme: ThemeColors }) {
   const { notificationsEnabled, setNotificationTime, setNotificationsEnabled } = useNotifications();
@@ -43,8 +47,15 @@ export function NotificationAskCard({ theme }: { theme: ThemeColors }) {
       // На web локальных запланированных уведомлений нет — спрашивать не о чем.
       if (Platform.OS === "web") return;
       if (notificationsEnabled) return;
-      const asked = await AsyncStorage.getItem(ASK_DONE_KEY);
-      if (!cancelled && !asked) setVisible(true);
+      const [asked, showsRaw] = await Promise.all([
+        AsyncStorage.getItem(ASK_DONE_KEY),
+        AsyncStorage.getItem(ASK_SHOWS_KEY),
+      ]);
+      const shows = Number(showsRaw) || 0;
+      if (cancelled || asked || shows >= MAX_IGNORED_SHOWS) return;
+      await AsyncStorage.setItem(ASK_SHOWS_KEY, String(shows + 1)).catch(() => {});
+      amplitude.track("notification_ask_shown", { show_number: shows + 1 });
+      if (!cancelled) setVisible(true);
     })();
     return () => { cancelled = true; };
   }, [notificationsEnabled]);
