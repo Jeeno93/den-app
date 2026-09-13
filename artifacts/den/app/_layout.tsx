@@ -92,6 +92,7 @@ export default function RootLayout() {
     (async () => {
       let source: "notification" | "direct" = "direct";
       let notificationType: string | undefined;
+      let notificationVariant: string | undefined;
       if (Platform.OS !== "web") {
         try {
           const response = await Notifications.getLastNotificationResponseAsync();
@@ -99,10 +100,11 @@ export default function RootLayout() {
             source = "notification";
             const data = response.notification.request.content.data as Record<string, unknown>;
             notificationType = typeof data?.type === "string" ? data.type : "daily_reminder";
+            notificationVariant = typeof data?.variant === "string" ? data.variant : undefined;
           }
         } catch {}
       }
-      amplitude.track("app_opened", { source, notificationType });
+      amplitude.track("app_opened", { source, notificationType, notificationVariant });
     })();
   }, []);
 

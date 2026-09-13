@@ -43,6 +43,7 @@ import { QuestionCard } from "@/src/components/QuestionCard";
 import { NotesCard } from "@/src/components/NotesCard";
 import { FillModeSwitcher } from "@/src/components/FillModeSwitcher";
 import { NotificationAskCard } from "@/src/components/NotificationAskCard";
+import { cancelTodayReminder } from "@/src/utils/notifications";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
 import { STREAK_MILESTONES, getBadgeForMilestone, type StreakBadge } from "@/src/data/streakBadges";
 
@@ -399,7 +400,10 @@ export function DayFillFlow({
       date,
       mood: selectedMood,
       answers,
-      question: dayQuestion,
+      // Сохраняем вопрос, который человек действительно видел. При настроении
+      // 1–2 и при своих вопросах он отличается от вопроса дня из банка, и в
+      // истории ответ оказывался подписан чужим вопросом.
+      question: questionConfigs[4].getLabel(answers),
       notes,
       photos,
       proud,
@@ -431,6 +435,8 @@ export function DayFillFlow({
       );
       return;
     }
+
+    if (date === formatDate(new Date())) cancelTodayReminder();
 
     // Свойства по задачам — чтобы проверить гипотезу, что «задачи на завтра»
     // работают как причина вернуться: петля замыкается ровно через сутки, а
