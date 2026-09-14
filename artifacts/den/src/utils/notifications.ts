@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { formatDate, getAllDays, getDay } from "@/src/storage/storage";
+import { WEEKLY_MIN_ENTRIES, weekStartOf } from "@/src/utils/weeklySummary";
 import type { DayEntry } from "@/src/storage/storage";
 
 export const MEMORY_NOTIF_ID_KEY = "memory_notif_id";
@@ -70,6 +71,16 @@ const COMEBACK_INVITES: Invite[] = [
   { id: "comeback_here", body: "Den на месте, когда захочется записать день." },
 ];
 
+/** Воскресное напоминание недели, в которой записей хватает на итоги. */
+const WEEKLY_INVITE: Invite = {
+  id: "weekly_summary",
+  body: "Итоги твоей недели готовы: настроение, самый светлый день и то, что ты писал.",
+};
+
+// Ключи настроек напоминаний; ими же управляет NotificationContext.
+const NOTIF_TIME_KEY = "notification_time";
+const NOTIF_ENABLED_KEY = "notifications_enabled";
+
 // Дни от последнего открытия: каждый вечер первую неделю, затем по одному на
 // 10-й и 14-й день, дальше тишина. Раньше одно уведомление повторялось
 // бесконечно с одним и тем же текстом, и как раз у тех, кого оно должно было
@@ -121,6 +132,11 @@ export function scheduleDailyReminders(hour: number, minute: number): Promise<vo
       const now = new Date();
       // Если сегодняшний день уже записан, вечером напоминать не о чем.
       const writtenToday = Boolean(await getDay(formatDate(now)));
+      // Воскресенье этой недели получает приглашение к итогам вместо обычного
+      // напоминания, если записей уже хватает: два уведомления за вечер лишние.
+      const thisWeekStart = weekStartOf(formatDate(now));
+      const thisWeekEntries = (await getAllDays()).filter((e) => weekStartOf(e.date) === thisWeekStart).length;
+      const weeklyReady = thisWeekEntries >= WEEKLY_MIN_ENTRIES;
       const plan = [
         ...DAILY_OFFSETS.map((offset) => ({ offset, pool: DAILY_INVITES })),
         ...COMEBACK_OFFSETS.map((offset, i) => ({ offset, pool: [COMEBACK_INVITES[i % COMEBACK_INVITES.length]] })),
@@ -132,12 +148,16 @@ export function scheduleDailyReminders(hour: number, minute: number): Promise<vo
         if (fireDate <= now) continue;
         // Вариант привязан к дате, а не к порядку: перепланирование в тот же
         // день не меняет текст, а соседние дни получают разные тексты.
-        const invite = pool[dayOfYear(fireDate) % pool.length];
+        const isWeeklySunday =
+          weeklyReady && fireDate.getDay() === 0 && weekStartOf(formatDate(fireDate)) === thisWeekStart;
+        const invite = isWeeklySunday ? WEEKLY_INVITE : pool[dayOfYear(fireDate) % pool.length];
         const id = await Notifications.scheduleNotificationAsync({
           content: {
             title: "Den",
             body: invite.body,
-            data: { type: "daily_reminder", variant: invite.id },
+            data: isWeeklySunday
+              ? { type: "weekly_summary", variant: invite.id, weekStart: thisWeekStart }
+              : { type: "daily_reminder", variant: invite.id },
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -160,23 +180,20 @@ export function cancelDailyReminders(): Promise<void> {
   });
 }
 
-/** Сегодняшний день записан: вечернее напоминание уже ни к чему. */
-export function cancelTodayReminder(): Promise<void> {
-  if (Platform.OS === "web") return Promise.resolve();
-  return enqueue(async () => {
-    try {
-      const today = formatDate(new Date());
-      const keep: ScheduledReminder[] = [];
-      for (const r of await readScheduledReminders()) {
-        if (r.date === today) {
-          try { await Notifications.cancelScheduledNotificationAsync(r.id); } catch {}
-        } else {
-          keep.push(r);
-        }
-      }
-      await AsyncStorage.setItem(REMINDERS_KEY, JSON.stringify(keep));
-    } catch {}
-  });
+/** Перепланирует напоминания по сохранённым настройкам, если они разрешены. */
+export async function refreshDailyReminders(): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") return;
+    const [timeVal, enabledVal] = await Promise.all([
+      AsyncStorage.getItem(NOTIF_TIME_KEY),
+      AsyncStorage.getItem(NOTIF_ENABLED_KEY),
+    ]);
+    if (enabledVal === "false") return;
+    const [h, m] = timeVal ? timeVal.split(":").map(Number) : [21, 0];
+    await scheduleDailyReminders(h, m);
+  } catch {}
 }
 
 export async function scheduleMemoryNotification(): Promise<string | null> {

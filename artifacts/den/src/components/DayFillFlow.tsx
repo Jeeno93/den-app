@@ -29,6 +29,7 @@ import {
   getCustomQuestions,
   hasAnyCustomQuestion,
   getStreak,
+  getAllDays,
   getLastCelebratedMilestone,
   setLastCelebratedMilestone,
 } from "@/src/storage/storage";
@@ -43,7 +44,10 @@ import { QuestionCard } from "@/src/components/QuestionCard";
 import { NotesCard } from "@/src/components/NotesCard";
 import { FillModeSwitcher } from "@/src/components/FillModeSwitcher";
 import { NotificationAskCard } from "@/src/components/NotificationAskCard";
-import { cancelTodayReminder } from "@/src/utils/notifications";
+import { MaskView } from "@/src/components/MaskView";
+import { refreshDailyReminders } from "@/src/utils/notifications";
+import { pickDayReply, type DayReply } from "@/src/utils/dayReply";
+import { tagLookup } from "@/src/utils/entryText";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
 import { STREAK_MILESTONES, getBadgeForMilestone, type StreakBadge } from "@/src/data/streakBadges";
 
@@ -171,6 +175,7 @@ export function DayFillFlow({
 
   // Стрик-майлстоун, отмеченный именно этим сохранением (для done-экрана)
   const [celebratedMilestone, setCelebratedMilestone] = useState<{ days: number; badge: StreakBadge } | null>(null);
+  const [dayReply, setDayReply] = useState<DayReply | null>(null);
 
   const doneOpacity = useRef(new Animated.Value(0)).current;
   const doneScale = useRef(new Animated.Value(0.9)).current;
@@ -436,7 +441,9 @@ export function DayFillFlow({
       return;
     }
 
-    if (date === formatDate(new Date())) cancelTodayReminder();
+    // Запись меняет план напоминаний: сегодняшнее больше не нужно, а
+    // воскресное может стать приглашением к итогам недели.
+    refreshDailyReminders();
 
     // Свойства по задачам — чтобы проверить гипотезу, что «задачи на завтра»
     // работают как причина вернуться: петля замыкается ровно через сутки, а
@@ -470,6 +477,23 @@ export function DayFillFlow({
       }
     } catch (err) {
       console.warn("[DayFillFlow] streak milestone check failed (non-fatal):", err);
+    }
+
+    // Реплика на экране «День записан» — факт из записей самого человека.
+    // Только для сегодняшнего дня: «второй день подряд» про день, заполненный
+    // задним числом, звучал бы странно.
+    if (date === formatDate(new Date())) {
+      try {
+        const [allDays, tags] = await Promise.all([getAllDays(), getTags()]);
+        const reply = pickDayReply(entry, allDays, tagLookup(tags));
+        setDayReply(reply);
+        if (reply) amplitude.track("day_reply_shown", { reply_id: reply.id });
+      } catch (err) {
+        console.warn("[DayFillFlow] day reply failed (non-fatal):", err);
+        setDayReply(null);
+      }
+    } else {
+      setDayReply(null);
     }
 
     setPhase("done");
@@ -506,6 +530,12 @@ export function DayFillFlow({
             </View>
             <Text style={[styles.doneTitle, { color: theme.foreground }]}>День записан.</Text>
             <Text style={[styles.doneSub, { color: theme.mutedForeground }]}>Увидимся завтра.</Text>
+
+            {dayReply && (
+              <MaskView style={styles.doneReplyWrap}>
+                <Text style={[styles.doneReply, { color: theme.foreground }]}>{dayReply.text}</Text>
+              </MaskView>
+            )}
 
             {/* Сюда переехал запрос разрешения на уведомления из онбординга:
                 человек только что закрыл свой день, и «напомнить завтра»
@@ -893,6 +923,8 @@ const styles = StyleSheet.create({
   },
   doneTitle: { fontSize: 28, fontWeight: "700", textAlign: "center", letterSpacing: -0.5 },
   doneSub: { fontSize: 18, textAlign: "center" },
+  doneReplyWrap: { maxWidth: 320, marginTop: 4 },
+  doneReply: { fontSize: 16, lineHeight: 23, textAlign: "center" },
   doneButton: {
     marginTop: 16,
     paddingHorizontal: 24,

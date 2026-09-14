@@ -25,6 +25,7 @@ import type { DayEntry } from "@/src/storage/storage";
 import { DayEntryView } from "@/src/components/DayEntry";
 import { DayFillFlow } from "@/src/components/DayFillFlow";
 import { LastEntryCard } from "@/src/components/LastEntryCard";
+import { WeeklySummaryCard } from "@/src/components/WeeklySummaryCard";
 import { DeepNudgeBanner } from "@/src/components/DeepNudgeBanner";
 import { getMoodColor } from "@/src/components/MoodPicker";
 
@@ -282,6 +283,7 @@ export default function HomeScreen() {
             <Text style={[styles.doneBadgeText, { color: theme.primary }]}>Записано</Text>
           </View>
         </View>
+        {isToday && <WeeklySummaryCard todayStr={todayStr} theme={theme} />}
         {moodStrip}
         <DayEntryView key={existingEntry.date} entry={existingEntry} dayQuestion={existingEntry.question || dayQuestion} />
         {nudge}
@@ -299,6 +301,7 @@ export default function HomeScreen() {
         header={
           <>
             <NavHeader />
+            {isToday && <WeeklySummaryCard todayStr={todayStr} theme={theme} />}
             {moodStrip}
             {lastEntry && (
               <LastEntryCard

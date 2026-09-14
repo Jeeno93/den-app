@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { AppState, Platform } from "react-native";
 import { router } from "expo-router";
 import {
+  refreshDailyReminders,
   scheduleDailyReminders,
   cancelDailyReminders,
   scheduleMemoryNotification,
@@ -107,17 +108,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // жить в фоне сутками, поэтому перепланируем и при каждом возвращении.
   useEffect(() => {
     if (Platform.OS === "web") return;
-    const sub = AppState.addEventListener("change", async (next) => {
-      if (next !== "active") return;
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== "granted") return;
-      const [timeVal, enabledVal] = await Promise.all([
-        AsyncStorage.getItem(NOTIF_TIME_KEY),
-        AsyncStorage.getItem(NOTIF_ENABLED_KEY),
-      ]);
-      if (enabledVal === "false") return;
-      const [h, m] = timeVal ? timeVal.split(":").map(Number) : [21, 0];
-      scheduleDailyReminders(h, m);
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") refreshDailyReminders();
     });
     return () => sub.remove();
   }, []);
@@ -135,6 +127,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (data?.type === "memory" && typeof data?.date === "string") {
         setTimeout(() => {
           router.push({ pathname: "/day-detail", params: { date: data.date as string } } as any);
+        }, 300);
+      } else if (data?.type === "weekly_summary") {
+        const start = typeof data?.weekStart === "string" ? data.weekStart : "";
+        setTimeout(() => {
+          router.push({ pathname: "/week-summary", params: { start, source: "notification" } } as any);
         }, 300);
       } else if (data?.type === "letter") {
         setTimeout(() => {
