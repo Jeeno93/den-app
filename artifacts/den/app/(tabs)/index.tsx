@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  AppState,
   Platform,
   StyleSheet,
   Text,
@@ -116,23 +117,49 @@ export default function HomeScreen() {
   const viewFade = useRef(new Animated.Value(1)).current;
   const isFirstLoad = useRef(true);
 
+  const loadWeek = useCallback(async () => {
+    const today = new Date();
+    const dates: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      dates.push(formatDate(d));
+    }
+    const entries = await Promise.all(dates.map((d) => getDay(d)));
+    setWeekData(dates.map((date, i) => ({ date, entry: entries[i] })));
+  }, []);
+
+  // Экран перечитывал данные только при переходе на вкладку. Приложение же
+  // часто живёт в фоне сутками, и утром человек видел вчерашний «Записано»
+  // вместо сегодняшнего дня, а карточка «Вчера ты писал» не знала о вчерашней
+  // записи и показывала позавчерашнюю или не показывалась вовсе.
+  const loadedForDay = useRef(getTodayStr());
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+
   useFocusEffect(
     useCallback(() => {
+      loadedForDay.current = getTodayStr();
       setViewDate(getTodayStr());
       shouldShowDeepNudge().then(setShowNudge);
-      (async () => {
-        const today = new Date();
-        const dates: string[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(today);
-          d.setDate(d.getDate() - i);
-          dates.push(formatDate(d));
-        }
-        const entries = await Promise.all(dates.map((d) => getDay(d)));
-        setWeekData(dates.map((date, i) => ({ date, entry: entries[i] })));
-      })();
-    }, [])
+      loadWeek();
+    }, [loadWeek])
   );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return;
+      const today = getTodayStr();
+      if (today === loadedForDay.current) return;
+      loadedForDay.current = today;
+      loadWeek();
+      // Незаконченную запись не выбрасываем: если человек начал заполнять
+      // день до полуночи, он и сохранится этим днём. Переключаемся на новый
+      // день, только когда на экране уже записанный.
+      if (screenRef.current === "view") setViewDate(today);
+    });
+    return () => sub.remove();
+  }, [loadWeek]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,6 +345,7 @@ export default function HomeScreen() {
         applyDeepSignal={deepSignal}
         onSaved={(entry) => {
           setExistingEntry(entry);
+          loadWeek();
           shouldShowDeepNudge().then(setShowNudge);
         }}
         onView={() => setScreen("view")}

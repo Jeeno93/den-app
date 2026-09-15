@@ -19,6 +19,7 @@ import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
 import { savePhoto, deletePhoto } from "@/src/utils/photoStorage";
+import { withSystemUi } from "@/src/utils/systemUi";
 
 const MAX_PHOTOS = 3;
 
@@ -40,16 +41,16 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
   const theme = isDark ? colors.dark : colors.light;
 
   async function pickFromCamera() {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status } = await withSystemUi(() => ImagePicker.requestCameraPermissionsAsync());
     if (status !== "granted") {
       Alert.alert("Нет доступа", "Разрешите доступ к камере в настройках устройства.");
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
+    const result = await withSystemUi(() => ImagePicker.launchCameraAsync({
       mediaTypes: "images",
       allowsEditing: false,
       quality: 0.7,
-    });
+    }));
     if (!result.canceled && result.assets[0]?.uri) {
       try {
         const path = await savePhoto(result.assets[0].uri);
@@ -62,16 +63,16 @@ export function NotesCard({ value, onChange, photos, onPhotosChange, proud, onPr
   }
 
   async function pickFromGallery() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await withSystemUi(() => ImagePicker.requestMediaLibraryPermissionsAsync());
     if (status !== "granted") {
       Alert.alert("Нет доступа", "Разрешите доступ к галерее в настройках устройства.");
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await withSystemUi(() => ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       allowsEditing: false,
       quality: 0.7,
-    });
+    }));
     if (!result.canceled && result.assets[0]?.uri) {
       try {
         const path = await savePhoto(result.assets[0].uri);

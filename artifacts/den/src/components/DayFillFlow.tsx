@@ -46,6 +46,7 @@ import { FillModeSwitcher } from "@/src/components/FillModeSwitcher";
 import { NotificationAskCard } from "@/src/components/NotificationAskCard";
 import { MaskView } from "@/src/components/MaskView";
 import { refreshDailyReminders } from "@/src/utils/notifications";
+import { isSystemUiOpen } from "@/src/utils/systemUi";
 import { pickDayReply, type DayReply } from "@/src/utils/dayReply";
 import { tagLookup } from "@/src/utils/entryText";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
@@ -224,7 +225,10 @@ export function DayFillFlow({
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
       if (next !== "background") return;
-      if (phase === "done" || _backgroundTracked.current) return;
+      // Камера и галерея «Фото дня» тоже уводят приложение в фон — это не
+      // уход. Одноразовую пометку при этом не тратим, иначе настоящий уход
+      // после выбора фото остался бы незамеченным.
+      if (phase === "done" || _backgroundTracked.current || isSystemUiOpen()) return;
       _backgroundTracked.current = true;
       amplitude.track("fill_backgrounded", abandonProps());
     });
