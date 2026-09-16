@@ -11,6 +11,7 @@ import {
   scheduleMemoryNotification,
   cancelMemoryNotification,
 } from "@/src/utils/notifications";
+import { claimNotificationResponse } from "@/src/utils/notificationOpen";
 
 const NOTIF_TIME_KEY = "notification_time";
 const NOTIF_ENABLED_KEY = "notifications_enabled";
@@ -124,6 +125,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const notificationType = typeof data?.type === "string" ? data.type : "daily_reminder";
       const variant = typeof data?.variant === "string" ? data.variant : undefined;
       amplitude.track("notification_tapped", { type: notificationType, variant });
+      // Запоминаем тап, чтобы следующий обычный запуск не записался в
+      // app_opened как открытие по уведомлению.
+      claimNotificationResponse(response);
       if (data?.type === "memory" && typeof data?.date === "string") {
         setTimeout(() => {
           router.push({ pathname: "/day-detail", params: { date: data.date as string } } as any);

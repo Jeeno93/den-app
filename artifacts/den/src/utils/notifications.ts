@@ -120,6 +120,21 @@ async function cancelAllReminders(): Promise<void> {
   for (const id of ids) {
     try { await Notifications.cancelScheduledNotificationAsync(id); } catch {}
   }
+  // Одного сохранённого id мало: у обновившихся пользователей старое
+  // напоминание «Вопрос дня» продолжало приходить (15–16 сентября тапы по
+  // нему без метки варианта). Прошлые версии могли оставить копии или
+  // потерять id, поэтому узнаём старые напоминания по содержимому: у них нет
+  // пометки типа, либо это daily_reminder без варианта. Воспоминания, письма
+  // и итоги недели помечены своим типом и не затрагиваются.
+  try {
+    for (const scheduled of await Notifications.getAllScheduledNotificationsAsync()) {
+      const data = (scheduled.content.data ?? {}) as Record<string, unknown>;
+      const isLegacyReminder = !data.type || (data.type === "daily_reminder" && !data.variant);
+      if (isLegacyReminder) {
+        try { await Notifications.cancelScheduledNotificationAsync(scheduled.identifier); } catch {}
+      }
+    }
+  } catch {}
   await AsyncStorage.multiRemove([REMINDERS_KEY, LEGACY_REMINDER_ID_KEY, LEGACY_REMINDER_DATE_KEY]);
 }
 

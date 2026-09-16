@@ -24,6 +24,7 @@ import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
 import { compactPhotoStorage, getAllDays, getLastKnownStreak, getStreak, setLastKnownStreak } from "@/src/storage/storage";
 import { initAppMetrica, reportDiagnosticEvent } from "@/src/analytics/appMetrica";
+import { claimNotificationResponse, isRecentNotificationResponse } from "@/src/utils/notificationOpen";
 
 amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
 // Резолвится в sessionReplay.android.ts на Android, sessionReplay.ts (no-op)
@@ -97,7 +98,7 @@ export default function RootLayout() {
       if (Platform.OS !== "web") {
         try {
           const response = await Notifications.getLastNotificationResponseAsync();
-          if (response) {
+          if (response && isRecentNotificationResponse(response) && (await claimNotificationResponse(response))) {
             source = "notification";
             const data = response.notification.request.content.data as Record<string, unknown>;
             notificationType = typeof data?.type === "string" ? data.type : "daily_reminder";
