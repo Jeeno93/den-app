@@ -116,13 +116,13 @@ export function pickDayReply(
     return { id: "low_written", text: "Записать тяжёлый день — тоже забота о себе." };
   }
 
-  // Слова из прошлого — только из хорошего дня.
-  for (const [months, id, label] of [[-12, "year_ago", "Год"], [-1, "month_ago", "Месяц"]] as const) {
-    const pastDate = shiftMonths(today, months);
-    const past = pastDate ? byDate.get(pastDate) : undefined;
-    const quote = past && past.mood >= 3 ? entryQuote(past) : null;
-    if (quote) return { id, text: `${label} назад в этот день ты писал: «${quote}»` };
-  }
+  // Слова из прошлого — только из хорошего дня и только год назад. «Месяц
+  // назад» уже есть во вкладке «Воспоминания», и у регулярно пишущих он
+  // выпадал бы почти каждый вечер, заслоняя то, чего больше нигде нет.
+  const yearAgoDate = shiftMonths(today, -12);
+  const yearAgo = yearAgoDate ? byDate.get(yearAgoDate) : undefined;
+  const yearAgoQuote = yearAgo && yearAgo.mood >= 3 ? entryQuote(yearAgo) : null;
+  if (yearAgoQuote) return { id: "year_ago", text: `Год назад в этот день ты писал: «${yearAgoQuote}»` };
 
   const dow = parseDay(today).getDay();
   const forms = WEEKDAY_FORMS[dow];
