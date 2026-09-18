@@ -1,11 +1,9 @@
-import { formatDate } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { getMoodEmoji } from "@/src/components/MoodPicker";
 import { STREAK_MILESTONES } from "@/src/data/streakBadges";
 import {
   addDays,
   daysBetween,
-  entryQuote,
   formatDayMonth,
   parseDay,
   plural,
@@ -39,14 +37,6 @@ function agoPhrase(days: number): string {
   if (days === 2) return "Позавчера";
   if (days === 7) return "Неделю назад";
   return `${days} ${daysWord(days)} назад`;
-}
-
-/** Тот же день месяца со сдвигом; для 31 марта месяц назад такого дня нет. */
-function shiftMonths(dateStr: string, months: number): string | null {
-  const d = parseDay(dateStr);
-  const day = d.getDate();
-  d.setMonth(d.getMonth() + months);
-  return d.getDate() === day ? formatDate(d) : null;
 }
 
 /**
@@ -116,13 +106,9 @@ export function pickDayReply(
     return { id: "low_written", text: "Записать тяжёлый день — тоже забота о себе." };
   }
 
-  // Слова из прошлого — только из хорошего дня и только год назад. «Месяц
-  // назад» уже есть во вкладке «Воспоминания», и у регулярно пишущих он
-  // выпадал бы почти каждый вечер, заслоняя то, чего больше нигде нет.
-  const yearAgoDate = shiftMonths(today, -12);
-  const yearAgo = yearAgoDate ? byDate.get(yearAgoDate) : undefined;
-  const yearAgoQuote = yearAgo && yearAgo.mood >= 3 ? entryQuote(yearAgo) : null;
-  if (yearAgoQuote) return { id: "year_ago", text: `Год назад в этот день ты писал: «${yearAgoQuote}»` };
+  // Цитат «месяц назад» и «год назад» здесь нет намеренно: они уже есть во
+  // вкладке «Воспоминания», а у тех, кто пишет регулярно, выпадали бы почти
+  // каждый вечер и заслоняли реплики, которых больше нигде нет.
 
   const dow = parseDay(today).getDay();
   const forms = WEEKDAY_FORMS[dow];
