@@ -47,8 +47,8 @@ import { NotificationAskCard } from "@/src/components/NotificationAskCard";
 import { MaskView } from "@/src/components/MaskView";
 import { refreshDailyReminders } from "@/src/utils/notifications";
 import { isSystemUiOpen } from "@/src/utils/systemUi";
-import { pickDayReply, type DayReply } from "@/src/utils/dayReply";
-import { tagLookup } from "@/src/utils/entryText";
+import { pickDayReply, readShownReplies, rememberShownReply, type DayReply } from "@/src/utils/dayReply";
+import { addDays, tagLookup } from "@/src/utils/entryText";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
 import { STREAK_MILESTONES, getBadgeForMilestone, type StreakBadge } from "@/src/data/streakBadges";
 
@@ -488,10 +488,13 @@ export function DayFillFlow({
     // задним числом, звучал бы странно.
     if (date === formatDate(new Date())) {
       try {
-        const [allDays, tags] = await Promise.all([getAllDays(), getTags()]);
-        const reply = pickDayReply(entry, allDays, tagLookup(tags));
+        const [allDays, tags, shown] = await Promise.all([getAllDays(), getTags(), readShownReplies()]);
+        const reply = pickDayReply(entry, allDays, tagLookup(tags), shown[addDays(date, -1)] ?? null);
         setDayReply(reply);
-        if (reply) amplitude.track("day_reply_shown", { reply_id: reply.id });
+        if (reply) {
+          amplitude.track("day_reply_shown", { reply_id: reply.id });
+          rememberShownReply(date, reply.id, shown);
+        }
       } catch (err) {
         console.warn("[DayFillFlow] day reply failed (non-fatal):", err);
         setDayReply(null);

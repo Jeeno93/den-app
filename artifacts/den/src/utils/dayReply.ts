@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { getMoodEmoji } from "@/src/components/MoodPicker";
 import { STREAK_MILESTONES } from "@/src/data/streakBadges";
@@ -17,17 +18,34 @@ export interface DayReply {
   text: string;
 }
 
-const WEEKDAY_FORMS: Record<number, { second: string; third: string; noun: string }> = {
-  0: { second: "Второе", third: "Третье", noun: "воскресенье" },
-  1: { second: "Второй", third: "Третий", noun: "понедельник" },
-  2: { second: "Второй", third: "Третий", noun: "вторник" },
-  3: { second: "Вторая", third: "Третья", noun: "среда" },
-  4: { second: "Второй", third: "Третий", noun: "четверг" },
-  5: { second: "Вторая", third: "Третья", noun: "пятница" },
-  6: { second: "Вторая", third: "Третья", noun: "суббота" },
+const WEEKDAY_FORMS: Record<number, { third: string; noun: string }> = {
+  0: { third: "Третье", noun: "воскресенье" },
+  1: { third: "Третий", noun: "понедельник" },
+  2: { third: "Третий", noun: "вторник" },
+  3: { third: "Третья", noun: "среда" },
+  4: { third: "Третий", noun: "четверг" },
+  5: { third: "Третья", noun: "пятница" },
+  6: { third: "Третья", noun: "суббота" },
 };
 
 const ENTRY_COUNT_MILESTONES = [10, 25, 50, 100, 150, 200, 300, 365, 500, 730, 1000];
+
+// «N-й день подряд» каждый вечер быстро перестают читать, поэтому серия
+// отмечается только на отдельных днях. Круглые серии отмечает плашка
+// достижения, их здесь нет.
+const STREAK_REPLY_DAYS = [5, 10, 14, 21];
+
+function isStreakReplyDay(streak: number): boolean {
+  if ((STREAK_MILESTONES as readonly number[]).includes(streak)) return false;
+  return STREAK_REPLY_DAYS.includes(streak) || (streak > 30 && streak % 10 === 0);
+}
+
+// Тег, который стоит в большинстве записей, — рутина: «третья среда подряд
+// ты отмечаешь «Работа»» не открытие. Считаем только у тех, кто пишет
+// достаточно часто, иначе у пишущих раз в неделю любой тег выглядел бы рутиной.
+const ROUTINE_WINDOW_DAYS = 28;
+const ROUTINE_MIN_ENTRIES = 8;
+const ROUTINE_SHARE = 0.5;
 
 function daysWord(n: number): string {
   return plural(n, ["день", "дня", "дней"]);
@@ -48,12 +66,18 @@ function agoPhrase(days: number): string {
  * никаких причинно-следственных утверждений (урок экрана паттернов, где
  * корреляции не пережили проверку) и ничего бодрого в тяжёлый день.
  *
- * `all` — все записи, включая только что сохранённую.
+ * Подходящие правила собираются по порядку, от более редкого и личного к
+ * общему. Реплика, показанная вчера, второй вечер подряд не повторяется:
+ * берётся следующая, а если другой нет — лучше промолчать.
+ *
+ * `all` — все записи, включая только что сохранённую;
+ * `yesterdayReplyId` — id реплики, показанной вчера, если была.
  */
 export function pickDayReply(
   entry: DayEntry,
   all: DayEntry[],
   tagInfo: (id: string) => TagInfo | null,
+  yesterdayReplyId: string | null = null,
 ): DayReply | null {
   const today = entry.date;
   const byDate = new Map(all.map((e) => [e.date, e]));
@@ -88,8 +112,11 @@ export function pickDayReply(
     };
   }
 
+  const candidates: DayReply[] = [];
+  const pick = () => candidates.find((c) => c.id !== yesterdayReplyId) ?? null;
+
   // Тяжёлый день: только поддержка, и только если за ней стоит факт из
-  // его же дневника. Цитаты и «самые светлые дни» тут неуместны.
+  // его же дневника. «Самые светлые дни» и счётчики тут неуместны.
   if (entry.mood <= 2) {
     for (let i = earlier.length - 1; i >= 0; i--) {
       const low = byDate.get(earlier[i])!;
@@ -101,65 +128,99 @@ export function pickDayReply(
       if (!better) continue;
       const gap = daysBetween(low.date, better.date);
       const when = gap === 1 ? "На следующий день" : `Через ${gap} ${daysWord(gap)}`;
-      return { id: "low_then_better", text: `Похожий день был ${formatDayMonth(low.date)}. ${when} стало лучше.` };
+      candidates.push({ id: "low_then_better", text: `Похожий день был ${formatDayMonth(low.date)}. ${when} стало лучше.` });
+      break;
     }
-    return { id: "low_written", text: "Записать тяжёлый день — тоже забота о себе." };
+    candidates.push({ id: "low_written", text: "Записать тяжёлый день — тоже забота о себе." });
+    return pick();
   }
 
-  // Цитат «месяц назад» и «год назад» здесь нет намеренно: они уже есть во
-  // вкладке «Воспоминания», а у тех, кто пишет регулярно, выпадали бы почти
-  // каждый вечер и заслоняли реплики, которых больше нигде нет.
-
   const dow = parseDay(today).getDay();
-  const forms = WEEKDAY_FORMS[dow];
   const tagsOf = (e: DayEntry | undefined) => (e ? [...e.places, ...e.activities] : []);
-  const weekAgo = tagsOf(byDate.get(addDays(today, -7)));
-  const twoWeeksAgo = tagsOf(byDate.get(addDays(today, -14)));
-  let secondWeekTag: TagInfo | null = null;
+
+  // Тег в этот день недели три недели подряд — один раз на серию: на
+  // четвёртой неделе это уже не новость. Рутинные теги не считаются.
+  const recent = dates
+    .filter((d) => daysBetween(d, today) < ROUTINE_WINDOW_DAYS)
+    .map((d) => byDate.get(d)!);
+  const isRoutine = (id: string) =>
+    recent.length >= ROUTINE_MIN_ENTRIES &&
+    recent.filter((e) => tagsOf(e).includes(id)).length / recent.length > ROUTINE_SHARE;
   for (const id of new Set(tagsOf(entry))) {
-    if (!weekAgo.includes(id)) continue;
+    let weeks = 1;
+    while (tagsOf(byDate.get(addDays(today, -7 * weeks))).includes(id)) weeks++;
+    if (weeks !== 3 || isRoutine(id)) continue;
     const info = tagInfo(id);
     if (!info) continue;
-    if (twoWeeksAgo.includes(id)) {
-      return { id: "third_weekday_tag", text: `${forms.third} ${forms.noun} подряд ты отмечаешь «${info.label}».` };
-    }
-    secondWeekTag ??= info;
+    const forms = WEEKDAY_FORMS[dow];
+    candidates.push({ id: "weekday_tag", text: `${forms.third} ${forms.noun} подряд ты отмечаешь «${info.label}».` });
+    break;
   }
 
   const lastMonth = earlier.filter((d) => daysBetween(d, today) <= 30).map((d) => byDate.get(d)!);
   if (entry.mood >= 4 && lastMonth.length >= 5 && lastMonth.every((e) => e.mood < entry.mood)) {
-    return { id: "brightest_month", text: "Самый светлый день за последний месяц." };
+    candidates.push({ id: "brightest_month", text: "Самый светлый день за последний месяц." });
   }
 
-  if (secondWeekTag) {
-    return { id: "second_weekday_tag", text: `${forms.second} ${forms.noun} подряд ты отмечаешь «${secondWeekTag.label}».` };
-  }
-
-  // Круглые серии уже отмечает плашка достижения, дублировать её не нужно.
-  if (streak >= 4 && !(STREAK_MILESTONES as readonly number[]).includes(streak)) {
-    return { id: "streak", text: `${streak}-й день подряд.` };
+  if (streak >= 4 && isStreakReplyDay(streak)) {
+    candidates.push({ id: "streak", text: `${streak}-й день подряд.` });
   }
 
   if (ENTRY_COUNT_MILESTONES.includes(count)) {
-    return { id: "entry_count", text: `Это ${count}-я запись в дневнике.` };
+    candidates.push({ id: "entry_count", text: `Это ${count}-я запись в дневнике.` });
   }
 
   // Запасной вариант: связать сегодняшнюю запись с итогами недели.
   const weekStart = weekStartOf(today);
   const weekCount = dates.filter((d) => d >= weekStart && d <= today).length;
   if (dow === 0) {
-    return weekCount >= WEEKLY_MIN_ENTRIES
-      ? { id: "weekly_ready", text: "Итоги недели готовы, они на главном экране." }
-      : null;
+    if (weekCount >= WEEKLY_MIN_ENTRIES) {
+      candidates.push({ id: "weekly_ready", text: "Итоги недели готовы, они на главном экране." });
+    }
+  } else if (weekCount >= WEEKLY_MIN_ENTRIES) {
+    // Только в вечер, когда записей стало хватать: дальше это уже не новость,
+    // а у пишущих каждый день она выпадала бы через вечер до воскресенья.
+    if (weekCount === WEEKLY_MIN_ENTRIES) {
+      candidates.push({ id: "weekly_soon", text: "В воскресенье соберём итоги твоей недели." });
+    }
+  } else {
+    const needed = WEEKLY_MIN_ENTRIES - weekCount;
+    const daysLeftInWeek = 6 - ((dow + 6) % 7);
+    if (needed <= daysLeftInWeek) {
+      candidates.push({
+        id: "weekly_progress",
+        text: `Ещё ${needed} ${plural(needed, ["запись", "записи", "записей"])} на этой неделе, и в воскресенье будут итоги.`,
+      });
+    }
   }
-  if (weekCount >= WEEKLY_MIN_ENTRIES) {
-    return { id: "weekly_soon", text: "В воскресенье соберём итоги твоей недели." };
+
+  return pick();
+}
+
+// Какая реплика показывалась в какой день — чтобы не повторить вчерашнюю.
+const SHOWN_REPLIES_KEY = "day_replies_shown";
+const SHOWN_REPLIES_KEEP = 7;
+
+export async function readShownReplies(): Promise<Record<string, string>> {
+  try {
+    const raw = await AsyncStorage.getItem(SHOWN_REPLIES_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
   }
-  const needed = WEEKLY_MIN_ENTRIES - weekCount;
-  const daysLeftInWeek = 6 - ((dow + 6) % 7);
-  if (needed > daysLeftInWeek) return null;
-  return {
-    id: "weekly_progress",
-    text: `Ещё ${needed} ${plural(needed, ["запись", "записи", "записей"])} на этой неделе, и в воскресенье будут итоги.`,
-  };
+}
+
+export async function rememberShownReply(
+  date: string,
+  id: string,
+  shown: Record<string, string>,
+): Promise<void> {
+  const next = { ...shown, [date]: id };
+  const kept = Object.keys(next).sort().slice(-SHOWN_REPLIES_KEEP);
+  try {
+    await AsyncStorage.setItem(
+      SHOWN_REPLIES_KEY,
+      JSON.stringify(Object.fromEntries(kept.map((d) => [d, next[d]]))),
+    );
+  } catch {}
 }
