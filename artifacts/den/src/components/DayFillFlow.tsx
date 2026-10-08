@@ -332,12 +332,12 @@ export function DayFillFlow({
 
   const questionConfigs = [
     {
-      getLabel: () => cq.learned?.trim() || (isSoftMood ? SOFT_QUESTION_LABELS[0] : "Что сегодня узнал?"),
+      getLabel: () => cq.learned?.trim() || (isSoftMood ? SOFT_QUESTION_LABELS[0] : "Что сегодня удалось узнать?"),
       getValue: (a: DayAnswers) => a.learned,
       setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, learned: v }),
     },
     {
-      getLabel: () => cq.met?.trim() || (isSoftMood ? SOFT_QUESTION_LABELS[1] : "Кого встретил или вспомнил?"),
+      getLabel: () => cq.met?.trim() || (isSoftMood ? SOFT_QUESTION_LABELS[1] : "Кого сегодня довелось встретить или вспомнить?"),
       getValue: (a: DayAnswers) => a.met,
       setValue: (a: DayAnswers, v: string): DayAnswers => ({ ...a, met: v }),
     },

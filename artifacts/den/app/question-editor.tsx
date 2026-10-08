@@ -22,8 +22,8 @@ import { getDayQuestion, DEFAULT_QUESTION_LABELS } from "@/src/data/questions";
 const KEYS: (keyof CustomQuestions)[] = ["learned", "met", "positive", "negative", "dayQuestion"];
 
 const SECTION_TITLES = [
-  "Что узнал?",
-  "Кого встретил?",
+  "Новое за день",
+  "Встречи",
   "Позитивный момент",
   "Негативный момент",
   "Вопрос дня",

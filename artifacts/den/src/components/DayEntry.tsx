@@ -33,8 +33,8 @@ const MAX_PHOTOS = 3;
 const { width: SCREEN_W } = Dimensions.get("window");
 
 const QUESTION_LABELS: Record<string, string> = {
-  learned: "Что узнал сегодня?",
-  met: "Кого встретил или вспомнил?",
+  learned: "Что сегодня удалось узнать?",
+  met: "Кого сегодня довелось встретить или вспомнить?",
   dayQuestion: "Вопрос дня",
 };
 

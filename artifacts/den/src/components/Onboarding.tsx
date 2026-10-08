@@ -45,7 +45,7 @@ const SLIDES = [
   {
     image: require('../../assets/images/onboarding2.png'),
     title: 'Пять вопросов каждый вечер',
-    subtitle: 'Что узнал, кого встретил,\nчто рассмешило — всё займёт 2 минуты.',
+    subtitle: 'Что нового, кто встретился,\nчто рассмешило — всё займёт 2 минуты.',
   },
   {
     image: require('../../assets/images/onboarding3.png'),

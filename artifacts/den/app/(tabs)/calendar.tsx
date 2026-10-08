@@ -37,8 +37,8 @@ function formatDateRu(dateStr: string): string {
 }
 
 const SEARCH_FIELDS: Array<{ key: string; label: string }> = [
-  { key: "learned",     label: "Что узнал" },
-  { key: "met",         label: "Кого встретил" },
+  { key: "learned",     label: "Новое за день" },
+  { key: "met",         label: "Встречи" },
   { key: "laughed",     label: "Что рассмешило" },
   { key: "annoyed",     label: "Что раздражало" },
   { key: "dayQuestion", label: "Вопрос дня" },
