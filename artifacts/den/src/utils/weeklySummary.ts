@@ -145,7 +145,7 @@ export function buildWeeklySummary(
 }
 
 export function summaryHeadline(summary: WeeklySummary): string {
-  if (summary.tone === "hard") return "Непростая неделя. Хорошо, что ты её записал.";
+  if (summary.tone === "hard") return "Непростая неделя. Хорошо, что она записана.";
   if (summary.tone === "good") return "Хорошая неделя.";
   return "Неделя, в которой было разное.";
 }
