@@ -232,7 +232,7 @@ export async function scheduleMemoryNotification(): Promise<string | null> {
 
     const days = daysBetween(entry.date);
     const preview = quote.length > 100 ? quote.slice(0, 97) + "…" : quote;
-    const body = `${days} ${daysWord(days)} назад ты написал: «${preview}»`;
+    const body = `${days} ${daysWord(days)} назад в твоём дневнике: «${preview}»`;
 
     const fireDate = new Date();
     fireDate.setDate(fireDate.getDate() + 3);

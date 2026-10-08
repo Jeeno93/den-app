@@ -40,7 +40,7 @@ const SLIDES = [
   {
     image: require('../../assets/images/onboarding1.png'),
     title: 'Запомни каждый свой день',
-    subtitle: 'Ежедневный дневник для тех,\nкто никогда не вёл дневник.',
+    subtitle: 'Ежедневный дневник для тех,\nу кого его никогда не было.',
   },
   {
     image: require('../../assets/images/onboarding2.png'),
@@ -50,7 +50,7 @@ const SLIDES = [
   {
     image: require('../../assets/images/onboarding3.png'),
     title: 'Через год не оторвёшься',
-    subtitle: 'Читай что писал год назад,\nпиши письма себе в будущее.',
+    subtitle: 'Перечитывай записи годичной давности,\nпиши письма себе в будущее.',
   },
   {
     image: null,

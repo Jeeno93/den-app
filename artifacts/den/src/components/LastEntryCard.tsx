@@ -105,7 +105,7 @@ export function LastEntryCard({
       <View style={styles.header}>
         <Text style={styles.emoji}>{getMoodEmoji(entry.mood)}</Text>
         <Text style={[styles.when, { color: theme.mutedForeground }]}>
-          {whenLabel(entry.date, todayStr)} ты писал
+          {whenLabel(entry.date, todayStr)} в дневнике
         </Text>
         <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
       </View>
@@ -117,7 +117,7 @@ export function LastEntryCard({
         </MaskView>
       ) : (
         <Text style={[styles.text, { color: theme.mutedForeground }]} numberOfLines={1}>
-          Тогда ты отметил только настроение
+          В тот день отмечено только настроение
         </Text>
       )}
     </TouchableOpacity>
