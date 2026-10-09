@@ -210,12 +210,23 @@ export function pickDayReply(
 }
 
 // Какая реплика показывалась в какой день — чтобы не повторить вчерашнюю.
-const SHOWN_REPLIES_KEY = "day_replies_shown";
+// Ключ не должен начинаться с «day_»: так называются записи дневника.
+const SHOWN_REPLIES_KEY = "replies_shown_by_day";
+// Под этим именем ключ жил в тестовых сборках v25 и попадал в дневник.
+const LEGACY_SHOWN_REPLIES_KEY = "day_replies_shown";
 const SHOWN_REPLIES_KEEP = 7;
 
 export async function readShownReplies(): Promise<Record<string, string>> {
   try {
-    const raw = await AsyncStorage.getItem(SHOWN_REPLIES_KEY);
+    let raw = await AsyncStorage.getItem(SHOWN_REPLIES_KEY);
+    const legacy = await AsyncStorage.getItem(LEGACY_SHOWN_REPLIES_KEY);
+    if (legacy !== null) {
+      if (raw === null) {
+        raw = legacy;
+        await AsyncStorage.setItem(SHOWN_REPLIES_KEY, legacy);
+      }
+      await AsyncStorage.removeItem(LEGACY_SHOWN_REPLIES_KEY);
+    }
     return raw ? (JSON.parse(raw) as Record<string, string>) : {};
   } catch {
     return {};

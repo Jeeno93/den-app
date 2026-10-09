@@ -87,6 +87,15 @@ function keyForDate(date: string): string {
   return `day_${date}`;
 }
 
+// Записью дня считается только ключ вида day_ГГГГ-ММ-ДД. Проверки по одному
+// префиксу «day_» не хватило: служебный ключ day_replies_shown из v25 читался
+// как запись без настроения и ронял график на экране «Как проходят дни».
+const DAY_KEY_RE = /^day_\d{4}-\d{2}-\d{2}$/;
+
+function isDayKey(key: string): boolean {
+  return DAY_KEY_RE.test(key);
+}
+
 function parseEntry(raw: string | null, key: string): DayEntry | null {
   if (!raw) return null;
   try {
@@ -178,7 +187,7 @@ export async function compactPhotoStorage(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     const allKeys = await AsyncStorage.getAllKeys();
-    const dayKeys = (allKeys as string[]).filter((k) => k.startsWith("day_"));
+    const dayKeys = (allKeys as string[]).filter(isDayKey);
     if (dayKeys.length === 0) return;
 
     let rewrote = 0;
@@ -313,7 +322,7 @@ export async function getAllDays(): Promise<DayEntry[]> {
     const allKeys = await AsyncStorage.getAllKeys();
     console.log(`[storage] getAllKeys total=${allKeys.length} keys:`, JSON.stringify(allKeys));
 
-    const dayKeys = (allKeys as string[]).filter((k) => k.startsWith("day_"));
+    const dayKeys = (allKeys as string[]).filter(isDayKey);
     console.log(`[storage] day_ keys (${dayKeys.length}):`, JSON.stringify(dayKeys));
 
     if (dayKeys.length === 0) return [];
@@ -343,7 +352,7 @@ export async function getDiagnostics(): Promise<{
   try {
     const allKeys = await AsyncStorage.getAllKeys();
     const dayKeys = (allKeys as string[])
-      .filter((k) => k.startsWith("day_"))
+      .filter(isDayKey)
       .sort()
       .reverse();
 
