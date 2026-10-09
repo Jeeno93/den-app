@@ -47,7 +47,7 @@ import { NotificationAskCard } from "@/src/components/NotificationAskCard";
 import { MaskView } from "@/src/components/MaskView";
 import { refreshDailyReminders } from "@/src/utils/notifications";
 import { isSystemUiOpen } from "@/src/utils/systemUi";
-import { pickDayReply, readShownReplies, rememberShownReply, type DayReply } from "@/src/utils/dayReply";
+import { isFreshDay, pickDayReply, readShownReplies, rememberShownReply, type DayReply } from "@/src/utils/dayReply";
 import { addDays, tagLookup } from "@/src/utils/entryText";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
 import { STREAK_MILESTONES, getBadgeForMilestone, type StreakBadge } from "@/src/data/streakBadges";
@@ -484,9 +484,9 @@ export function DayFillFlow({
     }
 
     // Реплика на экране «День записан» — факт из записей самого человека.
-    // Только для сегодняшнего дня: «второй день подряд» про день, заполненный
-    // задним числом, звучал бы странно.
-    if (date === formatDate(new Date())) {
+    // Только для сегодняшнего дня и вчерашнего, дописанного до полудня:
+    // «второй день подряд» про архивный день звучал бы странно.
+    if (isFreshDay(date)) {
       try {
         const [allDays, tags, shown] = await Promise.all([getAllDays(), getTags(), readShownReplies()]);
         const reply = pickDayReply(entry, allDays, tagLookup(tags), shown[addDays(date, -1)] ?? null);

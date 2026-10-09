@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { formatDate } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { getMoodEmoji } from "@/src/components/MoodPicker";
 import { STREAK_MILESTONES } from "@/src/data/streakBadges";
@@ -46,6 +47,17 @@ function isStreakReplyDay(streak: number): boolean {
 const ROUTINE_WINDOW_DAYS = 28;
 const ROUTINE_MIN_ENTRIES = 8;
 const ROUTINE_SHARE = 0.5;
+
+// Вчерашний день до полудня ещё «свой»: его дописывают после полуночи или
+// утром по горячим следам, и реплика к нему так же уместна, как к сегодняшнему.
+// Более поздние и давние дни — архив, там реплика звучала бы странно.
+const FRESH_UNTIL_HOUR = 12;
+
+export function isFreshDay(date: string, now: Date = new Date()): boolean {
+  const today = formatDate(now);
+  if (date === today) return true;
+  return date === addDays(today, -1) && now.getHours() < FRESH_UNTIL_HOUR;
+}
 
 function daysWord(n: number): string {
   return plural(n, ["день", "дня", "дней"]);

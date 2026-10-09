@@ -19,7 +19,7 @@ export default function DayFillScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
-  const { date } = useLocalSearchParams<{ date: string }>();
+  const { date, from } = useLocalSearchParams<{ date: string; from?: string }>();
 
   const safeDate = date ?? new Date().toISOString().slice(0, 10);
   const parsedDate = new Date(safeDate + "T12:00:00");
@@ -47,8 +47,15 @@ export default function DayFillScreen() {
       date={safeDate}
       topInset={topPad}
       header={header}
-      doneVariant="close"
-      onClose={() => router.back()}
+      doneVariant="view"
+      // Из экрана дня (перезаполнение) возвращаемся к нему же, он сам
+      // перечитает запись. Из календаря — подменяем заполнение экраном дня,
+      // чтобы «назад» вело в календарь, а не обратно в анкету.
+      onView={() =>
+        from === "detail"
+          ? router.back()
+          : router.replace({ pathname: "/day-detail", params: { date: safeDate } })
+      }
       onExit={() => router.back()}
     />
   );

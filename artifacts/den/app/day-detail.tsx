@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -57,6 +57,24 @@ export default function DayDetailScreen() {
     return () => { cancelled = true; };
   }, [currentDate]);
 
+  // После «Заполнить заново» экран возвращается из анкеты с той же датой,
+  // и эффект выше не срабатывает — без этого показывалась старая версия дня.
+  const returning = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!returning.current) {
+        returning.current = true;
+        return;
+      }
+      if (!currentDate) return;
+      let cancelled = false;
+      getDay(currentDate).then((e) => {
+        if (!cancelled) setEntry(e);
+      });
+      return () => { cancelled = true; };
+    }, [currentDate])
+  );
+
   const currentIdx = sortedDates.indexOf(currentDate);
   const prevDate = currentIdx > 0 ? sortedDates[currentIdx - 1] : null;
   const nextDate = currentIdx < sortedDates.length - 1 ? sortedDates[currentIdx + 1] : null;
@@ -104,7 +122,7 @@ export default function DayDetailScreen() {
                 {
                   text: "Продолжить",
                   style: "destructive",
-                  onPress: () => router.push({ pathname: "/day-fill", params: { date: currentDate } }),
+                  onPress: () => router.push({ pathname: "/day-fill", params: { date: currentDate, from: "detail" } }),
                 },
               ]
             );
