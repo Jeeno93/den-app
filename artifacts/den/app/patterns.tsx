@@ -16,6 +16,7 @@ import {
 import { MoodTrendChart, MoodDistributionDonut, TagFrequencyBars } from "@/src/components/PatternCharts";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { reportJsError } from "@/src/analytics/errorReporting";
+import { isValidMood } from "@/src/utils/mood";
 
 const MAX_TAG_FREQ_SHOWN = 8;
 const MAX_RHYTHMS_SHOWN = 5;
@@ -98,6 +99,19 @@ function PatternsContent() {
       (async () => {
         const [days, tags] = await Promise.all([getAllDays(), getTags()]);
         if (cancelled) return;
+        // Запись без нормальной оценки роняла график. Пока не ясно, какой путь
+        // её создаёт, отправляем её форму: дату, тип и значение оценки, набор
+        // полей. Тексты записи сюда не попадают.
+        const invalid = days.filter((d) => !isValidMood(d.mood));
+        if (invalid.length > 0) {
+          amplitude.track("invalid_mood_entries", {
+            count: invalid.length,
+            total: days.length,
+            samples: invalid.slice(0, 5).map((d) => `${d.date}:${typeof d.mood}:${String(d.mood).slice(0, 12)}`),
+            fields: Object.keys(invalid[0]).sort().join(","),
+            fill_mode: invalid[0].fillMode ?? null,
+          });
+        }
         setAllDays(days);
         setTagList([...tags.places, ...tags.activities]);
         setLoading(false);
@@ -140,7 +154,7 @@ function PatternsContent() {
       totalEntries: entries.length,
       tagFreqRows,
       rhythms,
-      moodDistribution: computeMoodDistribution(entries),
+      moodDistribution: computeMoodDistribution(entries.filter((e) => isValidMood(e.mood))),
     };
   }, [allDays, tagList, rangeDays]);
 

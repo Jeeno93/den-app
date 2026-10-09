@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline, Text as SvgText } from "react-native-svg";
 import { getMoodColor, getMoodEmoji, getMoodLabel } from "@/src/components/MoodPicker";
 import type { DayEntry } from "@/src/storage/storage";
+import { isValidMood } from "@/src/utils/mood";
 
 const MONTHS_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 
@@ -58,7 +59,9 @@ export function MoodTrendChart({ entries, theme }: { entries: DayEntry[]; theme:
   const [layoutW, setLayoutW] = useState(0);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
-  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  // Запись без оценки дала бы NaN в координатах линии, а на Android это
+  // падение всего приложения внутри react-native-svg.
+  const sorted = entries.filter((e) => isValidMood(e.mood)).sort((a, b) => a.date.localeCompare(b.date));
   const shown = sorted.slice(-TREND_MAX_POINTS);
   if (shown.length < 2) return null;
 

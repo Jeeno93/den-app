@@ -1,4 +1,5 @@
 import type { DayEntry } from "@/src/storage/storage";
+import { isValidMood } from "@/src/utils/mood";
 import {
   MONTHS_GENITIVE,
   addDays,
@@ -82,13 +83,16 @@ export function buildWeeklySummary(
   const byDate = new Map(entries.map((e) => [e.date, e]));
   const days = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
-    return { date, mood: byDate.get(date)?.mood ?? null };
+    const mood = byDate.get(date)?.mood;
+    return { date, mood: isValidMood(mood) ? mood : null };
   });
 
-  const moods = entries.map((e) => e.mood);
+  // Запись без оценки считается записью, но в настроение недели не входит.
+  const moods = entries.map((e) => e.mood).filter(isValidMood);
   const avgMood = average(moods);
   const prevEntries = entriesOfWeek(all, addDays(weekStart, -7));
-  const prevAvgMood = prevEntries.length >= WEEKLY_MIN_ENTRIES ? average(prevEntries.map((e) => e.mood)) : null;
+  const prevMoods = prevEntries.map((e) => e.mood).filter(isValidMood);
+  const prevAvgMood = prevMoods.length >= WEEKLY_MIN_ENTRIES ? average(prevMoods) : null;
   const tone: WeekTone = avgMood <= 2.2 ? "hard" : avgMood >= 3.8 ? "good" : "mixed";
 
   // «Самый светлый» имеет смысл, только если дни различались: при одинаковом

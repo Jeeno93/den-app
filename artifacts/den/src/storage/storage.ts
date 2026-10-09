@@ -100,6 +100,12 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
     // (day-detail) всегда было верным.
     parsed.date = key.slice(4);
 
+    // Оценка строкой ("4") — приводим к числу. Остальное не выдумываем: запись
+    // без оценки остаётся как есть, а графики и итоги её пропускают.
+    if (typeof parsed.mood === "string" && /^[1-5]$/.test(parsed.mood.trim())) {
+      parsed.mood = Number(parsed.mood.trim());
+    }
+
     // backward compat: photos
     if (!parsed.photos) {
       parsed.photos = parsed.photo ? [parsed.photo] : [];
