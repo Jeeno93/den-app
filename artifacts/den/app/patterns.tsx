@@ -14,6 +14,8 @@ import {
   computeWeekdayRhythms,
 } from "@/src/utils/moodPatterns";
 import { MoodTrendChart, MoodDistributionDonut, TagFrequencyBars } from "@/src/components/PatternCharts";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { reportJsError } from "@/src/analytics/errorReporting";
 
 const MAX_TAG_FREQ_SHOWN = 8;
 const MAX_RHYTHMS_SHOWN = 5;
@@ -35,7 +37,50 @@ const WEEKDAY_DATIVE_PLURAL: Record<string, string> = {
   "Суббота": "субботам",
 };
 
+// Экран считает и рисует по всему дневнику, и необычная запись может его
+// уронить. Ошибка остаётся внутри экрана: человек видит объяснение и кнопку
+// назад, а не общий экран перезапуска, и ошибка уходит в аналитику.
 export default function PatternsScreen() {
+  return (
+    <ErrorBoundary
+      FallbackComponent={PatternsFallback}
+      onError={(error, componentStack) =>
+        reportJsError(error, { source: "boundary", screen: "patterns", componentStack })
+      }
+    >
+      <PatternsContent />
+    </ErrorBoundary>
+  );
+}
+
+function PatternsFallback({ error }: { error: Error }) {
+  const { isDark } = useTheme();
+  const theme = isDark ? colors.dark : colors.light;
+  const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  return (
+    <View style={{ flex: 1, backgroundColor: "#06080B" }}>
+      <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: theme.border }]}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={theme.foreground} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: theme.foreground }]}>Как проходят дни</Text>
+        <View style={styles.iconBtn} />
+      </View>
+      <View style={styles.centerWrap}>
+        <Text style={[styles.emptyTitle, { color: theme.foreground }]}>Не получилось построить экран</Text>
+        <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
+          Записи в порядке, сломался только этот экран. Мы уже знаем об ошибке и починим.
+        </Text>
+        <Text style={[styles.emptyText, { color: theme.mutedForeground, fontSize: 12, opacity: 0.7, marginTop: 12 }]} selectable>
+          {error.message.slice(0, 200)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function PatternsContent() {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();

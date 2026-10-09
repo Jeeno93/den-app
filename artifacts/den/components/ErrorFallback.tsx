@@ -70,12 +70,20 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
 
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.foreground }]}>
-          Something went wrong
+          Что-то пошло не так
         </Text>
 
         <Text style={[styles.message, { color: colors.mutedForeground }]}>
-          Please reload the app to continue.
+          Перезапусти приложение — записи никуда не денутся.
         </Text>
+
+        {/* В рабочей сборке подробностей нет, а короткий текст ошибки помогает
+            понять причину по скриншоту. */}
+        {!__DEV__ ? (
+          <Text style={[styles.errorCode, { color: colors.mutedForeground }]} selectable>
+            {error.message.slice(0, 200)}
+          </Text>
+        ) : null}
 
         <Pressable
           onPress={handleRestart}
@@ -94,7 +102,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
               { color: colors.primaryForeground },
             ]}
           >
-            Try Again
+            Перезапустить
           </Text>
         </Pressable>
       </View>
@@ -192,6 +200,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     lineHeight: 40,
+  },
+  errorCode: {
+    fontSize: 12,
+    textAlign: "center",
+    opacity: 0.7,
+    marginBottom: 16,
   },
   message: {
     fontSize: 16,

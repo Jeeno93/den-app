@@ -24,6 +24,7 @@ import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
 import { compactPhotoStorage, getAllDays, getLastKnownStreak, getStreak, setLastKnownStreak } from "@/src/storage/storage";
 import { initAppMetrica, reportDiagnosticEvent } from "@/src/analytics/appMetrica";
+import { installGlobalErrorHandler, reportJsError } from "@/src/analytics/errorReporting";
 import { claimNotificationResponse, isRecentNotificationResponse } from "@/src/utils/notificationOpen";
 
 amplitude.init(process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? '');
@@ -36,6 +37,7 @@ console.log('Amplitude key:', process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY);
 // web/iOS — see those files for why this needs to be a platform split
 // rather than a runtime Platform.OS check.
 initAppMetrica();
+installGlobalErrorHandler();
 
 // Диагностика расхождения DAU за 19 августа (Play Console 58 / AppMetrica 48
 // / Amplitude 25): одно и то же событие с одним и тем же launch_id летит из
@@ -148,7 +150,11 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
+      <ErrorBoundary
+        onError={(error, componentStack) =>
+          reportJsError(error, { source: "boundary", fatal: true, componentStack })
+        }
+      >
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <NotificationProvider>
