@@ -27,6 +27,7 @@ export const defaultActivities: TagItem[] = [
   { id: "family", label: "Семья", emoji: "👨‍👩‍👧" },
   { id: "dinner", label: "Ужин с друзьями", emoji: "🍕" },
   { id: "work", label: "Работа", emoji: "💻" },
+  { id: "study", label: "Учёба", emoji: "🎓" },
   { id: "cinema", label: "Кино", emoji: "🎬" },
   { id: "meditation", label: "Медитация", emoji: "🧘" },
   { id: "swimming", label: "Плавание", emoji: "🌊" },

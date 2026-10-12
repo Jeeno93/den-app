@@ -49,7 +49,7 @@ export const INTENSITY_CONFIGS: Record<IntensityKey, IntensityConfig> = {
     title: "Масштаб достижения",
     tags: [
       { value: 1, emoji: "✅", label: "Маленькая победа" },
-      { value: 2, emoji: "🏆", label: "Хорошо сделал" },
+      { value: 2, emoji: "🏆", label: "Хорошо получилось" },
       { value: 3, emoji: "🚀", label: "Горжусь собой" },
     ],
   },

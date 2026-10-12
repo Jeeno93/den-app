@@ -43,7 +43,7 @@ const BLOCKS = [
 ];
 
 const SHARE_TEXT =
-  "Я веду дневник в приложении Den — оно каждый вечер задает пять вопросов. Вот почему это работает: https://play.google.com/store/apps/details?id=com.den";
+  "Я веду дневник в приложении Den — оно каждый вечер задаёт пять вопросов. Вот почему это работает: https://play.google.com/store/apps/details?id=com.jeeno93.den";
 
 async function handleShare() {
   try {
