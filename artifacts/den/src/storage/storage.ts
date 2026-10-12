@@ -74,6 +74,7 @@ export interface DayEntry {
   habits?: HabitItem[]; // трекер привычек — будущая фича (сохраняется для совместимости)
   tasksForTomorrow?: TaskItem[]; // до 3 задач, записанных вечером на следующий день (Глубоко)
   tasksReviewed?: TaskItem[]; // вчерашние задачи, отмеченные сегодня (Глубоко)
+  people?: string[]; // с кем был день — кнопки в вопросе о встречах (с v26)
 }
 
 export function formatDate(date: Date): string {
@@ -139,6 +140,7 @@ function parseEntry(raw: string | null, key: string): DayEntry | null {
     if (!Array.isArray(parsed.habits)) parsed.habits = [];
     if (!Array.isArray(parsed.tasksForTomorrow)) parsed.tasksForTomorrow = [];
     if (!Array.isArray(parsed.tasksReviewed)) parsed.tasksReviewed = [];
+    if (!Array.isArray(parsed.people)) parsed.people = [];
 
     // backward compat: laughed/annoyed → positive/negative QuestionAnswer
     const a = parsed.answers;

@@ -37,6 +37,7 @@ import type { CustomQuestions, DayAnswers, DayEntry, FillMode, SleepData, TaskIt
 import * as amplitude from "@amplitude/analytics-react-native";
 import { reportGoalEvent } from "@/src/analytics/appMetrica";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
+import { PeoplePicker } from "@/src/components/PeoplePicker";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
 import { MoodPicker } from "@/src/components/MoodPicker";
@@ -151,6 +152,7 @@ export function DayFillFlow({
   const [proud, setProud] = useState("");
   const [selectedPlaces, setSelectedPlaces] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
+  const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
   const [loadedTags, setLoadedTags] = useState<UserTags | null>(null);
 
   const [intensities, setIntensities] = useState<{
@@ -370,7 +372,10 @@ export function DayFillFlow({
 
   function trackQuestionLeft(direction: "next" | "back") {
     const key = QUESTION_KEYS[currentQuestion];
-    const answered = questionConfigs[currentQuestion].getValue(answers).trim().length > 0;
+    // На вопрос о встречах можно ответить одними кнопками людей, без текста.
+    const answered =
+      questionConfigs[currentQuestion].getValue(answers).trim().length > 0 ||
+      (key === "met" && selectedPeople.length > 0);
     amplitude.track("question_advanced", {
       question: key,
       questionIndex: currentQuestion,
@@ -423,6 +428,7 @@ export function DayFillFlow({
       proud_intensity: intensities.proud,
       places: selectedPlaces,
       activities: selectedActivities,
+      people: selectedPeople,
       fillMode: mode,
       energy: isDeep ? energy : null,
       sleep: isDeep ? sleep : null,
@@ -459,6 +465,7 @@ export function DayFillFlow({
       tasks_planned: entry.tasksForTomorrow?.length ?? 0,
       tasks_reviewed_total: reviewedTasks.length,
       tasks_reviewed_done: reviewedTasks.filter((t) => t.done).length,
+      people_selected: selectedPeople.length,
     });
     reportGoalEvent("fill_completed");
     onSaved?.(entry);
@@ -631,7 +638,7 @@ export function DayFillFlow({
       return (
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]} showsVerticalScrollIndicator={false}>
           {dateLabel}
-          <Text style={[styles.title, { color: theme.foreground }]}>Где был и что делал?</Text>
+          <Text style={[styles.title, { color: theme.foreground }]}>Где и как прошёл день?</Text>
           <Text style={[styles.sub, { color: theme.mutedForeground }]}>(необязательно)</Text>
           {loadedTags && (
             <>
@@ -849,7 +856,12 @@ export function DayFillFlow({
           onBack={currentQuestion > 0 ? () => { trackQuestionLeft("back"); setCurrentQuestion((q) => q - 1); } : undefined}
           isLast={false}
         />
-        {currentQuestion < QUESTION_INTENSITY_KEYS.length && qConfig.getValue(answers).trim().length > 0 && (
+        {QUESTION_KEYS[currentQuestion] === "met" && (
+          <PeoplePicker selected={selectedPeople} onChange={setSelectedPeople} />
+        )}
+        {currentQuestion < QUESTION_INTENSITY_KEYS.length &&
+          QUESTION_KEYS[currentQuestion] !== "met" &&
+          qConfig.getValue(answers).trim().length > 0 && (
           <IntensityPicker
             config={INTENSITY_CONFIGS[QUESTION_INTENSITY_KEYS[currentQuestion]]}
             value={intensities[QUESTION_INTENSITY_KEYS[currentQuestion]]}

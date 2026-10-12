@@ -20,6 +20,8 @@ import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import type { DayAnswers, DayEntry as DayEntryType, QuestionAnswer, UserTags } from "@/src/storage/storage";
 import { saveDay, getTags } from "@/src/storage/storage";
+import { getPeople } from "@/src/data/people";
+import type { TagItem } from "@/src/data/defaultTags";
 import { getMoodColor, getMoodLabel, MoodPicker } from "./MoodPicker";
 import { MoodIcon } from "./MoodIcon";
 import { getDayQuote } from "@/src/data/quotes";
@@ -70,7 +72,7 @@ interface DayEntryProps {
   dayQuestion?: string;
 }
 
-const ENERGY_LABELS: Record<number, string> = { 1: "Мало сил", 2: "Нормально", 3: "Полон сил" };
+const ENERGY_LABELS: Record<number, string> = { 1: "Мало сил", 2: "Нормально", 3: "Много сил" };
 const ENERGY_ICONS: Record<number, string> = { 1: "🔋", 2: "⚡", 3: "🔥" };
 const SLEEP_QUALITY_LABELS: Record<number, string> = { 1: "Плохо", 2: "Нормально", 3: "Отлично" };
 const SLEEP_QUALITY_ICONS: Record<number, string> = { 1: "😴", 2: "🌙", 3: "⭐" };
@@ -101,9 +103,16 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
   const shareCardViewRef = useRef<View>(null);
 
   const [entryTags, setEntryTags] = useState<UserTags | null>(null);
+  const [peopleList, setPeopleList] = useState<TagItem[]>([]);
   useEffect(() => {
     getTags().then(setEntryTags);
+    getPeople().then(setPeopleList);
   }, []);
+  const peopleLine = (entry.people ?? [])
+    .map((id) => peopleList.find((p) => p.id === id))
+    .filter((p): p is TagItem => !!p)
+    .map((p) => `${p.emoji} ${p.label}`)
+    .join(" · ");
 
   // Подстраховка на случай, если key={entry.date} у вызывающей стороны не
   // успевает вызвать полный ремонт (например при быстром пролистывании дней
@@ -353,7 +362,9 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
           const answer = getAnswerValue(answers, key);
           const isEditing = editingKey === key;
 
-          if (!answer && !isEditing) return null;
+          // На вопрос о встречах могли ответить одними кнопками людей.
+          const showPeople = key === "met" && peopleLine.length > 0;
+          if (!answer && !isEditing && !showPeople) return null;
 
           if (isEditing) {
             return (
@@ -401,9 +412,14 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
                 <Text style={[styles.answerLabel, { color: theme.mutedForeground, flex: 1 }]}>{label}</Text>
                 <Ionicons name="pencil-outline" size={15} color={theme.mutedForeground} />
               </View>
-              <MaskView>
-                <Text style={[styles.answerText, { color: theme.foreground }]}>{answer}</Text>
-              </MaskView>
+              {!!answer && (
+                <MaskView>
+                  <Text style={[styles.answerText, { color: theme.foreground }]}>{answer}</Text>
+                </MaskView>
+              )}
+              {showPeople && (
+                <Text style={[styles.intensityBadge, { color: theme.mutedForeground }]}>{peopleLine}</Text>
+              )}
               {intensityTag && (
                 <Text style={[styles.intensityBadge, { color: theme.mutedForeground }]}>
                   {intensityTag.emoji} {intensityTag.label}
@@ -569,13 +585,13 @@ export function DayEntryView({ entry, dayQuestion }: DayEntryProps) {
               <View style={styles.sleepTimes}>
                 {!!entry.sleep?.bedtime && (
                   <View style={styles.sleepTimeItem}>
-                    <Text style={[styles.sleepTimeLabel, { color: theme.mutedForeground }]}>Лёг</Text>
+                    <Text style={[styles.sleepTimeLabel, { color: theme.mutedForeground }]}>Отбой</Text>
                     <Text style={[styles.sleepTimeValue, { color: theme.foreground }]}>{entry.sleep.bedtime}</Text>
                   </View>
                 )}
                 {!!entry.sleep?.wakeTime && (
                   <View style={styles.sleepTimeItem}>
-                    <Text style={[styles.sleepTimeLabel, { color: theme.mutedForeground }]}>Встал</Text>
+                    <Text style={[styles.sleepTimeLabel, { color: theme.mutedForeground }]}>Подъём</Text>
                     <Text style={[styles.sleepTimeValue, { color: theme.foreground }]}>{entry.sleep.wakeTime}</Text>
                   </View>
                 )}
