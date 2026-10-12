@@ -41,6 +41,9 @@ importers:
       expo-file-system:
         specifier: ~19.0.22
         version: 19.0.23(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))
+      expo-local-authentication:
+        specifier: ~17.0.9
+        version: 17.0.9(expo@54.0.33)
       expo-sharing:
         specifier: ~14.0.8
         version: 14.0.8(expo@54.0.33)
@@ -2177,6 +2180,11 @@ packages:
     peerDependencies:
       react: '*'
       react-native: '*'
+
+  expo-local-authentication@17.0.9:
+    resolution: {integrity: sha512-Ro2m6JJ7ebaDCMsnh6CeXKqXUdK5xP2lnrJlAopUO2DGqX5693BWC14ANFihFWL6qEV7IIV4hGpdU5RYyBCbuQ==}
+    peerDependencies:
+      expo: '*'
 
   expo-location@19.0.8:
     resolution: {integrity: sha512-H/FI75VuJ1coodJbbMu82pf+Zjess8X8Xkiv9Bv58ZgPKS/2ztjC1YO1/XMcGz7+s9DrbLuMIw22dFuP4HqneA==}
@@ -6495,6 +6503,11 @@ snapshots:
     transitivePeerDependencies:
       - expo
       - supports-color
+
+  expo-local-authentication@17.0.9(expo@54.0.33):
+    dependencies:
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      invariant: 2.2.4
 
   expo-location@19.0.8(expo@54.0.33):
     dependencies:

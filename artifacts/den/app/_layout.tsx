@@ -19,6 +19,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AppLockGate } from "@/src/components/AppLockGate";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { NotificationProvider } from "@/src/context/NotificationContext";
 import { Onboarding, checkOnboardingDone } from "@/src/components/Onboarding";
@@ -160,11 +161,13 @@ export default function RootLayout() {
             <NotificationProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
-                  <RootLayoutNav />
-                  <Onboarding
-                    visible={showOnboarding}
-                    onDone={() => setShowOnboarding(false)}
-                  />
+                  <AppLockGate>
+                    <RootLayoutNav />
+                    <Onboarding
+                      visible={showOnboarding}
+                      onDone={() => setShowOnboarding(false)}
+                    />
+                  </AppLockGate>
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </NotificationProvider>

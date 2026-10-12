@@ -12,6 +12,7 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import * as amplitude from "@amplitude/analytics-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
@@ -22,6 +23,7 @@ import colors from "@/constants/colors";
 import { getAllDays, saveDay, getDiagnostics } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { TimeSelector } from "@/src/components/TimeSelector";
+import { authenticate, canUseAppLock, isAppLockEnabled, setAppLockEnabled } from "@/src/utils/appLock";
 
 interface DiagResult {
   totalKeys: number;
@@ -40,14 +42,33 @@ export default function SettingsScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [diagResult, setDiagResult] = useState<DiagResult | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
+  const [lockEnabled, setLockEnabled] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   useFocusEffect(
     useCallback(() => {
       amplitude.track("settings_viewed");
+      isAppLockEnabled().then(setLockEnabled);
     }, [])
   );
+
+  // И включение, и выключение замка подтверждаем отпечатком или PIN: иначе
+  // любой, у кого в руках разблокированный телефон, снял бы замок в два касания.
+  async function handleLockToggle(next: boolean) {
+    if (next && !(await canUseAppLock())) {
+      Alert.alert(
+        "Нет блокировки экрана",
+        "Чтобы закрыть дневник, сначала включи на телефоне блокировку экрана: отпечаток, PIN или графический ключ."
+      );
+      return;
+    }
+    const ok = await authenticate(next ? "Закрыть дневник" : "Снять замок с дневника");
+    if (!ok) return;
+    await setAppLockEnabled(next);
+    setLockEnabled(next);
+    amplitude.track(next ? "app_lock_enabled" : "app_lock_disabled");
+  }
 
   async function handleTimeConfirm(h: number, m: number) {
     await setNotificationTime(h, m);
@@ -322,6 +343,23 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Данные</Text>
         <View style={styles.card}>
+          {Platform.OS !== "web" && (
+            <View style={styles.row}>
+              <View style={styles.rowIcon}>
+                <Ionicons name="lock-closed-outline" size={20} color={theme.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, { color: theme.foreground }]}>Вход по отпечатку или PIN</Text>
+                <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Дневник откроется только тебе</Text>
+              </View>
+              <Switch
+                value={lockEnabled}
+                onValueChange={handleLockToggle}
+                trackColor={{ false: theme.border, true: theme.primary + "88" }}
+                thumbColor={lockEnabled ? theme.primary : theme.mutedForeground}
+              />
+            </View>
+          )}
           <TouchableOpacity
             style={styles.row}
             onPress={handleExport}
@@ -412,7 +450,7 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        <Text style={[styles.appVersion, { color: theme.mutedForeground }]}>Den · v1.0.0</Text>
+        <Text style={[styles.appVersion, { color: theme.mutedForeground }]}>Den · v{Constants.expoConfig?.version ?? ""}</Text>
       </ScrollView>
     </View>
   );
