@@ -26,8 +26,8 @@ export function ShareCard({ entry }: ShareCardProps) {
   type Row = { label: string; text: string };
   const rows: Row[] = [];
 
-  if (entry.answers.learned) rows.push({ label: "Узнал сегодня", text: entry.answers.learned });
-  if (entry.answers.met) rows.push({ label: "Встретил / вспомнил", text: entry.answers.met });
+  if (entry.answers.learned) rows.push({ label: "Новое за день", text: entry.answers.learned });
+  if (entry.answers.met) rows.push({ label: "Встречи", text: entry.answers.met });
   if (entry.answers.positive?.answer) rows.push({ label: entry.answers.positive.question, text: entry.answers.positive.answer });
   if (entry.answers.negative?.answer) rows.push({ label: entry.answers.negative.question, text: entry.answers.negative.answer });
   if (entry.answers.dayQuestion) rows.push({ label: "Вопрос дня", text: entry.answers.dayQuestion });

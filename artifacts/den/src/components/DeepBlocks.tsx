@@ -19,7 +19,7 @@ export const DEFAULT_HABITS: HabitItem[] = [
 const ENERGY_LEVELS = [
   { value: 1, label: "Мало сил" },
   { value: 2, label: "Нормально" },
-  { value: 3, label: "Полон сил" },
+  { value: 3, label: "Много сил" },
 ];
 
 const QUALITY_LEVELS = [
@@ -150,7 +150,7 @@ export function DeepBlocks({
       {/* Энергия — 3 уровня */}
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <Text style={[styles.cardTitle, { color: theme.foreground }]}>Уровень энергии</Text>
-        <Text style={[styles.cardSub, { color: theme.mutedForeground }]}>Как ты себя чувствовал?</Text>
+        <Text style={[styles.cardSub, { color: theme.mutedForeground }]}>Как самочувствие?</Text>
         {renderLevelRow(ENERGY_LEVELS, energy, onEnergyChange, "energy")}
       </View>
 
@@ -159,8 +159,8 @@ export function DeepBlocks({
         <Text style={[styles.cardTitle, { color: theme.foreground }]}>Сон</Text>
         <Text style={[styles.cardSub, { color: theme.mutedForeground }]}>Когда лёг и встал</Text>
         <View style={styles.timeRow}>
-          {renderTimeField("bedtime", "Лёг", "23:30")}
-          {renderTimeField("wakeTime", "Встал", "07:00")}
+          {renderTimeField("bedtime", "Отбой", "23:30")}
+          {renderTimeField("wakeTime", "Подъём", "07:00")}
         </View>
         <Text style={[styles.timeLabel, { color: theme.mutedForeground, marginTop: 8 }]}>Качество</Text>
         {renderLevelRow(
