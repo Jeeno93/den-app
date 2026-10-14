@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import {
   Alert,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -24,6 +25,9 @@ import { getAllDays, saveDay, getDiagnostics } from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { TimeSelector } from "@/src/components/TimeSelector";
 import { authenticate, canUseAppLock, isAppLockEnabled, setAppLockEnabled } from "@/src/utils/appLock";
+
+// Тот же адрес, что указан в «Поддержке приложения» на странице Den в Google Play.
+const FEEDBACK_EMAIL = "almazkin93@mail.ru";
 
 interface DiagResult {
   totalKeys: number;
@@ -68,6 +72,24 @@ export default function SettingsScreen() {
     await setAppLockEnabled(next);
     setLockEnabled(next);
     amplitude.track(next ? "app_lock_enabled" : "app_lock_disabled");
+  }
+
+  // Прямой канал для отзывов. Письмо уходит из почтового приложения самого
+  // человека, через наши серверы ничего не идёт. В письмо подставляем только
+  // версию приложения и Android — по ним проще разобрать ошибку. Ничего из
+  // дневника туда не попадает.
+  async function handleWriteToDeveloper() {
+    amplitude.track("feedback_tapped");
+    const subject = encodeURIComponent("Den — отзыв");
+    const body = encodeURIComponent(
+      `\n\n\n—\nDen ${Constants.expoConfig?.version ?? ""}, Android ${Platform.Version}`
+    );
+    const url = `mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Не нашлось почтового приложения", `Напиши на ${FEEDBACK_EMAIL}`);
+    }
   }
 
   async function handleTimeConfirm(h: number, m: number) {
@@ -337,6 +359,16 @@ export default function SettingsScreen() {
               <Text style={{ fontSize: 18 }}>🧠</Text>
             </View>
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Зачем вести дневник</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.row} onPress={handleWriteToDeveloper} activeOpacity={0.7}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="mail-outline" size={20} color={theme.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Написать разработчику</Text>
+              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Идея, ошибка или просто пара слов</Text>
+            </View>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
         </View>
