@@ -49,7 +49,9 @@ import { MaskView } from "@/src/components/MaskView";
 import { refreshDailyReminders } from "@/src/utils/notifications";
 import { isSystemUiOpen } from "@/src/utils/systemUi";
 import { isFreshDay, pickDayReply, readShownReplies, rememberShownReply, type DayReply } from "@/src/utils/dayReply";
-import { addDays, tagLookup } from "@/src/utils/entryText";
+import { addDays, tagLookup, type TagInfo } from "@/src/utils/entryText";
+import { pickDiscovery, readShownDiscoveries, rememberDiscovery } from "@/src/utils/discoveries";
+import { getPeople } from "@/src/data/people";
 import { DeepBlocks } from "@/src/components/DeepBlocks";
 import { STREAK_MILESTONES, getBadgeForMilestone, type StreakBadge } from "@/src/data/streakBadges";
 
@@ -495,9 +497,29 @@ export function DayFillFlow({
     // «второй день подряд» про архивный день звучал бы странно.
     if (isFreshDay(date)) {
       try {
-        const [allDays, tags, shown] = await Promise.all([getAllDays(), getTags(), readShownReplies()]);
-        const reply = pickDayReply(entry, allDays, tagLookup(tags), shown[addDays(date, -1)] ?? null);
+        const [allDays, tags, shown, shownDiscoveries, people] = await Promise.all([
+          getAllDays(),
+          getTags(),
+          readShownReplies(),
+          readShownDiscoveries(),
+          getPeople(),
+        ]);
+        const tagInfo = tagLookup(tags);
+        const labelOf = (id: string): TagInfo | null => {
+          const person = people.find((p) => p.id === id);
+          return tagInfo(id) ?? (person ? { emoji: person.emoji, label: person.label } : null);
+        };
+        const isPerson = (id: string) => people.some((p) => p.id === id);
+        // Открытие о себе важнее обычной реплики и в свой вечер её заменяет.
+        const discovery = pickDiscovery(entry, allDays, labelOf, isPerson, shownDiscoveries);
+        const reply = discovery
+          ? { id: `discovery_${discovery.milestone}`, text: discovery.text, label: "Открытие" }
+          : pickDayReply(entry, allDays, tagInfo, shown[addDays(date, -1)] ?? null);
         setDayReply(reply);
+        if (discovery) {
+          amplitude.track("discovery_shown", { milestone: discovery.milestone });
+          rememberDiscovery(discovery.milestone, shownDiscoveries);
+        }
         if (reply) {
           amplitude.track("day_reply_shown", { reply_id: reply.id });
           rememberShownReply(date, reply.id, shown);
@@ -547,6 +569,9 @@ export function DayFillFlow({
 
             {dayReply && (
               <MaskView style={styles.doneReplyWrap}>
+                {dayReply.label && (
+                  <Text style={[styles.doneReplyLabel, { color: theme.primary }]}>{dayReply.label}</Text>
+                )}
                 <Text style={[styles.doneReply, { color: theme.foreground }]}>{dayReply.text}</Text>
               </MaskView>
             )}
@@ -944,6 +969,7 @@ const styles = StyleSheet.create({
   doneSub: { fontSize: 18, textAlign: "center" },
   doneReplyWrap: { maxWidth: 320, marginTop: 4 },
   doneReply: { fontSize: 16, lineHeight: 23, textAlign: "center" },
+  doneReplyLabel: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, textAlign: "center", marginBottom: 6 },
   doneButton: {
     marginTop: 16,
     paddingHorizontal: 24,
