@@ -13,7 +13,7 @@ export const NOBODY_ID = "nobody";
 export const defaultPeople: TagItem[] = [
   { id: "friends", label: "Друзья", emoji: "👫" },
   { id: "family", label: "Семья", emoji: "👨‍👩‍👧" },
-  { id: "partner", label: "Партнёр", emoji: "❤️" },
+  { id: "partner", label: "Любимый человек", emoji: "❤️" },
   { id: "colleagues", label: "Коллеги", emoji: "💼" },
   { id: NOBODY_ID, label: "Никого", emoji: "🍃" },
 ];

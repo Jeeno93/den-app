@@ -87,12 +87,12 @@ function discovery7(sorted: DayEntry[], labelOf: Label): string {
   const window = sorted.slice(-7);
   const goodCount = window.filter((e) => e.mood >= GOOD_MOOD).length;
   const top = topFeature(window, labelOf);
-  if (!top) return `За 7 записей хороших дней — ${goodCount} из 7.`;
+  if (!top) return `За 7 записей дней на «Отлично» и «Супер» — ${goodCount} из 7.`;
   const topText = `За 7 записей чаще всего ты отмечаешь «${labelOf(top.id)!.label}» (${top.count} ${top.count < 5 ? "раза" : "раз"}).`;
   const distinct = distinctiveInGoodDays(window, labelOf).find((id) => id !== top.id);
   return distinct
     ? `${topText} В хорошие дни чаще встречается «${labelOf(distinct)!.label}».`
-    : `${topText} Хороших дней — ${goodCount} из 7.`;
+    : `${topText} Дней на «Отлично» и «Супер» — ${goodCount} из 7.`;
 }
 
 function discovery14(sorted: DayEntry[], labelOf: Label, isPerson: (id: string) => boolean): string {
@@ -118,7 +118,7 @@ function discovery30(sorted: DayEntry[], labelOf: Label): string {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([id]) => id);
-  const goodText = `Хороших дней — ${good.length} из ${window.length}.`;
+  const goodText = `Дней на «Отлично» и «Супер» — ${good.length} из последних ${window.length}.`;
   if (typical.length > 0) {
     return `Месяц записей. Твой обычный хороший день: ${quoted(typical, labelOf).join(", ")}. ${goodText}`;
   }
@@ -130,7 +130,7 @@ function discovery30(sorted: DayEntry[], labelOf: Label): string {
  * Открытие для экрана «День записан», если дневник дошёл до очередной
  * отметки, а её открытие ещё не показывалось. Если пропущено несколько
  * отметок сразу (обновились с длинным дневником), показываем самую старшую.
- * В тяжёлый день (1–2) молчим: открытие подождёт следующего вечера, говорить
+ * В тяжёлый день («Плохо») молчим: открытие подождёт следующего вечера, говорить
  * о хороших днях в плохой — не к месту.
  *
  * `all` — все записи, включая только что сохранённую.
@@ -142,7 +142,7 @@ export function pickDiscovery(
   isPerson: (id: string) => boolean,
   shownMilestones: number[],
 ): Discovery | null {
-  if (!isValidMood(entry.mood) || entry.mood <= 2) return null;
+  if (!isValidMood(entry.mood) || entry.mood === 1) return null;
   const byDate = new Map(all.map((e) => [e.date, e]));
   byDate.set(entry.date, entry);
   const sorted = [...byDate.values()].filter((e) => isValidMood(e.mood)).sort((a, b) => a.date.localeCompare(b.date));

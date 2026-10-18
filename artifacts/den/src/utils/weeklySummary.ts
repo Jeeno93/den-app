@@ -93,7 +93,7 @@ export function buildWeeklySummary(
   const prevEntries = entriesOfWeek(all, addDays(weekStart, -7));
   const prevMoods = prevEntries.map((e) => e.mood).filter(isValidMood);
   const prevAvgMood = prevMoods.length >= WEEKLY_MIN_ENTRIES ? average(prevMoods) : null;
-  const tone: WeekTone = avgMood <= 2.2 ? "hard" : avgMood >= 3.8 ? "good" : "mixed";
+  const tone: WeekTone = avgMood <= 1.6 ? "hard" : avgMood >= 3.8 ? "good" : "mixed";
 
   // «Самый светлый» имеет смысл, только если дни различались: при одинаковом
   // настроении всю неделю выделять один из них было бы натяжкой.

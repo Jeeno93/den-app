@@ -12,6 +12,7 @@ export interface UserTags {
 }
 
 const TAGS_KEY = "user_tags";
+const TAGS_ADDED_STUDY_KEY = "tags_added_study";
 
 export interface QuestionAnswer {
   question: string;
@@ -378,6 +379,16 @@ export async function getTags(): Promise<UserTags> {
     const raw = await AsyncStorage.getItem(TAGS_KEY);
     if (!raw) return { places: defaultPlaces, activities: defaultActivities };
     const parsed = JSON.parse(raw) as UserTags;
+    // «Учёба» появилась в v26. У тех, кто когда-то правил теги, список хранится
+    // целиком, и новый стандартный тег до них не доходит — добавляем один раз.
+    if (!(await AsyncStorage.getItem(TAGS_ADDED_STUDY_KEY))) {
+      await AsyncStorage.setItem(TAGS_ADDED_STUDY_KEY, "1");
+      const study = defaultActivities.find((t) => t.id === "study");
+      if (study && !parsed.activities.some((t) => t.id === "study")) {
+        parsed.activities = [...parsed.activities, study];
+        await saveTags(parsed);
+      }
+    }
     return parsed;
   } catch {
     return { places: defaultPlaces, activities: defaultActivities };

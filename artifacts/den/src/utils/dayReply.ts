@@ -31,6 +31,11 @@ const WEEKDAY_FORMS: Record<number, { third: string; noun: string }> = {
   6: { third: "Третья", noun: "суббота" },
 };
 
+// Тяжёлый день — только «Плохо». Шкала Den: 1 Плохо, 2 Нейтрально, 3 Хорошо,
+// 4 Отлично, 5 Супер. Раньше сюда попадало и «Нейтрально», и человек,
+// выбравший нейтральный день, читал «Записать тяжёлый день — тоже забота о себе».
+const HARD_MOOD = 1;
+
 const ENTRY_COUNT_MILESTONES = [10, 25, 50, 100, 150, 200, 300, 365, 500, 730, 1000];
 
 // «N-й день подряд» каждый вечер быстро перестают читать, поэтому серия
@@ -108,7 +113,7 @@ export function pickDayReply(
   if (count === 1) {
     return {
       id: "first_entry",
-      text: entry.mood <= 2
+      text: entry.mood === HARD_MOOD
         ? "Первая запись есть. Начать с непростого дня — это нормально. Через 2 записи Den покажет, какими были первые дни."
         : "Первая запись есть. Через 2 записи Den покажет твой самый светлый из первых дней.",
     };
@@ -131,10 +136,10 @@ export function pickDayReply(
 
   // Тяжёлый день: только поддержка, и только если за ней стоит факт из
   // его же дневника. «Самые светлые дни» и счётчики тут неуместны.
-  if (entry.mood <= 2) {
+  if (entry.mood === HARD_MOOD) {
     for (let i = earlier.length - 1; i >= 0; i--) {
       const low = byDate.get(earlier[i])!;
-      if (low.mood > 2) continue;
+      if (low.mood !== HARD_MOOD) continue;
       const better = earlier
         .slice(i + 1)
         .map((d) => byDate.get(d)!)
