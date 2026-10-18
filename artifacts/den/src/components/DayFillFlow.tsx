@@ -30,6 +30,7 @@ import {
   hasAnyCustomQuestion,
   getStreak,
   getAllDays,
+  addCustomTag,
   getLastCelebratedMilestone,
   setLastCelebratedMilestone,
 } from "@/src/storage/storage";
@@ -38,6 +39,7 @@ import * as amplitude from "@amplitude/analytics-react-native";
 import { reportGoalEvent } from "@/src/analytics/appMetrica";
 import { IntensityPicker } from "@/src/components/IntensityPicker";
 import { PeoplePicker } from "@/src/components/PeoplePicker";
+import { InlineAddInput } from "@/src/components/InlineAddInput";
 import { INTENSITY_CONFIGS } from "@/src/data/intensity";
 import type { IntensityValue } from "@/src/data/intensity";
 import { MoodPicker } from "@/src/components/MoodPicker";
@@ -156,6 +158,9 @@ export function DayFillFlow({
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
   const [loadedTags, setLoadedTags] = useState<UserTags | null>(null);
+  const [addingTag, setAddingTag] = useState<"place" | "activity" | null>(null);
+  const placesRowRef = useRef<ScrollView>(null);
+  const activitiesRowRef = useRef<ScrollView>(null);
 
   const [intensities, setIntensities] = useState<{
     learned: IntensityValue;
@@ -547,6 +552,22 @@ export function DayFillFlow({
     ]).start();
   }
 
+  // Новый тег добавляется в конец ряда и сразу выбран; ряд прокручиваем к
+  // нему, иначе он оказался бы за краем экрана и выглядел бы невыбранным.
+  async function handleAddTag(type: "place" | "activity", label: string) {
+    const updated = await addCustomTag(type, label, type === "place" ? "📍" : "⭐");
+    setLoadedTags(updated);
+    const list = type === "place" ? updated.places : updated.activities;
+    const added = list[list.length - 1];
+    if (added) {
+      if (type === "place") setSelectedPlaces((prev) => [...prev, added.id]);
+      else setSelectedActivities((prev) => [...prev, added.id]);
+    }
+    setAddingTag(null);
+    amplitude.track("tag_added_inline", { type });
+    setTimeout(() => (type === "place" ? placesRowRef : activitiesRowRef).current?.scrollToEnd({ animated: true }), 150);
+  }
+
   const isLastInputPhase = (() => {
     const order = PHASE_ORDER[mode];
     return order[order.length - 1] === phase;
@@ -667,8 +688,13 @@ export function DayFillFlow({
           <Text style={[styles.sub, { color: theme.mutedForeground }]}>(необязательно)</Text>
           {loadedTags && (
             <>
-              <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Места</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
+              <View style={styles.tagSectionHeader}>
+                <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Места</Text>
+                <TouchableOpacity onPress={() => setAddingTag("place")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.tagAddLink}>+ своё</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView ref={placesRowRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
                 {loadedTags.places.map((tag) => {
                   const selected = selectedPlaces.includes(tag.id);
                   return (
@@ -684,8 +710,20 @@ export function DayFillFlow({
                   );
                 })}
               </ScrollView>
-              <Text style={[styles.sectionLabel, { color: theme.mutedForeground, marginTop: 12 }]}>Активности</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
+              {addingTag === "place" && (
+                <InlineAddInput
+                  placeholder="Например, бассейн"
+                  onAdd={(label) => handleAddTag("place", label)}
+                  onCancel={() => setAddingTag(null)}
+                />
+              )}
+              <View style={[styles.tagSectionHeader, { marginTop: 12 }]}>
+                <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Активности</Text>
+                <TouchableOpacity onPress={() => setAddingTag("activity")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.tagAddLink}>+ своё</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView ref={activitiesRowRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsScrollRow}>
                 {loadedTags.activities.map((tag) => {
                   const selected = selectedActivities.includes(tag.id);
                   return (
@@ -701,6 +739,13 @@ export function DayFillFlow({
                   );
                 })}
               </ScrollView>
+              {addingTag === "activity" && (
+                <InlineAddInput
+                  placeholder="Например, рисование"
+                  onAdd={(label) => handleAddTag("activity", label)}
+                  onCancel={() => setAddingTag(null)}
+                />
+              )}
             </>
           )}
           <TouchableOpacity style={{ marginTop: 28 }} onPress={() => { setCurrentQuestion(0); advanceFrom("tags"); }} activeOpacity={0.85}>
@@ -969,6 +1014,8 @@ const styles = StyleSheet.create({
   doneSub: { fontSize: 18, textAlign: "center" },
   doneReplyWrap: { maxWidth: 320, marginTop: 4 },
   doneReply: { fontSize: 16, lineHeight: 23, textAlign: "center" },
+  tagSectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  tagAddLink: { color: "#5EE6A8", fontSize: 13, fontWeight: "600" },
   doneReplyLabel: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, textAlign: "center", marginBottom: 6 },
   doneButton: {
     marginTop: 16,
