@@ -4,27 +4,13 @@ import { Platform } from "react-native";
 import { formatDate, getAllDays, getDay } from "@/src/storage/storage";
 import { WEEKLY_MIN_ENTRIES, weekStartOf } from "@/src/utils/weeklySummary";
 import type { DayEntry } from "@/src/storage/storage";
+import { allQuotesWithSource } from "@/src/utils/entryText";
 
 export const MEMORY_NOTIF_ID_KEY = "memory_notif_id";
 export const MEMORY_NOTIF_SCHEDULED_KEY = "memory_notif_scheduled_date";
 
 const GOOD_MOODS = [3, 4, 5];
 
-function extractQuote(entry: DayEntry): string | null {
-  const candidates = [
-    entry.answers?.learned ?? "",
-    entry.proud ?? "",
-    entry.answers?.positive?.answer ?? "",
-    entry.answers?.dayQuestion ?? "",
-    entry.notes ?? "",
-    entry.answers?.met ?? "",
-  ]
-    .map((s) => s.trim())
-    .filter((s) => s.length >= 8);
-
-  if (candidates.length === 0) return null;
-  return candidates[Math.floor(Math.random() * candidates.length)];
-}
 
 function daysBetween(dateStr: string): number {
   const today = new Date();
@@ -227,12 +213,13 @@ export async function scheduleMemoryNotification(): Promise<string | null> {
     if (goodEntries.length === 0) return null;
 
     const entry = goodEntries[Math.floor(Math.random() * goodEntries.length)];
-    const quote = extractQuote(entry);
-    if (!quote) return null;
+    const quotes = allQuotesWithSource(entry);
+    if (quotes.length === 0) return null;
+    const quote = quotes[Math.floor(Math.random() * quotes.length)];
 
     const days = daysBetween(entry.date);
-    const preview = quote.length > 100 ? quote.slice(0, 97) + "…" : quote;
-    const body = `${days} ${daysWord(days)} назад в твоём дневнике: «${preview}»`;
+    // Цитата первой: в свёрнутом уведомлении видна только первая строка.
+    const body = `«${quote.text}» — ${quote.shortSource}, ${days} ${daysWord(days)} назад`;
 
     const fireDate = new Date();
     fireDate.setDate(fireDate.getDate() + 3);

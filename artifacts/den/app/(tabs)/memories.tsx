@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { formatDate, getAllDays, getDay, getStreak, getLetters } from "@/src/storage/storage";
+import { entryQuoteWithSource } from "@/src/utils/entryText";
 import type { DayEntry, TimeCapsuleLetter } from "@/src/storage/storage";
 import { getStreakBadge } from "@/src/data/streakBadges";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
@@ -61,6 +62,7 @@ function MiniCard({ entry, onPress }: MiniCardProps) {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const moodColor = getMoodColor(entry.mood);
+  const quote = entryQuoteWithSource(entry, { minLength: 1, maxLength: 120 });
 
   return (
     <TouchableOpacity
@@ -73,10 +75,15 @@ function MiniCard({ entry, onPress }: MiniCardProps) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.miniDate, { color: theme.mutedForeground }]}>{formatDateRu(entry.date)}</Text>
-        {entry.answers.learned ? (
-          <Text style={[styles.miniAnswer, { color: theme.foreground }]} numberOfLines={2}>
-            {entry.answers.learned}
-          </Text>
+        {quote ? (
+          <>
+            <Text style={[styles.miniSource, { color: theme.mutedForeground }]} numberOfLines={1}>
+              {quote.source}
+            </Text>
+            <Text style={[styles.miniAnswer, { color: theme.foreground }]} numberOfLines={2}>
+              {quote.text}
+            </Text>
+          </>
         ) : null}
       </View>
       <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
@@ -469,6 +476,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 4,
   },
+  miniSource: { fontSize: 11, marginTop: 2 },
   miniAnswer: {
     fontSize: 14,
     lineHeight: 20,

@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getMoodEmoji } from "@/src/components/MoodPicker";
 import { MaskView } from "@/src/components/MaskView";
 import type { DayEntry } from "@/src/storage/storage";
+import { entryQuoteWithSource } from "@/src/utils/entryText";
 
 interface ThemeColors {
   foreground: string;
@@ -38,30 +39,6 @@ function whenLabel(entryDate: string, todayStr: string): string {
 }
 
 /**
- * Первая непустая содержательная строка записи. Порядок неслучайный: сначала
- * то, что человек написал своими словами и по своей воле (заметки, "горжусь"),
- * потом ответы на заданные вопросы — они бывают дежурными.
- */
-function preview(entry: DayEntry): string | null {
-  const candidates = [
-    entry.notes,
-    entry.proud,
-    entry.answers?.positive?.answer,
-    entry.answers?.learned,
-    entry.answers?.met,
-    entry.answers?.dayQuestion,
-  ];
-  for (const raw of candidates) {
-    const text = raw?.trim();
-    if (!text) continue;
-    const firstLine = text.split("\n")[0]!.trim();
-    if (!firstLine) continue;
-    return firstLine.length > 90 ? firstLine.slice(0, 89).trimEnd() + "…" : firstLine;
-  }
-  return null;
-}
-
-/**
  * Напоминание о прошлой записи на экране заполнения.
  *
  * Смысл — дать второму дню то, чего не было в первый. По данным на 2026-09-03
@@ -81,7 +58,9 @@ export function LastEntryCard({
   theme: ThemeColors;
   onPress: () => void;
 }) {
-  const text = preview(entry);
+  // Карточке хватает и короткого «Очень хорошо», поэтому порог длины — 1.
+  const quote = entryQuoteWithSource(entry, { minLength: 1 });
+  const text = quote?.text ?? null;
   const daysSince = daysBetween(entry.date, todayStr);
   const hasText = text !== null;
 
@@ -109,10 +88,13 @@ export function LastEntryCard({
         </Text>
         <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
       </View>
-      {text ? (
+      {quote ? (
         <MaskView>
+          <Text style={[styles.source, { color: theme.mutedForeground }]} numberOfLines={1}>
+            {quote.source}
+          </Text>
           <Text style={[styles.text, { color: theme.foreground }]} numberOfLines={2}>
-            {text}
+            {quote.text}
           </Text>
         </MaskView>
       ) : (
@@ -141,4 +123,5 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 16 },
   when: { fontSize: 13, fontWeight: "600", flex: 1 },
   text: { fontSize: 14, lineHeight: 20 },
+  source: { fontSize: 12, marginBottom: 2 },
 });

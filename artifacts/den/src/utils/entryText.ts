@@ -47,20 +47,70 @@ export function formatDayMonth(dateStr: string): string {
  * бывают дежурными. Короткие обрывки вроде «ок» цитатой не считаются.
  */
 export function entryQuote(entry: DayEntry, maxLength = 90): string | null {
-  const candidates = [
-    entry.notes,
-    entry.proud,
-    entry.answers?.positive?.answer,
-    entry.answers?.learned,
-    entry.answers?.met,
-    entry.answers?.dayQuestion,
+  return entryQuoteWithSource(entry, { maxLength })?.text ?? null;
+}
+
+/**
+ * Цитата вместе с тем, на что она была ответом. «Получился вкусный суп» без
+ * вопроса через месяц читается как обрывок — человек и сам не вспомнит, о
+ * чём это. `source` — полный вопрос для экранов, где есть место; `shortSource`
+ * — короткая метка для уведомления.
+ */
+export interface QuoteWithSource {
+  text: string;
+  source: string;
+  shortSource: string;
+}
+
+const LEARNED_QUESTION = "Что сегодня удалось узнать?";
+const MET_QUESTION = "Кого сегодня довелось встретить или вспомнить?";
+
+function quoteCandidates(entry: DayEntry): Array<{ raw: string | undefined; source: string; shortSource: string }> {
+  const positiveQuestion = entry.answers?.positive?.question?.trim() || "Что порадовало?";
+  const dayQuestion = entry.question?.trim() || "Вопрос дня";
+  return [
+    { raw: entry.notes, source: "Заметки", shortSource: "заметки" },
+    { raw: entry.proud, source: "Гордость дня", shortSource: "гордость дня" },
+    { raw: entry.answers?.positive?.answer, source: positiveQuestion, shortSource: "хороший момент" },
+    { raw: entry.answers?.learned, source: LEARNED_QUESTION, shortSource: "новое за день" },
+    { raw: entry.answers?.met, source: MET_QUESTION, shortSource: "встречи" },
+    { raw: entry.answers?.dayQuestion, source: dayQuestion, shortSource: "вопрос дня" },
   ];
-  for (const raw of candidates) {
-    const firstLine = raw?.trim().split("\n")[0]?.trim();
-    if (!firstLine || firstLine.length < 8) continue;
-    return firstLine.length > maxLength ? firstLine.slice(0, maxLength - 1).trimEnd() + "…" : firstLine;
+}
+
+function firstLineOf(raw: string | undefined): string | null {
+  const line = raw?.trim().split("\n")[0]?.trim();
+  return line || null;
+}
+
+function clip(text: string, maxLength: number): string {
+  return text.length > maxLength ? text.slice(0, maxLength - 1).trimEnd() + "…" : text;
+}
+
+/**
+ * Первая содержательная строка записи с её источником. Порядок как у
+ * entryQuote: сначала написанное по своей воле, потом ответы на вопросы.
+ * `minLength` отсекает обрывки вроде «ок»; карточке вчерашнего дня хватает
+ * и короткого «Очень хорошо», поэтому порог настраивается.
+ */
+export function entryQuoteWithSource(
+  entry: DayEntry,
+  { maxLength = 90, minLength = 8 }: { maxLength?: number; minLength?: number } = {},
+): QuoteWithSource | null {
+  for (const c of quoteCandidates(entry)) {
+    const line = firstLineOf(c.raw);
+    if (!line || line.length < minLength) continue;
+    return { text: clip(line, maxLength), source: c.source, shortSource: c.shortSource };
   }
   return null;
+}
+
+/** Все подходящие цитаты записи — для уведомления, которое выбирает случайную. */
+export function allQuotesWithSource(entry: DayEntry, maxLength = 100): QuoteWithSource[] {
+  return quoteCandidates(entry)
+    .map((c) => ({ line: firstLineOf(c.raw), c }))
+    .filter((x): x is { line: string; c: (typeof x)["c"] } => !!x.line && x.line.length >= 8)
+    .map(({ line, c }) => ({ text: clip(line, maxLength), source: c.source, shortSource: c.shortSource }));
 }
 
 /** В записи хранятся id тегов, а подписи живут в пользовательском справочнике. */

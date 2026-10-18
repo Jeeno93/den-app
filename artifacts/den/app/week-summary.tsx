@@ -138,6 +138,9 @@ export default function WeekSummaryScreen() {
                 </Text>
                 {summary.brightest.quote && (
                   <MaskView>
+                    {summary.brightest.quoteSource && (
+                      <Text style={[styles.quoteSource, { color: theme.mutedForeground }]}>{summary.brightest.quoteSource}</Text>
+                    )}
                     <Text style={[styles.quote, { color: theme.foreground }]}>«{summary.brightest.quote}»</Text>
                   </MaskView>
                 )}
@@ -175,6 +178,7 @@ export default function WeekSummaryScreen() {
                   {WEEKDAYS_CAPITAL[parseDay(summary.extraQuote.date).getDay()]}, {formatDayMonth(summary.extraQuote.date)}
                 </Text>
                 <MaskView>
+                  <Text style={[styles.quoteSource, { color: theme.mutedForeground }]}>{summary.extraQuote.source}</Text>
                   <Text style={[styles.quote, { color: theme.foreground }]}>«{summary.extraQuote.text}»</Text>
                 </MaskView>
               </TouchableOpacity>
@@ -210,7 +214,8 @@ const styles = StyleSheet.create({
   dayLabel: { fontSize: 10, fontWeight: "600", textTransform: "uppercase" },
   quoteBlock: { gap: 6 },
   quoteDate: { fontSize: 15, fontWeight: "600" },
-  quoteDateMuted: { fontSize: 13 },
+  quoteDateMuted: { fontSize: 13 },
+  quoteSource: { fontSize: 12, marginBottom: 2 },
   quote: { fontSize: 15, lineHeight: 22 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tagChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14 },

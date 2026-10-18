@@ -3,7 +3,7 @@ import { isValidMood } from "@/src/utils/mood";
 import {
   MONTHS_GENITIVE,
   addDays,
-  entryQuote,
+  entryQuoteWithSource,
   parseDay,
   type TagInfo,
 } from "@/src/utils/entryText";
@@ -24,9 +24,9 @@ export interface WeeklySummary {
   avgMood: number;
   prevAvgMood: number | null;
   tone: WeekTone;
-  brightest: { date: string; mood: number; quote: string | null } | null;
+  brightest: { date: string; mood: number; quote: string | null; quoteSource: string | null } | null;
   topTags: Array<TagInfo & { count: number }>;
-  extraQuote: { date: string; text: string } | null;
+  extraQuote: { date: string; text: string; source: string } | null;
   tasks: { planned: number; done: number } | null;
 }
 
@@ -103,7 +103,10 @@ export function buildWeeklySummary(
     ? [...entries].reverse().find((e) => e.mood === maxMood) ?? null
     : null;
   const brightest = brightestEntry
-    ? { date: brightestEntry.date, mood: brightestEntry.mood, quote: entryQuote(brightestEntry, 160) }
+    ? (() => {
+        const q = entryQuoteWithSource(brightestEntry, { maxLength: 160 });
+        return { date: brightestEntry.date, mood: brightestEntry.mood, quote: q?.text ?? null, quoteSource: q?.source ?? null };
+      })()
     : null;
 
   const tagCounts = new Map<string, number>();
@@ -126,8 +129,11 @@ export function buildWeeklySummary(
   // из плохого дня в сводке было бы бестактно.
   const extraQuote = entries
     .filter((e) => e.date !== brightestEntry?.date && e.mood >= 3)
-    .map((e) => ({ date: e.date, text: entryQuote(e, 160) }))
-    .filter((q): q is { date: string; text: string } => q.text !== null)
+    .map((e) => {
+      const q = entryQuoteWithSource(e, { maxLength: 160 });
+      return q ? { date: e.date, text: q.text, source: q.source } : null;
+    })
+    .filter((q): q is { date: string; text: string; source: string } => q !== null)
     .sort((a, b) => b.text.length - a.text.length)[0] ?? null;
 
   const planned = entries.reduce((sum, e) => sum + (e.tasksForTomorrow?.length ?? 0), 0);
