@@ -215,7 +215,8 @@ export async function scheduleMemoryNotification(): Promise<string | null> {
     const entry = goodEntries[Math.floor(Math.random() * goodEntries.length)];
     const quotes = allQuotesWithSource(entry);
     if (quotes.length === 0) return null;
-    const quote = quotes[Math.floor(Math.random() * quotes.length)];
+    // Ответ на вопрос дня, если он есть, — он первый в списке; иначе любой.
+    const quote = quotes[0].shortSource === "вопрос дня" ? quotes[0] : quotes[Math.floor(Math.random() * quotes.length)];
 
     const days = daysBetween(entry.date);
     // Цитата первой: в свёрнутом уведомлении видна только первая строка.

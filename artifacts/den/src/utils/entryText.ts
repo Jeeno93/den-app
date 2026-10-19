@@ -42,9 +42,8 @@ export function formatDayMonth(dateStr: string): string {
 }
 
 /**
- * Первая содержательная строка записи. Сначала то, что человек написал сам и
- * по своей воле (заметки, «горжусь»), потом ответы на заданные вопросы — они
- * бывают дежурными. Короткие обрывки вроде «ок» цитатой не считаются.
+ * Первая содержательная строка записи, порядок — как в quoteCandidates.
+ * Короткие обрывки вроде «ок» цитатой не считаются.
  */
 export function entryQuote(entry: DayEntry, maxLength = 90): string | null {
   return entryQuoteWithSource(entry, { maxLength })?.text ?? null;
@@ -68,13 +67,16 @@ const MET_QUESTION = "Кого сегодня довелось встретит�
 function quoteCandidates(entry: DayEntry): Array<{ raw: string | undefined; source: string; shortSource: string }> {
   const positiveQuestion = entry.answers?.positive?.question?.trim() || "Что порадовало?";
   const dayQuestion = entry.question?.trim() || "Вопрос дня";
+  // Первым — ответ на вопрос дня: вопрос каждый день новый, и именно его
+  // ответ интереснее всего перечитывать. Подпись «Заметки» или «Гордость
+  // дня» почти ничего не добавляет, поэтому они идут запасными.
   return [
-    { raw: entry.notes, source: "Заметки", shortSource: "заметки" },
-    { raw: entry.proud, source: "Гордость дня", shortSource: "гордость дня" },
+    { raw: entry.answers?.dayQuestion, source: dayQuestion, shortSource: "вопрос дня" },
     { raw: entry.answers?.positive?.answer, source: positiveQuestion, shortSource: "хороший момент" },
+    { raw: entry.proud, source: "Гордость дня", shortSource: "гордость дня" },
     { raw: entry.answers?.learned, source: LEARNED_QUESTION, shortSource: "новое за день" },
     { raw: entry.answers?.met, source: MET_QUESTION, shortSource: "встречи" },
-    { raw: entry.answers?.dayQuestion, source: dayQuestion, shortSource: "вопрос дня" },
+    { raw: entry.notes, source: "Заметки", shortSource: "заметки" },
   ];
 }
 
@@ -88,8 +90,8 @@ function clip(text: string, maxLength: number): string {
 }
 
 /**
- * Первая содержательная строка записи с её источником. Порядок как у
- * entryQuote: сначала написанное по своей воле, потом ответы на вопросы.
+ * Первая содержательная строка записи с её источником: сначала ответ на
+ * вопрос дня, остальное — запасное (см. quoteCandidates).
  * `minLength` отсекает обрывки вроде «ок»; карточке вчерашнего дня хватает
  * и короткого «Очень хорошо», поэтому порог настраивается.
  */
