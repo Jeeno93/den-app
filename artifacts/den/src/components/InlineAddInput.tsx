@@ -21,15 +21,26 @@ export function InlineAddInput({
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const [draft, setDraft] = useState("");
+  // Enter на клавиатуре и кнопка «Добавить» почти одновременно добавили бы
+  // одно и то же дважды.
+  const [busy, setBusy] = useState(false);
 
   async function submit() {
+    if (busy) return;
     const label = draft.trim();
     if (!label) {
       onCancel();
       return;
     }
-    await onAdd(label);
-    setDraft("");
+    setBusy(true);
+    try {
+      await onAdd(label);
+      setDraft("");
+    } catch (err) {
+      console.warn("[InlineAddInput] add failed:", err);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

@@ -55,7 +55,10 @@ export function entryQuote(entry: DayEntry, maxLength = 90): string | null {
  * чём это. `source` — полный вопрос для экранов, где есть место; `shortSource`
  * — короткая метка для уведомления.
  */
+export type QuoteKind = "dayQuestion" | "positive" | "proud" | "learned" | "met" | "notes";
+
 export interface QuoteWithSource {
+  kind: QuoteKind;
   text: string;
   source: string;
   shortSource: string;
@@ -64,19 +67,19 @@ export interface QuoteWithSource {
 const LEARNED_QUESTION = "Что сегодня удалось узнать?";
 const MET_QUESTION = "Кого сегодня довелось встретить или вспомнить?";
 
-function quoteCandidates(entry: DayEntry): Array<{ raw: string | undefined; source: string; shortSource: string }> {
+function quoteCandidates(entry: DayEntry): Array<{ kind: QuoteKind; raw: string | undefined; source: string; shortSource: string }> {
   const positiveQuestion = entry.answers?.positive?.question?.trim() || "Что порадовало?";
   const dayQuestion = entry.question?.trim() || "Вопрос дня";
   // Первым — ответ на вопрос дня: вопрос каждый день новый, и именно его
   // ответ интереснее всего перечитывать. Подпись «Заметки» или «Гордость
   // дня» почти ничего не добавляет, поэтому они идут запасными.
   return [
-    { raw: entry.answers?.dayQuestion, source: dayQuestion, shortSource: "вопрос дня" },
-    { raw: entry.answers?.positive?.answer, source: positiveQuestion, shortSource: "хороший момент" },
-    { raw: entry.proud, source: "Гордость дня", shortSource: "гордость дня" },
-    { raw: entry.answers?.learned, source: LEARNED_QUESTION, shortSource: "новое за день" },
-    { raw: entry.answers?.met, source: MET_QUESTION, shortSource: "встречи" },
-    { raw: entry.notes, source: "Заметки", shortSource: "заметки" },
+    { kind: "dayQuestion", raw: entry.answers?.dayQuestion, source: dayQuestion, shortSource: "вопрос дня" },
+    { kind: "positive", raw: entry.answers?.positive?.answer, source: positiveQuestion, shortSource: "хороший момент" },
+    { kind: "proud", raw: entry.proud, source: "Гордость дня", shortSource: "гордость дня" },
+    { kind: "learned", raw: entry.answers?.learned, source: LEARNED_QUESTION, shortSource: "новое за день" },
+    { kind: "met", raw: entry.answers?.met, source: MET_QUESTION, shortSource: "встречи" },
+    { kind: "notes", raw: entry.notes, source: "Заметки", shortSource: "заметки" },
   ];
 }
 
@@ -102,9 +105,19 @@ export function entryQuoteWithSource(
   for (const c of quoteCandidates(entry)) {
     const line = firstLineOf(c.raw);
     if (!line || line.length < minLength) continue;
-    return { text: clip(line, maxLength), source: c.source, shortSource: c.shortSource };
+    return { kind: c.kind, text: clip(line, maxLength), source: c.source, shortSource: c.shortSource };
   }
   return null;
+}
+
+/**
+ * Для карточек, где пустое место хуже короткой цитаты: сначала ищем
+ * содержательный ответ (от 8 символов), и только если его нет нигде — берём
+ * короткий вроде «Очень хорошо». Иначе «ок» на вопрос дня перебивал бы
+ * длинную заметку только потому, что вопрос дня идёт первым.
+ */
+export function entryQuoteForCard(entry: DayEntry, maxLength = 90): QuoteWithSource | null {
+  return entryQuoteWithSource(entry, { maxLength }) ?? entryQuoteWithSource(entry, { maxLength, minLength: 1 });
 }
 
 /** Все подходящие цитаты записи — для уведомления, которое выбирает случайную. */
@@ -112,7 +125,7 @@ export function allQuotesWithSource(entry: DayEntry, maxLength = 100): QuoteWith
   return quoteCandidates(entry)
     .map((c) => ({ line: firstLineOf(c.raw), c }))
     .filter((x): x is { line: string; c: (typeof x)["c"] } => !!x.line && x.line.length >= 8)
-    .map(({ line, c }) => ({ text: clip(line, maxLength), source: c.source, shortSource: c.shortSource }));
+    .map(({ line, c }) => ({ kind: c.kind, text: clip(line, maxLength), source: c.source, shortSource: c.shortSource }));
 }
 
 /** В записи хранятся id тегов, а подписи живут в пользовательском справочнике. */

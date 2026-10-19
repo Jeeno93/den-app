@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import type { TagItem } from "@/src/data/defaultTags";
 import { addCustomPerson, getPeople, togglePerson } from "@/src/data/people";
+import { InlineAddInput } from "@/src/components/InlineAddInput";
 
 const ACCENT = "#5EE6A8";
 
@@ -18,22 +19,15 @@ export function PeoplePicker({ selected, onChange }: Props) {
   const theme = isDark ? colors.dark : colors.light;
   const [people, setPeople] = useState<TagItem[]>([]);
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     getPeople().then(setPeople);
   }, []);
 
-  async function handleAdd() {
-    const label = draft.trim();
-    if (!label) {
-      setAdding(false);
-      return;
-    }
+  async function handleAdd(label: string) {
     const person = await addCustomPerson(label);
     setPeople(await getPeople());
     onChange(togglePerson(selected, person.id));
-    setDraft("");
     setAdding(false);
   }
 
@@ -65,22 +59,11 @@ export function PeoplePicker({ selected, onChange }: Props) {
         )}
       </View>
       {adding && (
-        <View style={styles.addRow}>
-          <TextInput
-            style={[styles.input, { color: theme.foreground, borderColor: theme.border, backgroundColor: isDark ? theme.muted : "#F8F9FA" }]}
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Например, одноклассники"
-            placeholderTextColor={theme.mutedForeground}
-            autoFocus
-            maxLength={30}
-            onSubmitEditing={handleAdd}
-            returnKeyType="done"
-          />
-          <TouchableOpacity style={[styles.addButton, { backgroundColor: ACCENT }]} onPress={handleAdd} activeOpacity={0.8}>
-            <Text style={styles.addButtonText}>Добавить</Text>
-          </TouchableOpacity>
-        </View>
+        <InlineAddInput
+          placeholder="Например, одноклассники"
+          onAdd={handleAdd}
+          onCancel={() => setAdding(false)}
+        />
       )}
     </View>
   );
@@ -101,8 +84,4 @@ const styles = StyleSheet.create({
   },
   emoji: { fontSize: 13 },
   label: { fontSize: 12, fontWeight: "500" },
-  addRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  input: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14 },
-  addButton: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
-  addButtonText: { color: "#06080B", fontWeight: "700", fontSize: 13 },
 });

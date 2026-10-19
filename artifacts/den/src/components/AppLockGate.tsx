@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { AppState, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as amplitude from "@amplitude/analytics-react-native";
 import { authenticate, isAppLockEnabled } from "@/src/utils/appLock";
@@ -67,8 +67,13 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
   return (
     <View style={{ flex: 1 }}>
       {children}
-      {locked && (
-        <View style={[StyleSheet.absoluteFill, styles.cover]}>
+      {/* Отдельное модальное окно, а не слой поверх дерева: обычный View
+          оказывался под уже открытыми окнами (просмотр фото, «Поделиться
+          днём»), и после долгого фона их содержимое было видно без проверки.
+          Новое модальное окно ложится поверх всех открытых. Кнопка «назад»
+          замок не снимает. */}
+      <Modal visible={locked} animationType="none" statusBarTranslucent onRequestClose={() => {}}>
+        <View style={styles.cover}>
           <Ionicons name="lock-closed-outline" size={40} color={ACCENT} />
           <Text style={styles.title}>Den</Text>
           <Text style={styles.sub}>Дневник закрыт</Text>
@@ -76,7 +81,7 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
             <Text style={styles.buttonText}>Открыть</Text>
           </TouchableOpacity>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }

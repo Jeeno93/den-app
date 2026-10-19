@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getMoodEmoji } from "@/src/components/MoodPicker";
 import { MaskView } from "@/src/components/MaskView";
 import type { DayEntry } from "@/src/storage/storage";
-import { entryQuoteWithSource } from "@/src/utils/entryText";
+import { entryQuoteForCard } from "@/src/utils/entryText";
 
 interface ThemeColors {
   foreground: string;
@@ -58,8 +58,7 @@ export function LastEntryCard({
   theme: ThemeColors;
   onPress: () => void;
 }) {
-  // Карточке хватает и короткого «Очень хорошо», поэтому порог длины — 1.
-  const quote = entryQuoteWithSource(entry, { minLength: 1 });
+  const quote = entryQuoteForCard(entry);
   const text = quote?.text ?? null;
   const daysSince = daysBetween(entry.date, todayStr);
   const hasText = text !== null;

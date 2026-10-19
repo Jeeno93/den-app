@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
 import { formatDate, getAllDays, getDay, getStreak, getLetters } from "@/src/storage/storage";
-import { entryQuoteWithSource } from "@/src/utils/entryText";
+import { entryQuoteForCard } from "@/src/utils/entryText";
 import type { DayEntry, TimeCapsuleLetter } from "@/src/storage/storage";
 import { getStreakBadge } from "@/src/data/streakBadges";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
@@ -62,7 +62,7 @@ function MiniCard({ entry, onPress }: MiniCardProps) {
   const { isDark } = useTheme();
   const theme = isDark ? colors.dark : colors.light;
   const moodColor = getMoodColor(entry.mood);
-  const quote = entryQuoteWithSource(entry, { minLength: 1, maxLength: 120 });
+  const quote = entryQuoteForCard(entry, 120);
 
   return (
     <TouchableOpacity

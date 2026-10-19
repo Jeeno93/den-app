@@ -214,7 +214,8 @@ const styles = StyleSheet.create({
   dayLabel: { fontSize: 10, fontWeight: "600", textTransform: "uppercase" },
   quoteBlock: { gap: 6 },
   quoteDate: { fontSize: 15, fontWeight: "600" },
-  quoteDateMuted: { fontSize: 13 },
+  quoteDateMuted: { fontSize: 13 },
+
   quoteSource: { fontSize: 12, marginBottom: 2 },
   quote: { fontSize: 15, lineHeight: 22 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

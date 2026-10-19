@@ -145,7 +145,10 @@ export function pickDiscovery(
   if (!isValidMood(entry.mood) || entry.mood === 1) return null;
   const byDate = new Map(all.map((e) => [e.date, e]));
   byDate.set(entry.date, entry);
-  const sorted = [...byDate.values()].filter((e) => isValidMood(e.mood)).sort((a, b) => a.date.localeCompare(b.date));
+  // Записи на будущие даты (заполненные заранее) в открытия не входят.
+  const sorted = [...byDate.values()]
+    .filter((e) => isValidMood(e.mood) && e.date <= entry.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
   const pending = DISCOVERY_MILESTONES.filter((m) => m <= sorted.length && !shownMilestones.includes(m));
   if (pending.length === 0) return null;
   const milestone = pending[pending.length - 1];
