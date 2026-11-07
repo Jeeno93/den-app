@@ -57,15 +57,19 @@ const COMEBACK_INVITES: Invite[] = [
   { id: "comeback_here", body: "Den на месте, когда захочется записать день." },
 ];
 
-/** Воскресное напоминание недели, в которой записей хватает на итоги. */
+/** Воскресное приглашение подвести итоги недели. */
 const WEEKLY_INVITE: Invite = {
   id: "weekly_summary",
-  body: "Итоги недели готовы: настроение по дням и твои записи.",
+  body: "Время подвести итоги недели: что получилось и что не пошло?",
 };
 
 // Ключи настроек напоминаний; ими же управляет NotificationContext.
 const NOTIF_TIME_KEY = "notification_time";
 const NOTIF_ENABLED_KEY = "notifications_enabled";
+// Тумблер «Итоги недели» в настройках. Дефолт — включено: до появления
+// тумблера воскресное приглашение к итогам приходило всем, менять поведение
+// для существующих пользователей молча не стоит.
+export const WEEKLY_NOTIF_ENABLED_KEY = "weekly_notif_enabled";
 
 // Дни от последнего открытия: каждый вечер первую неделю, затем по одному на
 // 10-й и 14-й день, дальше тишина. Раньше одно уведомление повторялось
@@ -138,6 +142,8 @@ export function scheduleDailyReminders(hour: number, minute: number): Promise<vo
       const thisWeekStart = weekStartOf(formatDate(now));
       const thisWeekEntries = (await getAllDays()).filter((e) => weekStartOf(e.date) === thisWeekStart).length;
       const weeklyReady = thisWeekEntries >= WEEKLY_MIN_ENTRIES;
+      const weeklyEnabled =
+        (await AsyncStorage.getItem(WEEKLY_NOTIF_ENABLED_KEY)) !== "false";
       const plan = [
         ...DAILY_OFFSETS.map((offset) => ({ offset, pool: DAILY_INVITES })),
         ...COMEBACK_OFFSETS.map((offset, i) => ({ offset, pool: [COMEBACK_INVITES[i % COMEBACK_INVITES.length]] })),
@@ -150,7 +156,7 @@ export function scheduleDailyReminders(hour: number, minute: number): Promise<vo
         // Вариант привязан к дате, а не к порядку: перепланирование в тот же
         // день не меняет текст, а соседние дни получают разные тексты.
         const isWeeklySunday =
-          weeklyReady && fireDate.getDay() === 0 && weekStartOf(formatDate(fireDate)) === thisWeekStart;
+          weeklyEnabled && weeklyReady && fireDate.getDay() === 0 && weekStartOf(formatDate(fireDate)) === thisWeekStart;
         const invite = isWeeklySunday ? WEEKLY_INVITE : pool[dayOfYear(fireDate) % pool.length];
         const id = await Notifications.scheduleNotificationAsync({
           content: {

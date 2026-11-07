@@ -40,7 +40,7 @@ interface DiagResult {
 
 export default function SettingsScreen() {
   const { isDark } = useTheme();
-  const { notifHour, notifMinute, notificationsEnabled, memoryNotifEnabled, setNotificationTime, setNotificationsEnabled, setMemoryNotifEnabled } = useNotifications();
+  const { notifHour, notifMinute, notificationsEnabled, memoryNotifEnabled, weeklyNotifEnabled, setNotificationTime, setNotificationsEnabled, setMemoryNotifEnabled, setWeeklyNotifEnabled } = useNotifications();
   const theme = isDark ? colors.dark : colors.light;
   const insets = useSafeAreaInsets();
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -322,6 +322,23 @@ export default function SettingsScreen() {
               onValueChange={setMemoryNotifEnabled}
               trackColor={{ false: theme.border, true: "#5EE6A8" + "88" }}
               thumbColor={memoryNotifEnabled ? "#5EE6A8" : theme.mutedForeground}
+            />
+          </View>
+
+          {/* Weekly reflection toggle */}
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="calendar-outline" size={20} color="#5EE6A8" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Итоги недели</Text>
+              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Воскресный вечер — подвести итоги недели</Text>
+            </View>
+            <Switch
+              value={weeklyNotifEnabled}
+              onValueChange={setWeeklyNotifEnabled}
+              trackColor={{ false: theme.border, true: "#5EE6A8" + "88" }}
+              thumbColor={weeklyNotifEnabled ? "#5EE6A8" : theme.mutedForeground}
             />
           </View>
         </View>

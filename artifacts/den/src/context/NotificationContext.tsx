@@ -10,6 +10,7 @@ import {
   cancelDailyReminders,
   scheduleMemoryNotification,
   cancelMemoryNotification,
+  WEEKLY_NOTIF_ENABLED_KEY,
 } from "@/src/utils/notifications";
 import { claimNotificationResponse } from "@/src/utils/notificationOpen";
 
@@ -23,9 +24,11 @@ interface NotificationContextValue {
   notifMinute: number;
   notificationsEnabled: boolean;
   memoryNotifEnabled: boolean;
+  weeklyNotifEnabled: boolean;
   setNotificationTime: (hour: number, minute: number) => Promise<void>;
   setNotificationsEnabled: (enabled: boolean) => Promise<void>;
   setMemoryNotifEnabled: (enabled: boolean) => Promise<void>;
+  setWeeklyNotifEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue>({
@@ -33,9 +36,11 @@ const NotificationContext = createContext<NotificationContextValue>({
   notifMinute: 0,
   notificationsEnabled: true,
   memoryNotifEnabled: false,
+  weeklyNotifEnabled: true,
   setNotificationTime: async () => {},
   setNotificationsEnabled: async () => {},
   setMemoryNotifEnabled: async () => {},
+  setWeeklyNotifEnabled: async () => {},
 });
 
 Notifications.setNotificationHandler({
@@ -58,6 +63,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifMinute, setNotifMinute] = useState(0);
   const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
   const [memoryNotifEnabled, setMemoryNotifEnabledState] = useState(false);
+  const [weeklyNotifEnabled, setWeeklyNotifEnabledState] = useState(true);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
@@ -76,12 +82,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           AsyncStorage.getItem(NOTIF_ENABLED_KEY),
           AsyncStorage.getItem(MEMORY_NOTIF_ENABLED_KEY),
           AsyncStorage.getItem(MEMORY_NOTIF_SCHEDULED_KEY),
-        ]).then(([timeVal, enabledVal, memEnabledVal, memScheduled]) => {
+          AsyncStorage.getItem(WEEKLY_NOTIF_ENABLED_KEY),
+        ]).then(([timeVal, enabledVal, memEnabledVal, memScheduled, weeklyEnabledVal]) => {
           const enabled = enabledVal !== "false";
           setNotificationsEnabledState(enabled);
 
           const memEnabled = memEnabledVal === "true";
           setMemoryNotifEnabledState(memEnabled);
+
+          // Дефолт — включено: воскресное приглашение к итогам существовало
+          // до появления тумблера, молча отбирать его у обновившихся нельзя.
+          setWeeklyNotifEnabledState(weeklyEnabledVal !== "false");
 
           if (timeVal) {
             const [h, m] = timeVal.split(":").map(Number);
@@ -177,6 +188,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const setWeeklyNotifEnabled = async (enabled: boolean) => {
+    setWeeklyNotifEnabledState(enabled);
+    await AsyncStorage.setItem(WEEKLY_NOTIF_ENABLED_KEY, enabled ? "true" : "false");
+    // Воскресный слот планируется внутри общей партии напоминаний —
+    // пересобираем её, чтобы тумблер подействовал сразу, а не со следующего дня.
+    if (notificationsEnabled) {
+      await scheduleDailyReminders(notifHour, notifMinute);
+    }
+  };
+
   return (
     <NotificationContext.Provider
       value={{
@@ -184,9 +205,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         notifMinute,
         notificationsEnabled,
         memoryNotifEnabled,
+        weeklyNotifEnabled,
         setNotificationTime,
         setNotificationsEnabled,
         setMemoryNotifEnabled,
+        setWeeklyNotifEnabled,
       }}
     >
       {children}
