@@ -83,7 +83,7 @@ const WHY_BLOCKS = [
 ];
 
 const SHARE_TEXT =
-  "Я веду дневник в приложении Den — оно каждый вечер задает пять вопросов. Вот почему это работает: https://play.google.com/store/apps/details?id=com.den";
+  "Я веду дневник в приложении Den — оно каждый вечер задает пять вопросов. Вот почему это работает: https://play.google.com/store/apps/details?id=com.jeeno93.den";
 
 interface OnboardingProps {
   visible: boolean;
