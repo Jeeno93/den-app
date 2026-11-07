@@ -1,3 +1,8 @@
 - [День fill-flow structure](den-fill-flow.md) — three modes (quick/standard/deep); 5 questions never last, final "Готово" lives on notes/deep; don't break Стандарт parity.
 - [День storage & SQLITE_FULL](den-storage-sqlite-full.md) — storage is AsyncStorage (no SQL columns); SQLITE_FULL = Android ~6MB cap from legacy inline base64 photos; keep big blobs on the filesystem.
 - [Expo native module install](expo-native-module-install.md) — `expo install` fails here (npm ERESOLVE); use bundledNativeModules.json version + `pnpm --filter add pkg@ver`.
+- [День roadmap](../../docs/roadmap.md) — единый источник истины по трём трекам; статусы обновлять в конце каждой сессии.
+- Роли сессий: «Den Планирование» = штаб (стратегия, синхронизация, сквозные решения, интеграции); «Den Разработка» = senior-разработчик/архитектор (код, релизы, git/EAS); «Den Аналитика» = продуктовый аналитик (цифры, когорты, экономика); «Den Реклама» = маркетолог/ASO (материалы, кампании — без запуска до гейта). Роль-бриф — в начале каждой заметки трека.
+- [День analytics & attribution](den-analytics.md) — что выгружать из Amplitude/AppMetrica, известные проблемы атрибуции, baseline «до рекламы».
+- [День dev context](den-dev.md) — релизы 1.3.1/1.4.0, недельная рефлексия, дизайн-направление unslop (что трогаем / не трогаем).
+- [День growth](den-growth.md) — гейты перед рекламой, пороги пилота Директа, ASO/RuStore, НГ-кампания.
