@@ -533,6 +533,103 @@ export async function deleteLetter(id: string): Promise<void> {
   await AsyncStorage.setItem(LETTERS_KEY, JSON.stringify(filtered));
 }
 
+// ─── Недельная рефлексия ──────────────────────────────────────────────────
+
+export interface WeekReflection {
+  weekStart: string; // "YYYY-MM-DD" понедельника недели
+  done: string; // что было сделано за неделю
+  wins: string[]; // микроуспехи
+  problems: string; // что не пошло
+  nextWeekFocus: string; // фокус на следующую неделю
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+
+function reflectionKey(weekStart: string): string {
+  return `week_${weekStart}`;
+}
+
+export async function getReflection(weekStart: string): Promise<WeekReflection | null> {
+  try {
+    const raw = await AsyncStorage.getItem(reflectionKey(weekStart));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      weekStart,
+      done: typeof parsed.done === "string" ? parsed.done : "",
+      wins: Array.isArray(parsed.wins) ? parsed.wins.filter((w: unknown) => typeof w === "string") : [],
+      problems: typeof parsed.problems === "string" ? parsed.problems : "",
+      nextWeekFocus: typeof parsed.nextWeekFocus === "string" ? parsed.nextWeekFocus : "",
+      createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : "",
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveReflection(reflection: WeekReflection): Promise<void> {
+  await AsyncStorage.setItem(reflectionKey(reflection.weekStart), JSON.stringify(reflection));
+}
+
+export async function getAllReflections(): Promise<WeekReflection[]> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const weekKeys = keys.filter((k) => k.startsWith("week_"));
+    const values = await AsyncStorage.multiGet(weekKeys);
+    const reflections: WeekReflection[] = [];
+    for (const [key, raw] of values) {
+      if (!raw) continue;
+      const weekStart = key.slice("week_".length);
+      const parsed = JSON.parse(raw);
+      reflections.push({
+        weekStart,
+        done: typeof parsed.done === "string" ? parsed.done : "",
+        wins: Array.isArray(parsed.wins) ? parsed.wins.filter((w: unknown) => typeof w === "string") : [],
+        problems: typeof parsed.problems === "string" ? parsed.problems : "",
+        nextWeekFocus: typeof parsed.nextWeekFocus === "string" ? parsed.nextWeekFocus : "",
+        createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : "",
+        updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : "",
+      });
+    }
+    return reflections.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Недельная серия: подряд идущие недели с рефлексией, шаг ровно 7 дней.
+ * Незаполненная ещё текущая неделя серию не рвёт — считается, что время
+ * подвести итоги ещё не вышло. Дневной streak (getStreak) намеренно не
+ * затрагивается: это отдельный ритуал со своим счётчиком.
+ */
+export async function getReflectionStreak(): Promise<number> {
+  const reflections = await getAllReflections();
+  if (reflections.length === 0) return 0;
+  const byWeek = new Set(reflections.map((r) => r.weekStart));
+
+  function mondayOf(dateStr: string): string {
+    const dow = (new Date(dateStr + "T12:00:00").getDay() + 6) % 7;
+    const d = new Date(dateStr + "T12:00:00");
+    d.setDate(d.getDate() - dow);
+    return formatDate(d);
+  }
+
+  const today = formatDate(new Date());
+  let expected = mondayOf(today);
+  let streak = 0;
+  // Больше недель, чем существует рефлексий, подряд быть не может.
+  while (streak < reflections.length && byWeek.has(expected)) {
+    streak++;
+    // expected − 7 дней без парсинга через Date: разница дат надёжнее.
+    const prev = new Date(expected + "T12:00:00");
+    prev.setDate(prev.getDate() - 7);
+    expected = formatDate(prev);
+  }
+  return streak;
+}
+
 // ─── Пользовательские вопросы ─────────────────────────────────────────────
 
 export interface CustomQuestions {
