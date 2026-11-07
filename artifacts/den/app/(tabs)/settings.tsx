@@ -361,6 +361,16 @@ export default function SettingsScreen() {
             <Text style={[styles.rowTitle, { color: theme.foreground, flex: 1 }]}>Зачем вести дневник</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.row} onPress={() => router.push("/privacy" as any)} activeOpacity={0.7}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={theme.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.foreground }]}>Конфиденциальность</Text>
+              <Text style={[styles.rowSub, { color: theme.mutedForeground }]}>Что хранится на устройстве и что уходит в аналитику</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={handleWriteToDeveloper} activeOpacity={0.7}>
             <View style={styles.rowIcon}>
               <Ionicons name="mail-outline" size={20} color={theme.primary} />

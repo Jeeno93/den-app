@@ -65,6 +65,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="day-detail" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="why-diary" options={{ headerShown: false, presentation: "card" }} />
+      <Stack.Screen name="privacy" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="letters" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="year-pixels" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="patterns" options={{ headerShown: false, presentation: "card" }} />
