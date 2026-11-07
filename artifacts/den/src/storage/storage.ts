@@ -599,10 +599,13 @@ export async function getAllReflections(): Promise<WeekReflection[]> {
 }
 
 /**
- * Недельная серия: подряд идущие недели с рефлексией, шаг ровно 7 дней.
- * Незаполненная ещё текущая неделя серию не рвёт — считается, что время
- * подвести итоги ещё не вышло. Дневной streak (getStreak) намеренно не
- * затрагивается: это отдельный ритуал со своим счётчиком.
+ * Недельная серия: цепочка подряд заполненных недель, заканчивающаяся на
+ * последней заполненной. Цепочка прощает ещё не заполненную текущую неделю
+ * (время подвести итоги не вышло), а в понедельник–вторник — только что
+ * закончившуюся (окно рефлексии по summaryWeekFor). Пропущенная целиком
+ * неделя серию рвёт: бесконечного прощения нет, иначе одна старая рефлексия
+ * показывала бы «серию» вечно. Дневной streak (getStreak) не затрагивается:
+ * это отдельный ритуал со своим счётчиком.
  */
 export async function getReflectionStreak(): Promise<number> {
   const reflections = await getAllReflections();
@@ -610,19 +613,30 @@ export async function getReflectionStreak(): Promise<number> {
   const byWeek = new Set(reflections.map((r) => r.weekStart));
 
   function mondayOf(dateStr: string): string {
-    const dow = (new Date(dateStr + "T12:00:00").getDay() + 6) % 7;
-    const d = new Date(dateStr + "T12:00:00");
-    d.setDate(d.getDate() - dow);
-    return formatDate(d);
+    const base = new Date(dateStr + "T12:00:00");
+    const dow = (base.getDay() + 6) % 7;
+    base.setDate(base.getDate() - dow);
+    return formatDate(base);
+  }
+  function daysBetween(a: string, b: string): number {
+    return Math.round(
+      (new Date(b + "T12:00:00").getTime() - new Date(a + "T12:00:00").getTime()) / 86400000
+    );
   }
 
   const today = formatDate(new Date());
-  let expected = mondayOf(today);
+  const todayMonday = mondayOf(today);
+  const dow = new Date(today + "T12:00:00").getDay();
+
+  const latest = reflections.reduce((max, r) => (r.weekStart > max ? r.weekStart : max), reflections[0].weekStart);
+  const gap = daysBetween(latest, todayMonday);
+  const forgiven = gap <= 7 || (gap <= 14 && (dow === 1 || dow === 2));
+  if (!forgiven) return 0;
+
   let streak = 0;
-  // Больше недель, чем существует рефлексий, подряд быть не может.
-  while (streak < reflections.length && byWeek.has(expected)) {
+  let expected = latest;
+  while (byWeek.has(expected)) {
     streak++;
-    // expected − 7 дней без парсинга через Date: разница дат надёжнее.
     const prev = new Date(expected + "T12:00:00");
     prev.setDate(prev.getDate() - 7);
     expected = formatDate(prev);
