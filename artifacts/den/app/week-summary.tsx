@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as amplitude from "@amplitude/analytics-react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { formatDate, getAllDays, getTags } from "@/src/storage/storage";
+import { formatDate, getAllDays, getReflection, getReflectionStreak, getTags, saveReflection } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
 import { MaskView } from "@/src/components/MaskView";
 import { WEEKDAYS_CAPITAL, formatDayMonth, parseDay, plural, tagLookup } from "@/src/utils/entryText";
@@ -23,6 +23,7 @@ import {
 } from "@/src/utils/weeklySummary";
 
 const DOW_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const MAX_WINS = 5;
 
 type Theme = typeof colors.dark;
 
@@ -37,6 +38,165 @@ function Section({ title, theme, children }: { title: string; theme: Theme; chil
 
 function openDay(date: string) {
   router.push({ pathname: "/day-detail", params: { date } } as any);
+}
+
+/**
+ * Пользовательская недельная рефлексия — «что сделано, микроуспехи, что не
+ * пошло, фокус на следующую неделю». Живёт поверх автодайджеста и доступна
+ * даже там, где дайджеста нет: рефлексия — про взгляд человека, а не про
+ * количество записей. Сохранение — по коммиту поля (идиома DayEntry),
+ * воронка: started — первое непустое наполнение, completed — заполнены
+ * «сделано» и хотя бы один микроуспех (problems/focus — опциональны).
+ */
+function ReflectionBlock({ weekStart, theme }: { weekStart: string; theme: Theme }) {
+  const [done, setDone] = useState("");
+  const [wins, setWins] = useState<string[]>([]);
+  const [problems, setProblems] = useState("");
+  const [focus, setFocus] = useState("");
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [reflection, reflectionStreak] = await Promise.all([
+        getReflection(weekStart),
+        getReflectionStreak(),
+      ]);
+      if (cancelled) return;
+      if (reflection) {
+        setDone(reflection.done);
+        setWins(reflection.wins);
+        setProblems(reflection.problems);
+        setFocus(reflection.nextWeekFocus);
+      }
+      setStreak(reflectionStreak);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [weekStart]);
+
+  async function trackFunnel(next: { done: string; wins: string[]; problems: string; nextWeekFocus: string }) {
+    try {
+      const hasCore = next.done.trim().length > 0 || next.wins.some((w) => w.trim().length > 0);
+      const startedKey = `reflection_started_${weekStart}`;
+      if (hasCore && !(await AsyncStorage.getItem(startedKey))) {
+        await AsyncStorage.setItem(startedKey, "1");
+        amplitude.track("weekly_reflection_started", { week_start: weekStart });
+      }
+      const coreDone = next.done.trim().length > 0 && next.wins.some((w) => w.trim().length > 0);
+      const completedKey = `reflection_completed_${weekStart}`;
+      if (coreDone && !(await AsyncStorage.getItem(completedKey))) {
+        await AsyncStorage.setItem(completedKey, "1");
+        amplitude.track("weekly_reflection_completed", { week_start: weekStart });
+      }
+    } catch {}
+  }
+
+  async function persist(next: { done: string; wins: string[]; problems: string; nextWeekFocus: string }) {
+    try {
+      const existing = await getReflection(weekStart);
+      const now = new Date().toISOString();
+      await saveReflection({ weekStart, ...next, createdAt: existing?.createdAt ?? now, updatedAt: now });
+      await trackFunnel(next);
+    } catch {}
+  }
+
+  function commitField(field: "done" | "problems" | "nextWeekFocus", value: string) {
+    const next = { done, wins, problems, nextWeekFocus: focus, [field]: value };
+    if (field === "done") setDone(value);
+    if (field === "problems") setProblems(value);
+    if (field === "nextWeekFocus") setFocus(value);
+    persist(next);
+  }
+
+  function commitWin(index: number, value: string) {
+    const nextWins = wins.map((w, i) => (i === index ? value : w));
+    setWins(nextWins);
+    persist({ done, wins: nextWins, problems, nextWeekFocus: focus });
+  }
+
+  function addWin() {
+    if (wins.length >= MAX_WINS) return;
+    const nextWins = [...wins, ""];
+    setWins(nextWins);
+    persist({ done, wins: nextWins, problems, nextWeekFocus: focus });
+  }
+
+  function removeWin(index: number) {
+    const nextWins = wins.filter((_, i) => i !== index);
+    setWins(nextWins);
+    persist({ done, wins: nextWins, problems, nextWeekFocus: focus });
+  }
+
+  return (
+    <View style={[styles.reflectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View style={styles.reflectionTitleRow}>
+        <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>Твой взгляд на неделю</Text>
+        {streak > 0 && (
+          <View style={[styles.streakChip, { backgroundColor: theme.primary + "1A" }]}>
+            <Text style={[styles.streakChipText, { color: theme.primary }]}>
+              🔥 {streak} {plural(streak, ["неделя", "недели", "недель"])} подряд
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>Что было сделано</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: theme.secondary, color: theme.foreground }]}
+        value={done}
+        onChangeText={setDone}
+        onEndEditing={(e) => commitField("done", e.nativeEvent.text)}
+        placeholder="Главные дела и события недели"
+        placeholderTextColor={theme.mutedForeground}
+        multiline
+      />
+
+      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>Микроуспехи</Text>
+      {wins.map((win, index) => (
+        <View key={index} style={styles.winRow}>
+          <TextInput
+            style={[styles.winInput, { backgroundColor: theme.secondary, color: theme.foreground }]}
+            value={win}
+            onChangeText={(v) => setWins(wins.map((w, i) => (i === index ? v : w)))}
+            onEndEditing={(e) => commitWin(index, e.nativeEvent.text)}
+            placeholder={`Успех ${index + 1}`}
+            placeholderTextColor={theme.mutedForeground}
+          />
+          <TouchableOpacity onPress={() => removeWin(index)} activeOpacity={0.7} style={styles.winRemove}>
+            <Ionicons name="close-circle" size={20} color={theme.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+      ))}
+      {wins.length < MAX_WINS && (
+        <TouchableOpacity onPress={addWin} activeOpacity={0.7}>
+          <Text style={[styles.addWin, { color: theme.primary }]}>+ Добавить успех</Text>
+        </TouchableOpacity>
+      )}
+
+      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>Что не пошло</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: theme.secondary, color: theme.foreground }]}
+        value={problems}
+        onChangeText={setProblems}
+        onEndEditing={(e) => commitField("problems", e.nativeEvent.text)}
+        placeholder="Что не получилось и почему"
+        placeholderTextColor={theme.mutedForeground}
+        multiline
+      />
+
+      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>Фокус на следующую неделю</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: theme.secondary, color: theme.foreground }]}
+        value={focus}
+        onChangeText={setFocus}
+        onEndEditing={(e) => commitField("nextWeekFocus", e.nativeEvent.text)}
+        placeholder="Одно главное, что берёшь с собой"
+        placeholderTextColor={theme.mutedForeground}
+      />
+    </View>
+  );
 }
 
 export default function WeekSummaryScreen() {
@@ -64,7 +224,9 @@ export default function WeekSummaryScreen() {
         });
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [params.start]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -86,15 +248,19 @@ export default function WeekSummaryScreen() {
       </View>
 
       {loaded && !summary && (
-        <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-            На этой неделе пока меньше трёх записей. Итоги появятся, когда записей станет больше.
-          </Text>
-        </View>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+          <ReflectionBlock key={loaded.start} weekStart={loaded.start} theme={theme} />
+          <View style={styles.empty}>
+            <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
+              На этой неделе пока меньше трёх записей. Автоматические итоги появятся, когда записей станет больше.
+            </Text>
+          </View>
+        </ScrollView>
       )}
 
       {summary && (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+          {loaded && <ReflectionBlock key={loaded.start} weekStart={loaded.start} theme={theme} />}
           <Text style={[styles.headline, { color: theme.foreground }]}>{summaryHeadline(summary)}</Text>
           {summaryComparison(summary) && (
             <Text style={[styles.comparison, { color: theme.mutedForeground }]}>{summaryComparison(summary)}</Text>
@@ -223,4 +389,14 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 14 },
   body: { fontSize: 15, lineHeight: 22 },
   footer: { fontSize: 12, textAlign: "center", marginTop: 6, lineHeight: 17 },
+  reflectionCard: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 8 },
+  reflectionTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  streakChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  streakChipText: { fontSize: 12, fontWeight: "700" },
+  fieldLabel: { fontSize: 12, fontWeight: "600", marginTop: 6 },
+  input: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, minHeight: 44 },
+  winRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  winInput: { flex: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
+  winRemove: { padding: 2 },
+  addWin: { fontSize: 14, fontWeight: "600", marginTop: 2 },
 });
