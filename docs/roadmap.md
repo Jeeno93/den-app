@@ -61,10 +61,11 @@
 - [x] Экран «Конфиденциальность» (`app/privacy.tsx`, `/privacy`, `privacy_viewed`, строка в настройках)
 - [x] Фикс атрибуции: `acq_params_pending` в AsyncStorage + identify с `setOnce` до 5 запусков (`acq_identify_retried` / `acq_identify_gave_up`)
 - [x] `expo-build-properties`: `AsyncStorage_db_size_in_MB = 50`
-- [ ] **Коммит + сборка + публикация 1.3.1 в Play** (действие владельца/разработки)
+- [x] Коммит 1.3.1 (5 атомарных коммитов 07.11: конфиденциальность, атрибуция, share-ссылка, build-properties, карта)
+- [ ] **Сборка + публикация 1.3.1 в Play** (EAS — нужен логин владельца)
 - [ ] **Data safety в Play Console** — ответы формы подготовлены в сессии разработки
-- [ ] 🐛 Share-ссылка онбординга: `Onboarding.tsx:86` → `com.den` (не существует!), правильно `com.jeeno93.den` (`why-diary.tsx:46`) — починить в 1.3.1
-- [ ] 🐛 Проверить семантику `deeplink_params_failed` (не логировать не-первые запуски) — заявлено в фиксе 1.3.1, проверить в коде
+- [x] 🐛 Share-ссылка онбординга: `Onboarding.tsx:86` → `com.den` (не существует!), правильно `com.jeeno93.den` — починено (5c95f70)
+- [x] 🐛 `deeplink_params_failed` летел на каждом открытии: семантика проверена в коде — `NOT_A_FIRST_LAUNCH` трекался как failed → исправлено ранним return (f795a25)
 - [ ] Лендинг `server/templates/landing-page.html:368` → `host.exp.exponent`: обновить или удалить (наследие Replit)
 
 ### 1.4.0 — недельная рефлексия (неделя 2)
@@ -105,4 +106,4 @@
 2. Полное описание («О приложении») из Play Console — SEO-ревизия
 3. Data safety в Play Console (ответы готовы) — до релиза 1.3.1
 4. Скрины Play Console «Рост» (по каким запросам находят в Play)
-5. Действие: коммит/сборка/публикация 1.3.1 (код готов)
+5. Действие: сборка + публикация 1.3.1 через EAS (код и коммиты готовы 07.11)

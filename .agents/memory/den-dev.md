@@ -21,8 +21,13 @@ description: Current dev track state — releases 1.3.1/1.4.0, weekly reflection
 - Атрибуция: `appMetrica.android.ts` — параметры Install Referrer нормализуются (≤300 симв.) и сохраняются в AsyncStorage `acq_params_pending`; identify повторяется на следующих запусках до 5 раз (`setOnce` идемпотентен, клиент не может подтвердить доставку — поэтому ретраи), события `acq_identify_retried` / `acq_identify_gave_up`.
 - `app.json`: версия 1.3.1, плагин `expo-build-properties` с `AsyncStorage_db_size_in_MB: "50"` (свойство проверено в `config.gradle` async-storage 2.2.0; дефолт 6 МБ).
 - Действие владельца: **Data safety в Play Console** (список ответов — в чате сессии).
-- Осталось: typecheck, end-to-end тест атрибуции после установки релиза.
+- Осталось: end-to-end тест атрибуции после установки релиза.
 - Окружение: pnpm через `corepack pnpm@10.34.5` (просто `pnpm` нет в PATH; corepack default — 12.x, стор несовместим). Проект переехал в `Danino_new` → виртуальные сторы перелинкованы `pnpm install`.
+
+### Закрытие 1.3.1 (7 ноя)
+- 5 атомарных коммитов: `76c0780` конфиденциальность (политика + экран), `f795a25` атрибуция (ретраи + `NOT_A_FIRST_LAUNCH` больше не трекается как failed — баг подтверждён: шумел на каждом холодном старте), `5c95f70` share-ссылка онбординга `com.den → com.jeeno93.den`, `47ca2ae` кап 50 МБ + версия 1.3.1, `c573628` карта v2 + memory.
+- Осталось по 1.3.1: сборка и публикация через EAS (нужен логин владельца), Data safety в консоли (ответы готовы), e2e-тест атрибуции на устройстве.
+- 🟡 Вопрос штабу: лендинг `server/templates/landing-page.html` (ссылка на `host.exp.exponent`) — обновить или удалить как наследие Replit.
 - **1.4.0** (неделя 4): недельная рефлексия + дизайн-направление unslop.
 
 ## Недельная рефлексия (новая фича)
