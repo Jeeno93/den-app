@@ -31,8 +31,11 @@ description: Current dev track state — releases 1.3.1/1.4.0, weekly reflection
 - **1.4.0** (неделя 4): недельная рефлексия + дизайн-направление unslop.
 
 ## Недельная рефлексия (новая фича)
-Автодайджест `app/week-summary.tsx` уже существует (read-only, нужно ≥3 записей). Новое — пользовательская `WeekReflection`, ключ `week_YYYY-MM-DD` (пн): `done`, `wins[]`, `problems`, `nextWeekFocus`. Блок на week-summary поверх дайджеста, воскресный push, засчёт в streak. Затем эксперимент: автоподстановка wins из «Чем горжусь» недели (`win_prefilled_used`).
+Автодайджест `app/week-summary.tsx` уже существует (read-only, нужно ≥3 записей). Пользовательская `WeekReflection`, ключ `week_YYYY-MM-DD` (пн): `done`, `wins[]`, `problems`, `nextWeekFocus` — реализована 07.11 (коммиты 5ace4f5, 541207d, a00c0eb), typecheck чистый.
 - Гибридный принцип: данные подсказывают, человек решает — без псевдопсихологии.
+- Решения при реализации: (1) дневной streak НЕ трогаем — отдельный `getReflectionStreak()` (шаг 7 дней, текущая незаполненная неделя серию не рвёт); (2) отдельную воскресную нотификацию не плодим — существующий воскресный слот в `scheduleDailyReminders` стал рефлексионным, тумблер «Итоги недели» (`weekly_notif_enabled`, дефолт вкл.); (3) блок доступен и при <3 записях — рефлексия не зависит от автодайджеста; (4) completed = done + ≥1 win, problems/focus опциональны.
+- Воронка: `weekly_reflection_started` / `weekly_reflection_completed` с `week_start`, флаги `reflection_started_/completed_<weekStart>` в AsyncStorage — по одному разу за неделю.
+- Дальше: эксперимент автоподстановки wins из «Чем горжусь» недели (`win_prefilled_used`) — отдельным коммитом после ручного прогона.
 
 ## Дизайн-направление (аудит unslop, CC BY 4.0 — с атрибуцией)
 Решения, согласованные направления (финал — после аудита недели 1):
