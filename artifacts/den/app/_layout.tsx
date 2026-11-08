@@ -70,6 +70,8 @@ function RootLayoutNav() {
       <Stack.Screen name="year-pixels" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="patterns" options={{ headerShown: false, presentation: "card" }} />
       <Stack.Screen name="week-summary" options={{ headerShown: false, presentation: "card" }} />
+      <Stack.Screen name="summaries" options={{ headerShown: false, presentation: "card" }} />
+      <Stack.Screen name="period-summary" options={{ headerShown: false, presentation: "card" }} />
     </Stack>
   );
 }

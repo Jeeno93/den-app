@@ -229,6 +229,21 @@ export default function MemoriesScreen() {
 
         <TouchableOpacity
           style={[styles.yearPixelsBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => router.push("/summaries" as any)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.yearPixelsIcon, { backgroundColor: "#5EE6A818" }]}>
+            <Ionicons name="albums-outline" size={20} color="#5EE6A8" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Итоги недель, месяцев и годов</Text>
+            <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>Подведённые итоги в любой момент</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.yearPixelsBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => router.push("/patterns" as any)}
           activeOpacity={0.8}
         >
