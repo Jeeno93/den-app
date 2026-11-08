@@ -644,6 +644,74 @@ export async function getReflectionStreak(): Promise<number> {
   return streak;
 }
 
+// ─── Итоги месяца и года ──────────────────────────────────────────────────
+// Та же свободная рефлексия, что и для недели, но для более длинных периодов.
+// Ключи: month_YYYY-MM, year_YYYY. Недельные ключи (week_...) выше не трогаем:
+// это отдельный тип с полем weekStart и своей семантикой серии.
+
+export type PeriodKind = "month" | "year";
+
+export interface PeriodReflection {
+  period: string; // month: "2026-10", year: "2026"
+  kind: PeriodKind;
+  done: string;
+  wins: string[];
+  problems: string;
+  nextFocus: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+
+function periodStorageKey(kind: PeriodKind, period: string): string {
+  return `${kind}_${period}`;
+}
+
+function normalizePeriodReflection(kind: PeriodKind, period: string, parsed: any): PeriodReflection {
+  return {
+    period,
+    kind,
+    done: typeof parsed?.done === "string" ? parsed.done : "",
+    wins: Array.isArray(parsed?.wins) ? parsed.wins.filter((w: unknown) => typeof w === "string") : [],
+    problems: typeof parsed?.problems === "string" ? parsed.problems : "",
+    nextFocus: typeof parsed?.nextFocus === "string" ? parsed.nextFocus : "",
+    createdAt: typeof parsed?.createdAt === "string" ? parsed.createdAt : "",
+    updatedAt: typeof parsed?.updatedAt === "string" ? parsed.updatedAt : "",
+  };
+}
+
+export async function getPeriodReflection(kind: PeriodKind, period: string): Promise<PeriodReflection | null> {
+  try {
+    const raw = await AsyncStorage.getItem(periodStorageKey(kind, period));
+    if (!raw) return null;
+    return normalizePeriodReflection(kind, period, JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export async function savePeriodReflection(reflection: PeriodReflection): Promise<void> {
+  await AsyncStorage.setItem(
+    periodStorageKey(reflection.kind, reflection.period),
+    JSON.stringify(reflection)
+  );
+}
+
+export async function getAllPeriodReflections(kind: PeriodKind): Promise<PeriodReflection[]> {
+  try {
+    const prefix = `${kind}_`;
+    const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(prefix));
+    const values = await AsyncStorage.multiGet(keys);
+    const reflections: PeriodReflection[] = [];
+    for (const [key, raw] of values) {
+      if (!raw) continue;
+      reflections.push(normalizePeriodReflection(kind, key.slice(prefix.length), JSON.parse(raw)));
+    }
+    return reflections.sort((a, b) => a.period.localeCompare(b.period));
+  } catch {
+    return [];
+  }
+}
+
 // ─── Пользовательские вопросы ─────────────────────────────────────────────
 
 export interface CustomQuestions {
