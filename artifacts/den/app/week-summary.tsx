@@ -120,7 +120,7 @@ export default function WeekSummaryScreen() {
 
       {loaded && !summary && (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
-          <ReflectionBlock kind="week" period={loaded.start} theme={theme} showStreak />
+          <ReflectionBlock kind="week" period={loaded.start} theme={theme} />
           <View style={styles.empty}>
             <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
               На этой неделе пока меньше трёх записей. Автоматические итоги появятся, когда записей станет больше.
@@ -190,6 +190,20 @@ export default function WeekSummaryScreen() {
             </Section>
           )}
 
+          {summary.topTags.length > 0 && (
+            <Section title="Чаще всего" theme={theme}>
+              <View style={styles.tagsRow}>
+                {summary.topTags.map((tag) => (
+                  <View key={tag.label} style={[styles.tagChip, { backgroundColor: theme.secondary }]}>
+                    <Text style={[styles.tagText, { color: theme.foreground }]}>
+                      {tag.emoji} {tag.label} · {tag.count}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </Section>
+          )}
+
           {weekEntriesList.length > 0 && topPeople(weekEntriesList, peopleList, 3).length > 0 && (
             <Section title="Люди недели" theme={theme}>
               <View style={styles.tagsRow}>
@@ -210,44 +224,7 @@ export default function WeekSummaryScreen() {
             </Section>
           )}
 
-          {summary.topTags.length > 0 && (
-            <Section title="Чаще всего" theme={theme}>
-              <View style={styles.tagsRow}>
-                {summary.topTags.map((tag) => (
-                  <View key={tag.label} style={[styles.tagChip, { backgroundColor: theme.secondary }]}>
-                    <Text style={[styles.tagText, { color: theme.foreground }]}>
-                      {tag.emoji} {tag.label} · {tag.count}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </Section>
-          )}
-
-          {summary.tasks && (
-            <Section title="Задачи на завтра" theme={theme}>
-              <Text style={[styles.body, { color: theme.foreground }]}>
-                Запланировано {summary.tasks.planned} {plural(summary.tasks.planned, ["задача", "задачи", "задач"])}, отмечено
-                выполненными {summary.tasks.done}.
-              </Text>
-            </Section>
-          )}
-
-          {summary.extraQuote && (
-            <Section title="Из твоих записей" theme={theme}>
-              <TouchableOpacity onPress={() => openDay(summary.extraQuote!.date)} activeOpacity={0.7} style={styles.quoteBlock}>
-                <Text style={[styles.quoteDateMuted, { color: theme.mutedForeground }]}>
-                  {WEEKDAYS_CAPITAL[parseDay(summary.extraQuote.date).getDay()]}, {formatDayMonth(summary.extraQuote.date)}
-                </Text>
-                <MaskView>
-                  <Text style={[styles.quoteSource, { color: theme.mutedForeground }]}>{summary.extraQuote.source}</Text>
-                  <Text style={[styles.quote, { color: theme.foreground }]}>«{summary.extraQuote.text}»</Text>
-                </MaskView>
-              </TouchableOpacity>
-            </Section>
-          )}
-
-          <ReflectionBlock kind="week" period={loaded!.start} theme={theme} showStreak />
+          <ReflectionBlock kind="week" period={loaded!.start} theme={theme} />
 
           <Text style={[styles.footer, { color: theme.mutedForeground }]}>
             Итоги собраны на твоём телефоне из твоих записей и никуда не отправляются.

@@ -6,12 +6,10 @@ import colors from "@/constants/colors";
 import {
   getPeriodReflection,
   getReflection,
-  getReflectionStreak,
   savePeriodReflection,
   saveReflection,
   type PeriodKind,
 } from "@/src/storage/storage";
-import { plural } from "@/src/utils/entryText";
 
 type Theme = typeof colors.dark;
 
@@ -71,8 +69,6 @@ interface ReflectionBlockProps {
   /** week — понедельник "YYYY-MM-DD"; month — "YYYY-MM"; year — "YYYY". */
   period: string;
   theme: Theme;
-  /** Недельная серия показывается только у недельного блока. */
-  showStreak?: boolean;
 }
 
 /**
@@ -81,27 +77,22 @@ interface ReflectionBlockProps {
  * первое непустое поле, completed — заполнены «впечатления» и «фокус»
  * (середина опциональна), по одному разу за период.
  */
-export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionBlockProps) {
+export function ReflectionBlock({ kind, period, theme }: ReflectionBlockProps) {
   const copy = COPY[kind];
   const [done, setDone] = useState("");
   const [problems, setProblems] = useState("");
   const [focus, setFocus] = useState("");
-  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [reflection, reflectionStreak] = await Promise.all([
-        kind === "week" ? getReflection(period) : getPeriodReflection(kind, period),
-        showStreak ? getReflectionStreak() : Promise.resolve(0),
-      ]);
+      const reflection = kind === "week" ? await getReflection(period) : await getPeriodReflection(kind, period);
       if (cancelled) return;
       if (reflection) {
         setDone(reflection.done);
         setProblems(reflection.problems);
         setFocus(kind === "week" ? (reflection as any).nextWeekFocus : (reflection as any).nextFocus ?? "");
       }
-      setStreak(reflectionStreak);
     })();
     return () => {
       cancelled = true;
@@ -169,13 +160,6 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
       <View style={styles.titleRow}>
         <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>{copy.title}</Text>
-        {showStreak && streak > 0 && (
-          <View style={[styles.streakChip, { backgroundColor: theme.primary + "1A" }]}>
-            <Text style={[styles.streakChipText, { color: theme.primary }]}>
-              🔥 {streak} {plural(streak, ["неделя", "недели", "недель"])} подряд
-            </Text>
-          </View>
-        )}
       </View>
 
       <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>{copy.impressionsLabel}</Text>
