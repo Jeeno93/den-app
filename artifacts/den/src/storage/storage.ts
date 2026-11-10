@@ -644,6 +644,54 @@ export async function getReflectionStreak(): Promise<number> {
   return streak;
 }
 
+// ─── Черновики заполнения дня ─────────────────────────────────────────────
+// Незавершённое заполнение хранится отдельно от day_-записей: сохранять
+// частичный ввод как готовую запись нельзя — приложение сочло бы день
+// записанным и закрыло бы вечерний сценарий. Ключи draft_ не попадают ни в
+// getAllDays (фильтр по day_), ни в рефлексии (week_/month_/year_).
+
+export interface DayDraft {
+  date: string;
+  savedAt: string; // ISO
+  fillMode: FillMode;
+  phase: string;
+  currentQuestion: number;
+  mood: number | null;
+  answers: DayAnswers;
+  notes: string;
+  photos: string[];
+  proud: string;
+  places: string[];
+  activities: string[];
+  people: string[];
+  intensities: Record<string, Intensity | undefined>;
+  energy: number | null;
+  sleep: SleepData;
+  tasksForTomorrow: TaskItem[];
+  tasksReviewed: TaskItem[];
+}
+
+function draftKey(date: string): string {
+  return `draft_${date}`;
+}
+
+export async function getDayDraft(date: string): Promise<DayDraft | null> {
+  try {
+    const raw = await AsyncStorage.getItem(draftKey(date));
+    return raw ? (JSON.parse(raw) as DayDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveDayDraft(draft: DayDraft): Promise<void> {
+  await AsyncStorage.setItem(draftKey(draft.date), JSON.stringify(draft));
+}
+
+export async function clearDayDraft(date: string): Promise<void> {
+  await AsyncStorage.removeItem(draftKey(date));
+}
+
 // ─── Итоги месяца и года ──────────────────────────────────────────────────
 // Та же свободная рефлексия, что и для недели, но для более длинных периодов.
 // Ключи: month_YYYY-MM, year_YYYY. Недельные ключи (week_...) выше не трогаем:

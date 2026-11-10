@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import {
   Alert,
   Animated,
@@ -33,6 +34,9 @@ import {
   addCustomTag,
   getLastCelebratedMilestone,
   setLastCelebratedMilestone,
+  getDayDraft,
+  saveDayDraft,
+  clearDayDraft,
 } from "@/src/storage/storage";
 import type { CustomQuestions, DayAnswers, DayEntry, FillMode, SleepData, TaskItem, UserTags } from "@/src/storage/storage";
 import * as amplitude from "@amplitude/analytics-react-native";
@@ -194,6 +198,104 @@ export function DayFillFlow({
     getTags().then(setLoadedTags);
     getFillMode().then(setMode);
   }, []);
+
+  // ── Черновик: прогресс заполнения не должен умирать при случайном
+  // листании дней, звонке или сворачивании приложения. ──
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    // Синхронно: пока черновик новой даты не загружен, автосохранение
+    // не пишет — иначе при смене даты оно бы продублировало состояние
+    // предыдущей даты в черновик новой.
+    setDraftLoaded(false);
+    (async () => {
+      // Сначала сброс к чистому листу под новую дату, потом — черновик.
+      setAnswers(makeInitialAnswers());
+      setNotes("");
+      setPhotos([]);
+      setProud("");
+      setSelectedPlaces([]);
+      setSelectedActivities([]);
+      setSelectedPeople([]);
+      setIntensities({ learned: null, met: null, positive: null, negative: null, proud: null });
+      setEnergy(null);
+      setSleep({ bedtime: "", wakeTime: "", quality: null });
+      setTomorrowTasks(makeEmptyTomorrowTasks());
+      setReviewedTasks([]);
+      setSelectedMood(null);
+      setCurrentQuestion(0);
+      setPhase("mood");
+      const draft = await getDayDraft(date);
+      if (cancelled) return;
+      if (draft) {
+        if (draft.fillMode) setMode(draft.fillMode);
+        if (draft.mood != null) setSelectedMood(draft.mood);
+        if (draft.answers) setAnswers(draft.answers);
+        if (typeof draft.notes === "string") setNotes(draft.notes);
+        if (Array.isArray(draft.photos)) setPhotos(draft.photos);
+        if (typeof draft.proud === "string") setProud(draft.proud);
+        if (Array.isArray(draft.places)) setSelectedPlaces(draft.places);
+        if (Array.isArray(draft.activities)) setSelectedActivities(draft.activities);
+        if (Array.isArray(draft.people)) setSelectedPeople(draft.people);
+        if (draft.intensities) {
+          setIntensities((prev) => ({ ...prev, ...(draft.intensities as typeof prev) }));
+        }
+        if (draft.energy != null) setEnergy(draft.energy);
+        if (draft.sleep) setSleep(draft.sleep);
+        if (Array.isArray(draft.tasksForTomorrow) && draft.tasksForTomorrow.length > 0) {
+          setTomorrowTasks(draft.tasksForTomorrow);
+        }
+        if (Array.isArray(draft.tasksReviewed)) setReviewedTasks(draft.tasksReviewed);
+        const KNOWN_PHASES: Phase[] = ["mood", "tags", "questions", "notes", "tasks", "deep"];
+        if (KNOWN_PHASES.includes(draft.phase as Phase)) setPhase(draft.phase as Phase);
+        if (typeof draft.currentQuestion === "number") {
+          setCurrentQuestion(Math.min(Math.max(draft.currentQuestion, 0), QUESTION_KEYS.length - 1));
+        }
+      }
+      if (!cancelled) setDraftLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [date]);
+
+  // Автосохранение черновика: дебаунс, чтобы не писать в хранилище на
+  // каждый символ. Экран «Готово» не сохраняет — запись уже готова,
+  // черновик по ней снесён в handleDone.
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!draftLoaded || phase === "done") return;
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(() => {
+      saveDayDraft({
+        date,
+        savedAt: new Date().toISOString(),
+        fillMode: mode,
+        phase,
+        currentQuestion,
+        mood: selectedMood,
+        answers,
+        notes,
+        photos,
+        proud,
+        places: selectedPlaces,
+        activities: selectedActivities,
+        people: selectedPeople,
+        intensities,
+        energy,
+        sleep,
+        tasksForTomorrow: tomorrowTasks,
+        tasksReviewed: reviewedTasks,
+      }).catch(() => {});
+    }, 500);
+    return () => {
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+    };
+  }, [
+    draftLoaded, date, mode, phase, currentQuestion, selectedMood, answers, notes, photos,
+    proud, selectedPlaces, selectedActivities, selectedPeople, intensities, energy, sleep,
+    tomorrowTasks, reviewedTasks,
+  ]);
 
   // fill_started marks the user's first real interaction with the flow, not
   // just this screen mounting (it used to fire from a mount effect, which
@@ -457,6 +559,9 @@ export function DayFillFlow({
       );
       return;
     }
+
+    // День записан — черновик больше не нужен.
+    clearDayDraft(date).catch(() => {});
 
     // Запись меняет план напоминаний: сегодняшнее больше не нужно, а
     // воскресное может стать приглашением к итогам недели.
@@ -910,7 +1015,8 @@ export function DayFillFlow({
     // questions
     const qConfig = questionConfigs[currentQuestion];
     return (
-      <ScrollView
+      <KeyboardAwareScrollView
+        bottomOffset={12}
         contentContainerStyle={[styles.body, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -938,7 +1044,7 @@ export function DayFillFlow({
             onChange={(v) => setIntensity(QUESTION_INTENSITY_KEYS[currentQuestion], v)}
           />
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     );
   }
 
@@ -958,12 +1064,16 @@ export function DayFillFlow({
             </TouchableOpacity>
           )}
           <View style={styles.switcherFlex}>
-            <FillModeSwitcher
-              value={mode}
-              onChange={changeMode}
-              expanded={switcherExpanded}
-              onExpand={() => setSwitcherExpanded(true)}
-            />
+            {/* Режим выбран в начале и на экранах вопросов не нужен —
+            прячем свитчер после тегов, оставляя место контенту. */}
+            {(phase === "mood" || phase === "tags") && (
+              <FillModeSwitcher
+                value={mode}
+                onChange={changeMode}
+                expanded={switcherExpanded}
+                onExpand={() => setSwitcherExpanded(true)}
+              />
+            )}
           </View>
         </View>
       </View>
