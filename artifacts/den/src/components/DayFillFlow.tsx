@@ -1036,13 +1036,20 @@ export function DayFillFlow({
           <PeoplePicker selected={selectedPeople} onChange={setSelectedPeople} />
         )}
         {currentQuestion < QUESTION_INTENSITY_KEYS.length &&
-          QUESTION_KEYS[currentQuestion] !== "met" &&
-          qConfig.getValue(answers).trim().length > 0 && (
-          <IntensityPicker
-            config={INTENSITY_CONFIGS[QUESTION_INTENSITY_KEYS[currentQuestion]]}
-            value={intensities[QUESTION_INTENSITY_KEYS[currentQuestion]]}
-            onChange={(v) => setIntensity(QUESTION_INTENSITY_KEYS[currentQuestion], v)}
-          />
+          QUESTION_KEYS[currentQuestion] !== "met" && (
+          // Пикер занимает место всегда (скрыт прозрачностью), а не
+          // монтируется после первого символа: иначе появление сдвигает
+          // разметку и поле ввода уезжает под клавиатуру.
+          <View
+            style={{ opacity: qConfig.getValue(answers).trim().length > 0 ? 1 : 0 }}
+            pointerEvents={qConfig.getValue(answers).trim().length > 0 ? "auto" : "none"}
+          >
+            <IntensityPicker
+              config={INTENSITY_CONFIGS[QUESTION_INTENSITY_KEYS[currentQuestion]]}
+              value={intensities[QUESTION_INTENSITY_KEYS[currentQuestion]]}
+              onChange={(v) => setIntensity(QUESTION_INTENSITY_KEYS[currentQuestion], v)}
+            />
+          </View>
         )}
       </KeyboardAwareScrollView>
     );
