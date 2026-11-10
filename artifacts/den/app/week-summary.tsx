@@ -7,11 +7,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { formatDate, getAllDays, getTags } from "@/src/storage/storage";
+import { formatDate, getAllDays, getTags, type DayEntry, type TagItem } from "@/src/storage/storage";
 import { getMoodColor, getMoodEmoji } from "@/src/components/MoodPicker";
 import { MaskView } from "@/src/components/MaskView";
 import { ReflectionBlock } from "@/src/components/ReflectionBlock";
-import { WEEKDAYS_CAPITAL, formatDayMonth, parseDay, plural, tagLookup } from "@/src/utils/entryText";
+import { WEEKDAYS_CAPITAL, addDays, formatDayMonth, parseDay, plural, tagLookup } from "@/src/utils/entryText";
+import { topLearned, topPeople, topProud, type HighlightQuote } from "@/src/utils/periodHighlights";
+import { getPeople } from "@/src/data/people";
 import {
   buildWeeklySummary,
   formatWeekRange,
@@ -36,6 +38,29 @@ function Section({ title, theme, children }: { title: string; theme: Theme; chil
   );
 }
 
+/** Компактная строка-момент: дата + цитата, тап открывает день. */
+function QuoteRows({ quotes, theme }: { quotes: HighlightQuote[]; theme: Theme }) {
+  return (
+    <View style={styles.quoteList}>
+      {quotes.map((q) => (
+        <TouchableOpacity
+          key={q.date}
+          onPress={() => router.push({ pathname: "/day-detail", params: { date: q.date } } as any)}
+          activeOpacity={0.7}
+          style={styles.quoteRow}
+        >
+          <Text style={[styles.quoteDateMuted, { color: theme.mutedForeground }]}>
+            {WEEKDAYS_CAPITAL[parseDay(q.date).getDay()]}, {formatDayMonth(q.date)}
+          </Text>
+          <MaskView>
+            <Text style={[styles.quote, { color: theme.foreground }]}>«{q.text}»</Text>
+          </MaskView>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
 function openDay(date: string) {
   router.push({ pathname: "/day-detail", params: { date } } as any);
 }
@@ -46,14 +71,19 @@ export default function WeekSummaryScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ start?: string; source?: string }>();
   const [loaded, setLoaded] = useState<{ start: string; summary: WeeklySummary | null } | null>(null);
+  const [peopleList, setPeopleList] = useState<TagItem[]>([]);
+  const [weekEntriesList, setWeekEntriesList] = useState<DayEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const todayStr = formatDate(new Date());
       const start = params.start || summaryWeekFor(todayStr) || weekStartOf(todayStr);
-      const [all, tags] = await Promise.all([getAllDays(), getTags()]);
+      const [all, tags, people] = await Promise.all([getAllDays(), getTags(), getPeople()]);
       if (cancelled) return;
+      setPeopleList(people);
+      const weekEnd = addDays(start, 6);
+      setWeekEntriesList(all.filter((e) => e.date >= start && e.date <= weekEnd));
       const summary = buildWeeklySummary(all, start, tagLookup(tags));
       setLoaded({ start, summary });
       if (summary) {
@@ -101,12 +131,6 @@ export default function WeekSummaryScreen() {
 
       {summary && (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
-          <ReflectionBlock kind="week" period={loaded!.start} theme={theme} showStreak />
-          <Text style={[styles.headline, { color: theme.foreground }]}>{summaryHeadline(summary)}</Text>
-          {summaryComparison(summary) && (
-            <Text style={[styles.comparison, { color: theme.mutedForeground }]}>{summaryComparison(summary)}</Text>
-          )}
-
           <Section
             title={`${summary.entryCount} ${plural(summary.entryCount, ["запись", "записи", "записей"])} из 7 дней`}
             theme={theme}
@@ -136,6 +160,11 @@ export default function WeekSummaryScreen() {
             </View>
           </Section>
 
+          <Text style={[styles.headline, { color: theme.foreground }]}>{summaryHeadline(summary)}</Text>
+          {summaryComparison(summary) && (
+            <Text style={[styles.comparison, { color: theme.mutedForeground }]}>{summaryComparison(summary)}</Text>
+          )}
+
           {summary.brightest && (
             <Section title="Самый светлый день" theme={theme}>
               <TouchableOpacity onPress={() => openDay(summary.brightest!.date)} activeOpacity={0.7} style={styles.quoteBlock}>
@@ -152,6 +181,32 @@ export default function WeekSummaryScreen() {
                   </MaskView>
                 )}
               </TouchableOpacity>
+            </Section>
+          )}
+
+          {weekEntriesList.length > 0 && topProud(weekEntriesList, 3).length > 0 && (
+            <Section title="Гордость недели" theme={theme}>
+              <QuoteRows quotes={topProud(weekEntriesList, 3)} theme={theme} />
+            </Section>
+          )}
+
+          {weekEntriesList.length > 0 && topPeople(weekEntriesList, peopleList, 3).length > 0 && (
+            <Section title="Люди недели" theme={theme}>
+              <View style={styles.tagsRow}>
+                {topPeople(weekEntriesList, peopleList, 3).map((person) => (
+                  <View key={person.id} style={[styles.tagChip, { backgroundColor: theme.secondary }]}>
+                    <Text style={[styles.tagText, { color: theme.foreground }]}>
+                      {person.emoji} {person.label} · {person.count} {plural(person.count, ["день", "дня", "дней"])}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </Section>
+          )}
+
+          {weekEntriesList.length > 0 && topLearned(weekEntriesList, 3).length > 0 && (
+            <Section title="Открытия недели" theme={theme}>
+              <QuoteRows quotes={topLearned(weekEntriesList, 3)} theme={theme} />
             </Section>
           )}
 
@@ -192,6 +247,8 @@ export default function WeekSummaryScreen() {
             </Section>
           )}
 
+          <ReflectionBlock kind="week" period={loaded!.start} theme={theme} showStreak />
+
           <Text style={[styles.footer, { color: theme.mutedForeground }]}>
             Итоги собраны на твоём телефоне из твоих записей и никуда не отправляются.
           </Text>
@@ -220,6 +277,8 @@ const styles = StyleSheet.create({
   dayEmoji: { fontSize: 16 },
   dayLabel: { fontSize: 10, fontWeight: "600", textTransform: "uppercase" },
   quoteBlock: { gap: 6 },
+  quoteList: { gap: 12 },
+  quoteRow: { gap: 2 },
   quoteDate: { fontSize: 15, fontWeight: "600" },
   quoteDateMuted: { fontSize: 13 },
 
