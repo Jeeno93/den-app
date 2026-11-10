@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as amplitude from "@amplitude/analytics-react-native";
-import { Ionicons } from "@expo/vector-icons";
 import colors from "@/constants/colors";
 import {
   getPeriodReflection,
@@ -18,14 +17,26 @@ type Theme = typeof colors.dark;
 
 export type ReflectionBlockKind = PeriodKind | "week";
 
-const MAX_WINS = 5;
-
 const COPY: Record<
   ReflectionBlockKind,
-  { title: string; focusLabel: string; started: string; completed: string; periodProp: string }
+  {
+    title: string;
+    impressionsLabel: string;
+    impressionsPlaceholder: string;
+    unexpectedLabel: string;
+    unexpectedPlaceholder: string;
+    focusLabel: string;
+    started: string;
+    completed: string;
+    periodProp: string;
+  }
 > = {
   week: {
     title: "Твой взгляд на неделю",
+    impressionsLabel: "Главные воспоминания и общие впечатления",
+    impressionsPlaceholder: "Что запомнится из этой недели?",
+    unexpectedLabel: "Что сложилось не так, как ожидалось",
+    unexpectedPlaceholder: "Без самокритики — просто факты",
     focusLabel: "Фокус на следующую неделю",
     started: "weekly_reflection_started",
     completed: "weekly_reflection_completed",
@@ -33,6 +44,10 @@ const COPY: Record<
   },
   month: {
     title: "Твой взгляд на месяц",
+    impressionsLabel: "Главные впечатления месяца",
+    impressionsPlaceholder: "Что запомнится из этого месяца?",
+    unexpectedLabel: "Что сложилось не так, как ожидалось",
+    unexpectedPlaceholder: "Без самокритики — просто факты",
     focusLabel: "Фокус на следующий месяц",
     started: "monthly_reflection_started",
     completed: "monthly_reflection_completed",
@@ -40,6 +55,10 @@ const COPY: Record<
   },
   year: {
     title: "Твой взгляд на год",
+    impressionsLabel: "Главное за год",
+    impressionsPlaceholder: "Что ты вынесешь из этого года?",
+    unexpectedLabel: "Что сложилось не так, как ожидалось",
+    unexpectedPlaceholder: "Без самокритики — просто факты",
     focusLabel: "Фокус на следующий год",
     started: "yearly_reflection_started",
     completed: "yearly_reflection_completed",
@@ -57,16 +76,14 @@ interface ReflectionBlockProps {
 }
 
 /**
- * Свободная рефлексия за период: что сделано, микроуспехи, что не пошло,
- * фокус на следующий период. Сохранение — по коммиту поля (идиома DayEntry).
- * Воронка: started — первое непустое наполнение, completed — заполнены
- * «сделано» и хотя бы один микроуспех (проблемы/фокус — опциональны),
- * по одному разу за период.
+ * Свободная рефлексия за период: впечатления, что не сложилось, фокус.
+ * Сохранение — по коммиту поля (идиома DayEntry). Воронка: started —
+ * первое непустое поле, completed — заполнены «впечатления» и «фокус»
+ * (середина опциональна), по одному разу за период.
  */
 export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionBlockProps) {
   const copy = COPY[kind];
   const [done, setDone] = useState("");
-  const [wins, setWins] = useState<string[]>([]);
   const [problems, setProblems] = useState("");
   const [focus, setFocus] = useState("");
   const [streak, setStreak] = useState(0);
@@ -75,15 +92,12 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
     let cancelled = false;
     (async () => {
       const [reflection, reflectionStreak] = await Promise.all([
-        kind === "week"
-          ? getReflection(period)
-          : getPeriodReflection(kind, period),
+        kind === "week" ? getReflection(period) : getPeriodReflection(kind, period),
         showStreak ? getReflectionStreak() : Promise.resolve(0),
       ]);
       if (cancelled) return;
       if (reflection) {
         setDone(reflection.done);
-        setWins(reflection.wins);
         setProblems(reflection.problems);
         setFocus(kind === "week" ? (reflection as any).nextWeekFocus : (reflection as any).nextFocus ?? "");
       }
@@ -94,16 +108,16 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
     };
   }, [kind, period]);
 
-  async function trackFunnel(next: { done: string; wins: string[]; problems: string; focus: string }) {
+  async function trackFunnel(next: { done: string; problems: string; focus: string }) {
     try {
       const props = { [copy.periodProp]: period };
-      const hasCore = next.done.trim().length > 0 || next.wins.some((w) => w.trim().length > 0);
+      const hasContent = [next.done, next.problems, next.focus].some((v) => v.trim().length > 0);
       const startedKey = `reflection_started_${kind}_${period}`;
-      if (hasCore && !(await AsyncStorage.getItem(startedKey))) {
+      if (hasContent && !(await AsyncStorage.getItem(startedKey))) {
         await AsyncStorage.setItem(startedKey, "1");
         amplitude.track(copy.started, props);
       }
-      const coreDone = next.done.trim().length > 0 && next.wins.some((w) => w.trim().length > 0);
+      const coreDone = next.done.trim().length > 0 && next.focus.trim().length > 0;
       const completedKey = `reflection_completed_${kind}_${period}`;
       if (coreDone && !(await AsyncStorage.getItem(completedKey))) {
         await AsyncStorage.setItem(completedKey, "1");
@@ -112,7 +126,7 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
     } catch {}
   }
 
-  async function persist(next: { done: string; wins: string[]; problems: string; focus: string }) {
+  async function persist(next: { done: string; problems: string; focus: string }) {
     try {
       const now = new Date().toISOString();
       if (kind === "week") {
@@ -120,7 +134,7 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
         await saveReflection({
           weekStart: period,
           done: next.done,
-          wins: next.wins,
+          wins: existing?.wins ?? [],
           problems: next.problems,
           nextWeekFocus: next.focus,
           createdAt: existing?.createdAt ?? now,
@@ -132,7 +146,7 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
           kind,
           period,
           done: next.done,
-          wins: next.wins,
+          wins: existing?.wins ?? [],
           problems: next.problems,
           nextFocus: next.focus,
           createdAt: existing?.createdAt ?? now,
@@ -144,30 +158,11 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
   }
 
   function commitField(field: "done" | "problems" | "focus", value: string) {
-    const next = { done, wins, problems, focus, [field]: value };
+    const next = { done, problems, focus, [field]: value };
     if (field === "done") setDone(value);
     if (field === "problems") setProblems(value);
     if (field === "focus") setFocus(value);
     persist(next);
-  }
-
-  function commitWin(index: number, value: string) {
-    const nextWins = wins.map((w, i) => (i === index ? value : w));
-    setWins(nextWins);
-    persist({ done, wins: nextWins, problems, focus });
-  }
-
-  function addWin() {
-    if (wins.length >= MAX_WINS) return;
-    const nextWins = [...wins, ""];
-    setWins(nextWins);
-    persist({ done, wins: nextWins, problems, focus });
-  }
-
-  function removeWin(index: number) {
-    const nextWins = wins.filter((_, i) => i !== index);
-    setWins(nextWins);
-    persist({ done, wins: nextWins, problems, focus });
   }
 
   return (
@@ -183,46 +178,24 @@ export function ReflectionBlock({ kind, period, theme, showStreak }: ReflectionB
         )}
       </View>
 
-      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>Что было сделано</Text>
+      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>{copy.impressionsLabel}</Text>
       <TextInput
         style={[styles.input, { backgroundColor: theme.secondary, color: theme.foreground }]}
         value={done}
         onChangeText={setDone}
         onEndEditing={(e) => commitField("done", e.nativeEvent.text)}
-        placeholder="Главные дела и события периода"
+        placeholder={copy.impressionsPlaceholder}
         placeholderTextColor={theme.mutedForeground}
         multiline
       />
 
-      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>Микроуспехи</Text>
-      {wins.map((win, index) => (
-        <View key={index} style={styles.winRow}>
-          <TextInput
-            style={[styles.winInput, { backgroundColor: theme.secondary, color: theme.foreground }]}
-            value={win}
-            onChangeText={(v) => setWins(wins.map((w, i) => (i === index ? v : w)))}
-            onEndEditing={(e) => commitWin(index, e.nativeEvent.text)}
-            placeholder={`Успех ${index + 1}`}
-            placeholderTextColor={theme.mutedForeground}
-          />
-          <TouchableOpacity onPress={() => removeWin(index)} activeOpacity={0.7} style={styles.winRemove}>
-            <Ionicons name="close-circle" size={20} color={theme.mutedForeground} />
-          </TouchableOpacity>
-        </View>
-      ))}
-      {wins.length < MAX_WINS && (
-        <TouchableOpacity onPress={addWin} activeOpacity={0.7}>
-          <Text style={[styles.addWin, { color: theme.primary }]}>+ Добавить успех</Text>
-        </TouchableOpacity>
-      )}
-
-      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>Что не пошло</Text>
+      <Text style={[styles.fieldLabel, { color: theme.mutedForeground }]}>{copy.unexpectedLabel}</Text>
       <TextInput
         style={[styles.input, { backgroundColor: theme.secondary, color: theme.foreground }]}
         value={problems}
         onChangeText={setProblems}
         onEndEditing={(e) => commitField("problems", e.nativeEvent.text)}
-        placeholder="Что не получилось и почему"
+        placeholder={copy.unexpectedPlaceholder}
         placeholderTextColor={theme.mutedForeground}
         multiline
       />
@@ -248,8 +221,4 @@ const styles = StyleSheet.create({
   streakChipText: { fontSize: 12, fontWeight: "700" },
   fieldLabel: { fontSize: 12, fontWeight: "600", marginTop: 6 },
   input: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, minHeight: 44 },
-  winRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  winInput: { flex: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
-  winRemove: { padding: 2 },
-  addWin: { fontSize: 14, fontWeight: "600", marginTop: 2 },
 });

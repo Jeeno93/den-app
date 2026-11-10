@@ -6,10 +6,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
 import colors from "@/constants/colors";
-import { formatDate, getAllDays, getTags, type PeriodKind } from "@/src/storage/storage";
+import { formatDate, getAllDays, getTags, type DayEntry, type PeriodKind, type TagItem } from "@/src/storage/storage";
 import { ReflectionBlock } from "@/src/components/ReflectionBlock";
 import { isValidMood } from "@/src/utils/mood";
-import { MONTHS_NOMINATIVE, plural, tagLookup } from "@/src/utils/entryText";
+import { MaskView } from "@/src/components/MaskView";
+import { MONTHS_NOMINATIVE, formatDayMonth, parseDay, plural, tagLookup } from "@/src/utils/entryText";
+import {
+  topLearned,
+  topPeople,
+  topProud,
+  truncateHighlight,
+  type HighlightQuote,
+} from "@/src/utils/periodHighlights";
+import { getPeople } from "@/src/data/people";
 
 type Theme = typeof colors.dark;
 
@@ -18,6 +27,29 @@ function Section({ title, theme, children }: { title: string; theme: Theme; chil
     <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
       <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>{title}</Text>
       {children}
+    </View>
+  );
+}
+
+/** Однострочный момент с обрезкой: месяц и год компактные, тап — к дню. */
+function CompactQuoteRows({ quotes, theme }: { quotes: HighlightQuote[]; theme: Theme }) {
+  return (
+    <View style={styles.quoteList}>
+      {quotes.map((q) => (
+        <TouchableOpacity
+          key={q.date}
+          onPress={() => router.push({ pathname: "/day-detail", params: { date: q.date } } as any)}
+          activeOpacity={0.7}
+          style={styles.quoteRow}
+        >
+          <Text style={[styles.quoteDate, { color: theme.mutedForeground }]}>{formatDayMonth(q.date)}</Text>
+          <MaskView>
+            <Text style={[styles.quote, { color: theme.foreground }]} numberOfLines={1}>
+              «{truncateHighlight(q.text)}»
+            </Text>
+          </MaskView>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
@@ -31,10 +63,10 @@ function periodLabel(kind: PeriodKind, period: string): string {
 }
 
 /**
- * Итоги месяца или года: короткая автоматическая сводка (записи, среднее
- * настроение, частые теги) + свободная рефлексия. Доступен только за
- * закончившиеся периоды — подводить итоги незаконченного месяца или года
- * рано, это половинчатый снимок.
+ * Итоги месяца или года: автоматические подборки (записи, настроение,
+ * гордость, люди, открытия, частые теги) + свободная рефлексия. Доступен
+ * только за закончившиеся периоды — подводить итоги незаконченного
+ * периода рано, это половинчатый снимок.
  */
 export default function PeriodSummaryScreen() {
   const { isDark } = useTheme();
@@ -47,9 +79,10 @@ export default function PeriodSummaryScreen() {
   const [loaded, setLoaded] = useState<{
     period: string;
     ended: boolean;
-    entries: number;
+    entries: DayEntry[];
     avgMood: number | null;
     topTags: { emoji: string; label: string; count: number }[];
+    peopleList: TagItem[];
   } | null>(null);
 
   useEffect(() => {
@@ -59,10 +92,10 @@ export default function PeriodSummaryScreen() {
       const currentPeriod = kind === "month" ? today.slice(0, 7) : today.slice(0, 4);
       const ended = period < currentPeriod;
       if (!ended) {
-        if (!cancelled) setLoaded({ period, ended, entries: 0, avgMood: null, topTags: [] });
+        if (!cancelled) setLoaded({ period, ended, entries: [], avgMood: null, topTags: [], peopleList: [] });
         return;
       }
-      const [all, tags] = await Promise.all([getAllDays(), getTags()]);
+      const [all, tags, people] = await Promise.all([getAllDays(), getTags(), getPeople()]);
       if (cancelled) return;
       const entries = all.filter((e) =>
         kind === "month" ? e.date.slice(0, 7) === period : e.date.startsWith(period)
@@ -85,10 +118,10 @@ export default function PeriodSummaryScreen() {
           return info ? { ...info, count } : null;
         })
         .filter((t): t is { emoji: string; label: string; count: number } => t !== null)
-        .slice(0, 3);
+        .slice(0, 5);
 
       if (!cancelled) {
-        setLoaded({ period, ended, entries: entries.length, avgMood, topTags });
+        setLoaded({ period, ended, entries, avgMood, topTags, peopleList: people });
         amplitude.track("period_summary_viewed", {
           kind,
           period,
@@ -132,35 +165,66 @@ export default function PeriodSummaryScreen() {
 
       {loaded && loaded.ended && (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
-          <ReflectionBlock kind={kind} period={loaded.period} theme={theme} />
+          {loaded.entries.length > 0 ? (
+            <>
+              <Section
+                title={`${loaded.entries.length} ${plural(loaded.entries.length, ["запись", "записи", "записей"])}`}
+                theme={theme}
+              >
+                {loaded.avgMood !== null && (
+                  <Text style={[styles.body, { color: theme.foreground }]}>
+                    Среднее настроение: {loaded.avgMood.toFixed(1)} из 5
+                  </Text>
+                )}
+              </Section>
 
-          {loaded.entries > 0 ? (
-            <Section
-              title={`${loaded.entries} ${plural(loaded.entries, ["запись", "записи", "записей"])}`}
-              theme={theme}
-            >
-              {loaded.avgMood !== null && (
-                <Text style={[styles.body, { color: theme.foreground }]}>
-                  Среднее настроение: {loaded.avgMood.toFixed(1)} из 5
-                </Text>
+              {topProud(loaded.entries, 5).length > 0 && (
+                <Section title="Гордость" theme={theme}>
+                  <CompactQuoteRows quotes={topProud(loaded.entries, 5)} theme={theme} />
+                </Section>
               )}
+
+              {topPeople(loaded.entries, loaded.peopleList, 5).length > 0 && (
+                <Section title="Люди" theme={theme}>
+                  <View style={styles.tagsRow}>
+                    {topPeople(loaded.entries, loaded.peopleList, 5).map((person) => (
+                      <View key={person.id} style={[styles.tagChip, { backgroundColor: theme.secondary }]}>
+                        <Text style={[styles.tagText, { color: theme.foreground }]}>
+                          {person.emoji} {person.label} · {person.count} {plural(person.count, ["день", "дня", "дней"])}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </Section>
+              )}
+
+              {topLearned(loaded.entries, 5).length > 0 && (
+                <Section title="Открытия" theme={theme}>
+                  <CompactQuoteRows quotes={topLearned(loaded.entries, 5)} theme={theme} />
+                </Section>
+              )}
+
               {loaded.topTags.length > 0 && (
-                <View style={styles.tagsRow}>
-                  {loaded.topTags.map((tag) => (
-                    <View key={tag.label} style={[styles.tagChip, { backgroundColor: theme.secondary }]}>
-                      <Text style={[styles.tagText, { color: theme.foreground }]}>
-                        {tag.emoji} {tag.label} · {tag.count}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+                <Section title="Чаще всего" theme={theme}>
+                  <View style={styles.tagsRow}>
+                    {loaded.topTags.map((tag) => (
+                      <View key={tag.label} style={[styles.tagChip, { backgroundColor: theme.secondary }]}>
+                        <Text style={[styles.tagText, { color: theme.foreground }]}>
+                          {tag.emoji} {tag.label} · {tag.count}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </Section>
               )}
-            </Section>
+            </>
           ) : (
             <Text style={[styles.hint, { color: theme.mutedForeground }]}>
               В этом периоде нет записей дней — только твой итог.
             </Text>
           )}
+
+          <ReflectionBlock kind={kind} period={loaded.period} theme={theme} />
 
           <Text style={[styles.footer, { color: theme.mutedForeground }]}>
             Итоги собраны на твоём телефоне из твоих записей и никуда не отправляются.
@@ -183,6 +247,10 @@ const styles = StyleSheet.create({
   section: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 10 },
   sectionTitle: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
   body: { fontSize: 15, lineHeight: 22 },
+  quoteList: { gap: 10 },
+  quoteRow: { gap: 2 },
+  quoteDate: { fontSize: 12 },
+  quote: { fontSize: 15, lineHeight: 21 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tagChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14 },
   tagText: { fontSize: 14 },
