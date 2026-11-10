@@ -143,7 +143,7 @@ export default function SummariesScreen() {
           <Ionicons name="chevron-back" size={20} color={theme.mutedForeground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: theme.foreground }]}>Итоги</Text>
+          <Text style={[styles.headerTitle, { color: theme.foreground }]}>Вехи</Text>
         </View>
         <View style={styles.backBtn} />
       </View>
@@ -152,14 +152,14 @@ export default function SummariesScreen() {
         {isEmpty && (
           <View style={styles.empty}>
             <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
-              Здесь появятся итоги твоих недель, месяцев и годов. Записывай дни — архив наполнится сам.
+              Здесь появятся вехи — итоги твоих недель, месяцев и годов. Записывай дни, архив наполнится сам.
             </Text>
           </View>
         )}
 
         {weeks.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Недели</Text>
+            <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>По неделям</Text>
             {weeks.map((w) => (
               <Row key={w.period} row={w} />
             ))}
@@ -168,7 +168,7 @@ export default function SummariesScreen() {
 
         {months.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Месяцы</Text>
+            <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>По месяцам</Text>
             {months.map((m) => (
               <Row key={m.period} row={m} />
             ))}
@@ -177,7 +177,7 @@ export default function SummariesScreen() {
 
         {years.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>Годы</Text>
+            <Text style={[styles.sectionLabel, { color: theme.mutedForeground }]}>По годам</Text>
             {years.map((y) => (
               <Row key={y.period} row={y} />
             ))}

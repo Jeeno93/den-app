@@ -236,8 +236,8 @@ export default function MemoriesScreen() {
             <Ionicons name="albums-outline" size={20} color="#5EE6A8" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Итоги недель, месяцев и годов</Text>
-            <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>Подведённые итоги в любой момент</Text>
+            <Text style={[styles.yearPixelsTitle, { color: theme.foreground }]}>Вехи</Text>
+            <Text style={[styles.yearPixelsSub, { color: theme.mutedForeground }]}>Недели, месяцы и годы — в любой момент</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.mutedForeground} />
         </TouchableOpacity>
