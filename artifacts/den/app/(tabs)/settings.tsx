@@ -21,7 +21,19 @@ import * as DocumentPicker from "expo-document-picker";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useNotifications } from "@/src/context/NotificationContext";
 import colors from "@/constants/colors";
-import { getAllDays, saveDay, getDiagnostics } from "@/src/storage/storage";
+import {
+  getAllDays,
+  saveDay,
+  getDiagnostics,
+  getTags,
+  saveTags,
+  getLetters,
+  upsertLetter,
+  getAllReflections,
+  getAllPeriodReflections,
+  saveReflection,
+  savePeriodReflection,
+} from "@/src/storage/storage";
 import type { DayEntry } from "@/src/storage/storage";
 import { TimeSelector } from "@/src/components/TimeSelector";
 import { authenticate, canUseAppLock, isAppLockEnabled, setAppLockEnabled } from "@/src/utils/appLock";
@@ -110,11 +122,36 @@ export default function SettingsScreen() {
 
       const today = new Date().toISOString().slice(0, 10);
       const fileName = `den_backup_${today}.json`;
-      const payload = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries }, null, 2);
+      // v2: помимо записей — письма себе, теги и рефлексии. Фото в бэкап
+      // не входят: это пути в локальной файловой системе устройства, на
+      // другом телефоне они не откроются.
+      const [tags, letters, weekReflections, monthReflections, yearReflections] = await Promise.all([
+        getTags(),
+        getLetters(),
+        getAllReflections(),
+        getAllPeriodReflections("month"),
+        getAllPeriodReflections("year"),
+      ]);
+      const payload = JSON.stringify(
+        {
+          version: 2,
+          exportedAt: new Date().toISOString(),
+          entries,
+          tags,
+          letters,
+          reflections: {
+            weeks: weekReflections,
+            months: monthReflections,
+            years: yearReflections,
+          },
+        },
+        null,
+        2
+      );
 
       Alert.alert(
         "Экспортировать данные",
-        `Будет экспортировано ${entries.length} ${recordWord(entries.length)}.`,
+        `Будет экспортировано: записей — ${entries.length}, писем — ${letters.length}, плюс теги и итоги.`,
         [
           { text: "Отмена", style: "cancel" },
           {
@@ -203,9 +240,26 @@ export default function SettingsScreen() {
         return;
       }
 
+      const isV2 = !Array.isArray(parsed) && Number(parsed?.version) >= 2;
+      const extraCounts = isV2
+        ? {
+            letters: Array.isArray(parsed?.letters) ? parsed.letters.length : 0,
+            reflections: (() => {
+              const r = parsed?.reflections ?? {};
+              return (
+                (Array.isArray(r.weeks) ? r.weeks.length : 0) +
+                (Array.isArray(r.months) ? r.months.length : 0) +
+                (Array.isArray(r.years) ? r.years.length : 0)
+              );
+            })(),
+          }
+        : null;
+
       Alert.alert(
         "Восстановить данные",
-        `Найдено ${valid.length} ${recordWord(valid.length)}. Восстановить?\n\nСуществующие записи за те же даты будут перезаписаны.`,
+        extraCounts
+          ? `Найдено: записей — ${valid.length}, писем — ${extraCounts.letters}, итогов — ${extraCounts.reflections}.\n\nЗаписи за совпадающие даты будут перезаписаны, письма и итоги дополнены.`
+          : `Найдено ${valid.length} ${recordWord(valid.length)}. Восстановить?\n\nСуществующие записи за те же даты будут перезаписаны.`,
         [
           { text: "Отмена", style: "cancel" },
           {
@@ -215,10 +269,47 @@ export default function SettingsScreen() {
                 for (const entry of valid) {
                   await saveDay(entry.date, entry);
                 }
-                Alert.alert("Готово", `Восстановлено ${valid.length} ${recordWord(valid.length)}.`);
+                if (isV2) {
+                  // Теги: объединение по id — свежие локальные не теряем.
+                  if (parsed.tags && (Array.isArray(parsed.tags.places) || Array.isArray(parsed.tags.activities))) {
+                    const local = await getTags();
+                    const mergeById = (localItems: any[], importedItems: any[]) => {
+                      const ids = new Set(localItems.map((t) => t?.id));
+                      return [...localItems, ...importedItems.filter((t) => t?.id && !ids.has(t.id))];
+                    };
+                    await saveTags({
+                      places: mergeById(local.places, parsed.tags.places ?? []),
+                      activities: mergeById(local.activities, parsed.tags.activities ?? []),
+                    });
+                  }
+                  // Письма: добавляем отсутствующие; существующие не трогаем —
+                  // локальный статус «прочитано» важнее старого бэкапа.
+                  if (Array.isArray(parsed.letters)) {
+                    const local = await getLetters();
+                    const ids = new Set(local.map((l) => l.id));
+                    for (const letter of parsed.letters) {
+                      if (letter?.id && !ids.has(letter.id)) await upsertLetter(letter);
+                    }
+                  }
+                  // Рефлексии: дополняем по ключам периодов.
+                  const r = parsed.reflections ?? {};
+                  if (Array.isArray(r.weeks)) {
+                    for (const w of r.weeks) if (w?.weekStart) await saveReflection(w);
+                  }
+                  if (Array.isArray(r.months)) {
+                    for (const m of r.months) if (m?.period) await savePeriodReflection({ kind: "month" as const, ...m });
+                  }
+                  if (Array.isArray(r.years)) {
+                    for (const y of r.years) if (y?.period) await savePeriodReflection({ kind: "year" as const, ...y });
+                  }
+                }
+                Alert.alert(
+                  "Готово",
+                  `Восстановлено ${valid.length} ${recordWord(valid.length)}${extraCounts ? ", остальное дополнено." : "."}`
+                );
               } catch (err) {
                 console.error("[import]", err);
-                Alert.alert("Ошибка", "Не удалось сохранить часть записей.");
+                Alert.alert("Ошибка", "Не удалось сохранить часть данных.");
               }
             },
           },
