@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- «Зажжённый пиксель»: тёплый уголь + один мятный пиксель — сигнатура «Года в пикселях» -->
+  <rect width="1024" height="1024" rx="236" fill="#0E0C0A"/>
+  <rect x="2" y="2" width="1020" height="1020" rx="234" fill="none" stroke="#F3EDE3" stroke-opacity="0.05" stroke-width="2"/>
+  <rect x="342" y="342" width="340" height="340" rx="72" fill="#5EE6A8"/>
+</svg>
